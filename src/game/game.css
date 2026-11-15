@@ -249,9 +249,20 @@
   border-top: var(--border);
   background: var(--color-bg);
 }
-.action-form .actions {
-  margin-top: var(--space-2);
-  justify-content: flex-end;
+/* Input and send button side by side; the button stays at the bottom
+   edge as the textarea grows. */
+.action-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-2);
+}
+.action-send {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
 }
 
 /* Scene drawer. The <dialog> covers the screen so its backdrop catches
@@ -468,6 +479,7 @@
 }
 
 .action-input {
+  min-height: 2.75rem;
   resize: none;
   max-height: 12rem;
   overflow-y: auto;

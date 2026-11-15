@@ -264,28 +264,44 @@ export default function Game() {
             </svg>
           </button>
         )}
-        <label className="field">
-          <span>¿Qué hacés?</span>
-          <textarea
-            ref={draftRef}
-            className="action-input"
-            rows={1}
-            value={draft}
-            disabled={!canAct}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={(event) => {
-              // Enter sends, Shift+Enter makes a new line.
-              if (event.key === "Enter" && !event.shiftKey) submitAction(event);
-            }}
-            placeholder={
-              playerRoll ? "Escribí el total de tu tirada…" : "Describí la acción de tu personaje…"
-            }
-          />
-        </label>
-        <div className="actions">
-          <button type="submit" className="button button--primary" disabled={!canAct || draft.trim() === ""}>
-            Enviar
-          </button>
+        <div className="field">
+          <label htmlFor="action-input">¿Qué hacés?</label>
+          <div className="action-row">
+            <textarea
+              id="action-input"
+              ref={draftRef}
+              className="action-input"
+              rows={1}
+              value={draft}
+              disabled={!canAct}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={(event) => {
+                // Enter sends, Shift+Enter makes a new line.
+                if (event.key === "Enter" && !event.shiftKey) submitAction(event);
+              }}
+              placeholder={
+                playerRoll ? "Escribí el total de tu tirada…" : "Describí la acción de tu personaje…"
+              }
+            />
+            <button
+              type="submit"
+              className="button button--primary action-send"
+              aria-label="Enviar"
+              title="Enviar"
+              disabled={!canAct || draft.trim() === ""}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                <path
+                  d="M21 3 3 10.5l7 2.5 2.5 7L21 3Zm0 0L10 13"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
       </form>
     </section>
