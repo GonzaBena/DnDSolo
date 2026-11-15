@@ -16,8 +16,18 @@ describe("docs/partida-mock.json", () => {
     expect(game.turns.map((t) => t.number)).toEqual(game.turns.map((_, i) => i + 1));
     expect(game.summarizedThroughTurn).toBeLessThanOrEqual(game.turns.length);
     // The player's rolls are chat messages; the app never rolled them.
-    expect(game.turns.every((t) => t.input.type !== "enemy_rolls")).toBe(true);
     expect(game.turns[3]!.input).toMatchObject({ type: "action" });
+  });
+
+  it("has enemy rolls in its log, so their cards show up in a loaded save", () => {
+    const results = loadMockGame(now).turns.flatMap((t) =>
+      t.input.type === "enemy_rolls" ? t.input.results : [],
+    );
+    expect(results.length).toBeGreaterThan(0);
+    for (const result of results) {
+      expect(result.values).toHaveLength(result.count);
+      expect(result.total).toBe(result.values.reduce((a, b) => a + b, 0) + result.modifier);
+    }
   });
 
   it("can be continued by the engine, with its memory intact", async () => {

@@ -261,13 +261,33 @@
         "type": "action",
         "text": "Tiré d20 por \"Destreza para esquivar la garra helada del espectro\": me dio 9 en total."
       },
-      "narration": "No llegás a cubrirte del todo: la garra te roza el costado izquierdo y un frío punzante te entumece las costillas. Caés contra el pedestal, pero notás que el espectro quedó muy cerca del ventanal roto, con el Corazón de Ámbar apenas sostenido entre sus dedos translúcidos. ¿Aprovechás la distancia corta para atacar o arrebatás la esfera?",
+      "narration": "No llegás a cubrirte del todo: la garra del Vigía Ahogado te alcanza de lleno en el costado izquierdo antes de que termines de rodar.",
+      "events": []
+    },
+    {
+      "number": 18,
+      "input": {
+        "type": "enemy_rolls",
+        "results": [
+          {
+            "die": "d6",
+            "count": 1,
+            "modifier": 1,
+            "reason": "Daño de la garra helada del Vigía Ahogado",
+            "values": [
+              4
+            ],
+            "total": 5
+          }
+        ]
+      },
+      "narration": "Un frío punzante te entumece las costillas y te deja sin aire por un instante. Caés contra el pedestal, pero notás que el espectro quedó muy cerca del ventanal roto, con el Corazón de Ámbar apenas sostenido entre sus dedos translúcidos. ¿Aprovechás la distancia corta para atacar o arrebatás la esfera?",
       "events": [
         "damage"
       ]
     },
     {
-      "number": 18,
+      "number": 19,
       "input": {
         "type": "action",
         "text": "Desenvaino la daga de hierro y le tiro un tajo directo a la mano que sostiene el Corazón de Ámbar para arrebatárselo."
@@ -276,18 +296,38 @@
       "events": []
     },
     {
-      "number": 19,
+      "number": 20,
       "input": {
         "type": "action",
         "text": "Tiré d20 por \"Ataque cuerpo a cuerpo para cortar el agarre del espectro\": me dio 17 en total."
       },
-      "narration": "El filo de hierro frío corta la niebla de su brazo con un chispazo azulado. El Vigía Ahogado suelta un gemido ahogado y la esfera de ámbar rueda por el suelo de piedra hasta chocar contra tu bota. Sin su foco, el espectro se deshilacha en jirones de bruma salada que el viento arrastra afuera por el ventanal roto. El silencio vuelve a la torre, roto solo por la lluvia. ¿Recogés el Corazón de Ámbar?",
+      "narration": "El filo de hierro frío corta la niebla de su brazo con un chispazo azulado. El Vigía Ahogado suelta un gemido ahogado y su agarre sobre la esfera de ámbar vacila.",
+      "events": []
+    },
+    {
+      "number": 21,
+      "input": {
+        "type": "enemy_rolls",
+        "results": [
+          {
+            "die": "d20",
+            "count": 1,
+            "modifier": 2,
+            "reason": "Resistencia del Vigía Ahogado para no soltar el Corazón de Ámbar",
+            "values": [
+              6
+            ],
+            "total": 8
+          }
+        ]
+      },
+      "narration": "Los dedos translúcidos se abren sin fuerza y la esfera de ámbar rueda por el suelo de piedra hasta chocar contra tu bota. Sin su foco, el espectro se deshilacha en jirones de bruma salada que el viento arrastra afuera por el ventanal roto. El silencio vuelve a la torre, roto solo por la lluvia. ¿Recogés el Corazón de Ámbar?",
       "events": [
         "combat_end"
       ]
     },
     {
-      "number": 20,
+      "number": 22,
       "input": {
         "type": "action",
         "text": "Agarro el Corazón de Ámbar y lo coloco en el pedestal de la gran lámpara para ver si vuelve a encenderse."
@@ -299,7 +339,7 @@
       ]
     },
     {
-      "number": 21,
+      "number": 23,
       "input": {
         "type": "action",
         "text": "Memorizo el símbolo de la ola partida y bajo a ayudar a Don Anselmo antes de volver al pueblo."
@@ -308,7 +348,7 @@
       "events": []
     },
     {
-      "number": 22,
+      "number": 24,
       "input": {
         "type": "action",
         "text": "Me quedo un rato más junto al fuego revisando mis flechas y decido que apenas aclare voy a buscar los astilleros del sur."

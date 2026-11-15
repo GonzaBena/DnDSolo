@@ -3,8 +3,8 @@
 Partida de ejemplo compatible con el modelo `GameState` (`version: 2`) definido en [`src/domain/types.ts`](../src/domain/types.ts).  
 El archivo estructurado equivalente se encuentra en [`docs/partida-mock.json`](./partida-mock.json).
 
-- **Cantidad de turnos:** 22 turnos (**44 mensajes** en total: 22 entradas del jugador/sistema + 22 narraciones del DM).
-- **Tiradas:** las del jugador son mensajes de chat (él tira sus dados y escribe el total); la app solo tira por los enemigos, y en esta partida no hay ninguna tirada de enemigo.
+- **Cantidad de turnos:** 24 turnos (**48 mensajes** en total: 24 entradas del jugador/sistema + 24 narraciones del DM).
+- **Tiradas:** las del jugador son mensajes de chat (él tira sus dados y escribe el total); la app solo tira por los enemigos, y en esta partida lo hace dos veces, durante el combate con el Vigía Ahogado (turnos 18 y 21).
 - **Personaje:** Mateo Valen (Semielfo, Explorador, Nivel 2).
 - **Memoria en tres capas:** incluye `summary` acumulado hasta el turno 10 (`summarizedThroughTurn: 10`), estado estructurado (`players`, `location`, `npcs`, `quests`) y log completo de turnos.
 
@@ -89,27 +89,35 @@ El archivo estructurado equivalente se encuentra en [`docs/partida-mock.json`](.
 
 ### Turno 17
 - **Jugador — Mensaje 33:** Tiré d20 por "Destreza para esquivar la garra helada del espectro": me dio 9 en total.
-- **DM — Mensaje 34:** No llegás a cubrirte del todo: la garra te roza el costado izquierdo y un frío punzante te entumece las costillas. Caés contra el pedestal, pero notás que el espectro quedó muy cerca del ventanal roto, con el Corazón de Ámbar apenas sostenido entre sus dedos translúcidos. ¿Aprovechás la distancia corta para atacar o arrebatás la esfera?
-  - *Eventos:* `damage`
+- **DM — Mensaje 34:** No llegás a cubrirte del todo: la garra del Vigía Ahogado te alcanza de lleno en el costado izquierdo antes de que termines de rodar.
 
 ### Turno 18
-- **Jugador — Mensaje 35:** Desenvaino la daga de hierro y le tiro un tajo directo a la mano que sostiene el Corazón de Ámbar para arrebatárselo.
-- **DM — Mensaje 36:** Te incorporás de un salto apretando los dientes por el frío en el costado y lanzás un tajo ascendente con tu daga hacia las manos del Vigía Ahogado.
+- **Sistema (`enemy_rolls`) — Mensaje 35:** Tirada del enemigo por "Daño de la garra helada del Vigía Ahogado": 1d6+1 → dados 4, total 5.
+- **DM — Mensaje 36:** Un frío punzante te entumece las costillas y te deja sin aire por un instante. Caés contra el pedestal, pero notás que el espectro quedó muy cerca del ventanal roto, con el Corazón de Ámbar apenas sostenido entre sus dedos translúcidos. ¿Aprovechás la distancia corta para atacar o arrebatás la esfera?
+  - *Eventos:* `damage`
 
 ### Turno 19
-- **Jugador — Mensaje 37:** Tiré d20 por "Ataque cuerpo a cuerpo para cortar el agarre del espectro": me dio 17 en total.
-- **DM — Mensaje 38:** El filo de hierro frío corta la niebla de su brazo con un chispazo azulado. El Vigía Ahogado suelta un gemido ahogado y la esfera de ámbar rueda por el suelo de piedra hasta chocar contra tu bota. Sin su foco, el espectro se deshilacha en jirones de bruma salada que el viento arrastra afuera por el ventanal roto. El silencio vuelve a la torre, roto solo por la lluvia. ¿Recogés el Corazón de Ámbar?
-  - *Eventos:* `combat_end`
+- **Jugador — Mensaje 37:** Desenvaino la daga de hierro y le tiro un tajo directo a la mano que sostiene el Corazón de Ámbar para arrebatárselo.
+- **DM — Mensaje 38:** Te incorporás de un salto apretando los dientes por el frío en el costado y lanzás un tajo ascendente con tu daga hacia las manos del Vigía Ahogado.
 
 ### Turno 20
-- **Jugador — Mensaje 39:** Agarro el Corazón de Ámbar y lo coloco en el pedestal de la gran lámpara para ver si vuelve a encenderse.
-- **DM — Mensaje 40:** Al apoyar la esfera en los encastres de bronce del pedestal, el ámbar responde de inmediato al calor de tus manos y emite un pulso dorado que enciende la mecha de aceite del faro. Un haz cálido atraviesa la niebla hacia la bahía, ahuyentando la oscuridad de la costa. Desde abajo se escucha el grito de júbilo de Don Anselmo, aunque al mirar el pedestal notás una inscripción grabada hace poco en el metal: una ola partida, el símbolo de la Cofradía Salada, apuntando hacia los astilleros del sur. ¿Bajás a asistir a Don Anselmo o examinás mejor la marca?
-  - *Eventos:* `item_gained`, `quest_completed`
+- **Jugador — Mensaje 39:** Tiré d20 por "Ataque cuerpo a cuerpo para cortar el agarre del espectro": me dio 17 en total.
+- **DM — Mensaje 40:** El filo de hierro frío corta la niebla de su brazo con un chispazo azulado. El Vigía Ahogado suelta un gemido ahogado y su agarre sobre la esfera de ámbar vacila.
 
 ### Turno 21
-- **Jugador — Mensaje 41:** Memorizo el símbolo de la ola partida y bajo a ayudar a Don Anselmo antes de volver al pueblo.
-- **DM — Mensaje 42:** Grabás en tu memoria el trazo de la ola partida y bajás con cuidado la escalera de caracol. Don Anselmo te recibe con lágrimas en los ojos y te estrecha la mano con fuerza, prometiendo que todo Puerto Ceniza sabrá lo que hiciste esta noche. Mientras lo ayudás a acomodarse junto al fogón del vestíbulo para esperar el alba, afuera suena la campana de un barco que al fin encontró el canal seguro gracias a la luz del faro. ¿Pasás la noche en el faro o regresás a El Ancla Oxidada a hablar con Mora?
+- **Sistema (`enemy_rolls`) — Mensaje 41:** Tirada del enemigo por "Resistencia del Vigía Ahogado para no soltar el Corazón de Ámbar": 1d20+2 → dados 6, total 8.
+- **DM — Mensaje 42:** Los dedos translúcidos se abren sin fuerza y la esfera de ámbar rueda por el suelo de piedra hasta chocar contra tu bota. Sin su foco, el espectro se deshilacha en jirones de bruma salada que el viento arrastra afuera por el ventanal roto. El silencio vuelve a la torre, roto solo por la lluvia. ¿Recogés el Corazón de Ámbar?
+  - *Eventos:* `combat_end`
 
 ### Turno 22
-- **Jugador — Mensaje 43:** Me quedo un rato más junto al fuego revisando mis flechas y decido que apenas aclare voy a buscar los astilleros del sur.
-- **DM — Mensaje 44:** Acomodas tus quince flechas restantes en el carcaj y te sentás cerca del fogón mientras la tormenta empieza a amainar sobre el acantilado. Don Anselmo cabecea tranquilo por primera vez en dos días, y la luz del faro gira constante sobre el mar oscuro. Mañana tocará seguir el rastro de la Cofradía Salada en los astilleros del sur, donde alguien pagó demasiado caro por hundir un barco en la niebla. Cuando estés listo para encarar el amanecer, decime qué hacés.
+- **Jugador — Mensaje 43:** Agarro el Corazón de Ámbar y lo coloco en el pedestal de la gran lámpara para ver si vuelve a encenderse.
+- **DM — Mensaje 44:** Al apoyar la esfera en los encastres de bronce del pedestal, el ámbar responde de inmediato al calor de tus manos y emite un pulso dorado que enciende la mecha de aceite del faro. Un haz cálido atraviesa la niebla hacia la bahía, ahuyentando la oscuridad de la costa. Desde abajo se escucha el grito de júbilo de Don Anselmo, aunque al mirar el pedestal notás una inscripción grabada hace poco en el metal: una ola partida, el símbolo de la Cofradía Salada, apuntando hacia los astilleros del sur. ¿Bajás a asistir a Don Anselmo o examinás mejor la marca?
+  - *Eventos:* `item_gained`, `quest_completed`
+
+### Turno 23
+- **Jugador — Mensaje 45:** Memorizo el símbolo de la ola partida y bajo a ayudar a Don Anselmo antes de volver al pueblo.
+- **DM — Mensaje 46:** Grabás en tu memoria el trazo de la ola partida y bajás con cuidado la escalera de caracol. Don Anselmo te recibe con lágrimas en los ojos y te estrecha la mano con fuerza, prometiendo que todo Puerto Ceniza sabrá lo que hiciste esta noche. Mientras lo ayudás a acomodarse junto al fogón del vestíbulo para esperar el alba, afuera suena la campana de un barco que al fin encontró el canal seguro gracias a la luz del faro. ¿Pasás la noche en el faro o regresás a El Ancla Oxidada a hablar con Mora?
+
+### Turno 24
+- **Jugador — Mensaje 47:** Me quedo un rato más junto al fuego revisando mis flechas y decido que apenas aclare voy a buscar los astilleros del sur.
+- **DM — Mensaje 48:** Acomodas tus quince flechas restantes en el carcaj y te sentás cerca del fogón mientras la tormenta empieza a amainar sobre el acantilado. Don Anselmo cabecea tranquilo por primera vez en dos días, y la luz del faro gira constante sobre el mar oscuro. Mañana tocará seguir el rastro de la Cofradía Salada en los astilleros del sur, donde alguien pagó demasiado caro por hundir un barco en la niebla. Cuando estés listo para encarar el amanecer, decime qué hacés.
