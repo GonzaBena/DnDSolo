@@ -1,9 +1,17 @@
+import { enterFromRight, enterNarration, popIn } from "../animations/motion";
 import type { RollResult, Turn, TurnInput } from "../domain/types";
+import { useEnter } from "./useEnter";
 
-export function RollCard({ result }: { result: RollResult }) {
+// `animated` is only set for the turn being played right now. Turns that
+// are already in the log (including a whole loaded save) render still, and
+// a turn doesn't animate a second time when it moves from "in flight" to
+// the log.
+
+export function RollCard({ result, animated }: { result: RollResult; animated?: boolean }) {
+  const ref = useEnter<HTMLDivElement>(animated ? popIn : null);
   const verdict = result.success === null ? null : result.success ? "Éxito" : "Fallo";
   return (
-    <div className="roll-card" data-success={result.success ?? undefined}>
+    <div ref={ref} className="roll-card" data-success={result.success ?? undefined}>
       <span className="roll-card__value">{result.value}</span>
       <span className="roll-card__meta">
         {result.die} · {result.reason}
@@ -14,22 +22,38 @@ export function RollCard({ result }: { result: RollResult }) {
   );
 }
 
-export function InputEntry({ input }: { input: TurnInput }) {
+function PlayerEntry({ text, animated }: { text: string; animated?: boolean }) {
+  const ref = useEnter<HTMLParagraphElement>(animated ? enterFromRight : null);
+  return (
+    <p ref={ref} className="entry entry--player">
+      {text}
+    </p>
+  );
+}
+
+export function InputEntry({ input, animated }: { input: TurnInput; animated?: boolean }) {
   switch (input.type) {
     case "start":
       return null;
     case "action":
-      return <p className="entry entry--player">{input.text}</p>;
+      return <PlayerEntry text={input.text} animated={animated} />;
     case "roll":
-      return <RollCard result={input.result} />;
+      return <RollCard result={input.result} animated={animated} />;
   }
 }
 
-export function Narration({ text }: { text: string }) {
+function Paragraph({ text, animated }: { text: string; animated?: boolean }) {
+  const ref = useEnter<HTMLParagraphElement>(animated ? enterNarration : null);
+  return <p ref={ref}>{text}</p>;
+}
+
+export function Narration({ text, animated }: { text: string; animated?: boolean }) {
   return (
     <div className="entry entry--dm">
+      {/* Keyed by position: while streaming, a paragraph keeps its element
+          as it grows and only a newly started paragraph animates in. */}
       {text.split(/\n+/).map((paragraph, index) => (
-        <p key={index}>{paragraph}</p>
+        <Paragraph key={index} text={paragraph} animated={animated} />
       ))}
     </div>
   );

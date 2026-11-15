@@ -1,19 +1,33 @@
 /* Single source of truth for colors, type and spacing (Spec: "Estilo").
-   Values are provisional until the style pass (step g); components must
-   only reference these variables so that pass is a one-file change. */
+   Components only reference these variables.
+
+   Look: flat storybook illustration. Warm paper, one dark ink for every
+   outline, solid fills, hard offset shadows instead of blur. */
 :root {
-  --color-bg: #f6ecd9;
-  --color-surface: #fffaf0;
-  --color-ink: #2b2118;
-  --color-ink-soft: #6b5a4a;
-  --color-primary: #c8553d;
-  --color-primary-ink: #fffaf0;
-  --color-accent: #2f6f6a;
-  --color-line: #2b2118;
+  /* Color */
+  --color-bg: #f4e7cf;          /* paper */
+  --color-surface: #fff8ea;     /* cards */
+  --color-ink: #2a1f1a;         /* text and every outline */
+  --color-ink-soft: #6a5648;
+  --color-primary: #d1492e;     /* dragon red: main actions, failure */
+  --color-primary-ink: #fff8ea;
+  --color-accent: #1f6f66;      /* teal: links, player, success */
+  --color-accent-ink: #fff8ea;
+  --color-sun: #f2b134;         /* highlight, focus ring */
+  --color-sky: #bfe0d8;
+  --color-hill: #7fb69a;
 
-  --font-display: Georgia, "Times New Roman", serif;
-  --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Type */
+  --font-display: "Fraunces Variable", Georgia, serif;
+  --font-body: "Nunito Variable", system-ui, sans-serif;
+  --text-sm: 0.875rem;
+  --text-base: 1.0625rem;
+  --text-lg: 1.25rem;
+  --text-xl: clamp(1.9rem, 5vw, 2.75rem);
+  --text-roll: 5rem;
+  --leading: 1.6;
 
+  /* Space */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 1rem;
@@ -21,8 +35,11 @@
   --space-5: 2.5rem;
   --space-6: 4rem;
 
-  --radius: 12px;
-  --border: 2px solid var(--color-line);
-  --shadow-flat: 4px 4px 0 var(--color-line);
+  /* Shape */
+  --radius: 14px;
+  --line: 2.5px;
+  --border: var(--line) solid var(--color-ink);
+  --shadow-flat: 4px 4px 0 var(--color-ink);
+  --shadow-pressed: 1px 1px 0 var(--color-ink);
   --content-width: 44rem;
 }

@@ -154,8 +154,8 @@ export default function Game() {
         <TurnLog turns={state.turns} />
         {inFlight && (
           <div className="turn">
-            <InputEntry input={inFlight.input} />
-            {streamed !== "" && <Narration text={streamed} />}
+            <InputEntry input={inFlight.input} animated />
+            {streamed !== "" && <Narration text={streamed} animated />}
             {busy && streamed === "" && <p className="thinking">El DM está pensando…</p>}
           </div>
         )}

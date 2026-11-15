@@ -3,6 +3,24 @@ import Base from "../layouts/Base.astro";
 ---
 
 <Base title="Bienvenida">
+  <svg class="hero" viewBox="0 0 320 180" role="img" aria-label="Un dado de veinte caras sobre un camino hacia las montañas">
+    <defs>
+      <clipPath id="hero-frame"><rect x="2" y="2" width="316" height="176" rx="12" /></clipPath>
+    </defs>
+    <g clip-path="url(#hero-frame)">
+      <rect class="hero__sky" x="2" y="2" width="316" height="176" />
+      <circle class="hero__sun" cx="250" cy="52" r="22" />
+      <polygon class="hero__far" points="2,140 70,62 120,112 170,48 240,128 318,84 318,178 2,178" />
+      <polygon class="hero__near" points="2,178 2,150 90,120 190,150 318,128 318,178" />
+    </g>
+    <rect class="hero__frame" x="2" y="2" width="316" height="176" rx="12" />
+    <g class="hero__die">
+      <polygon points="120,58 166,84 166,134 120,160 74,134 74,84" />
+      <polygon class="hero__face" points="120,82 148,128 92,128" />
+      <path d="M120 58L120 82M74 84L120 82L166 84M74 84L92 128L74 134M166 84L148 128L166 134M92 128L120 160L148 128" />
+      <text x="120" y="121" text-anchor="middle">20</text>
+    </g>
+  </svg>
   <h1>Tu aventura, tu Dungeon Master</h1>
   <p>Una IA narra la campaña. Vos decidís qué hace tu personaje.</p>
   <div class="actions">

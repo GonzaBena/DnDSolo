@@ -1,3 +1,5 @@
+@import "@fontsource-variable/fraunces";
+@import "@fontsource-variable/nunito";
 @import "./tokens.css";
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -8,18 +10,28 @@ body {
   background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-body);
-  line-height: 1.5;
+  font-size: var(--text-base);
+  line-height: var(--leading);
 }
 
-h1, h2 { font-family: var(--font-display); line-height: 1.15; margin: 0 0 var(--space-3); }
+h1, h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0 0 var(--space-3);
+}
+h1 { font-size: var(--text-xl); }
 
-a { color: var(--color-accent); }
+a { color: var(--color-accent); text-underline-offset: 0.15em; }
+:focus-visible { outline: 3px solid var(--color-sun); outline-offset: 3px; }
 
 .page {
   max-width: var(--content-width);
   margin: 0 auto;
-  padding: var(--space-5) var(--space-3);
+  padding: var(--space-4) var(--space-3) var(--space-6);
 }
+/* Set before first paint by Base.astro when the entrance animation will run. */
+.entering .page > * { opacity: 0; }
 
 .site-header {
   display: flex;
@@ -29,8 +41,34 @@ a { color: var(--color-accent); }
   margin: 0 auto;
   padding: var(--space-3);
 }
-.site-header a { text-decoration: none; font-weight: 600; }
-.site-header .brand { font-family: var(--font-display); font-size: 1.25rem; color: var(--color-ink); }
+.site-header a { text-decoration: none; font-weight: 700; }
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  color: var(--color-ink);
+}
+.brand__die { fill: var(--color-primary); stroke: var(--color-ink); stroke-width: 2; stroke-linejoin: round; }
+.brand__lines { fill: none; stroke: var(--color-ink); stroke-width: 2; stroke-linejoin: round; }
+
+.hero { display: block; width: 100%; height: auto; margin-bottom: var(--space-4); }
+.hero * { stroke: var(--color-ink); stroke-width: 2.5; stroke-linejoin: round; }
+.hero__sky { fill: var(--color-sky); }
+.hero__sun { fill: var(--color-sun); }
+.hero__far { fill: var(--color-accent); }
+.hero__near { fill: var(--color-hill); }
+.hero__die polygon { fill: var(--color-primary); }
+.hero__die .hero__face { fill: var(--color-surface); }
+.hero__die path, .hero__frame { fill: none; }
+.hero__die text {
+  fill: var(--color-ink);
+  stroke: none;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 26px;
+}
 
 .actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-4); }
 
@@ -43,40 +81,48 @@ a { color: var(--color-accent); }
   background: var(--color-surface);
   color: var(--color-ink);
   font: inherit;
-  font-weight: 600;
+  font-weight: 800;
   text-decoration: none;
   cursor: pointer;
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out;
 }
 .button--primary { background: var(--color-primary); color: var(--color-primary-ink); }
-.button:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 3px; }
-
-.placeholder {
-  padding: var(--space-4);
-  border: 2px dashed var(--color-ink-soft);
-  border-radius: var(--radius);
-  color: var(--color-ink-soft);
-}
+/* Pressing "pushes" the button onto its own shadow. */
+.button:active:not(:disabled) { transform: translate(3px, 3px); box-shadow: var(--shadow-pressed); }
+.button:disabled { opacity: 0.5; cursor: not-allowed; }
+.button[hidden] { display: none; }
 
 .form { display: grid; gap: var(--space-4); }
-.field { display: grid; gap: var(--space-1); font-weight: 600; }
-.field small { font-weight: 400; color: var(--color-ink-soft); }
+.field { display: grid; gap: var(--space-1); font-weight: 700; }
+.field small { font-weight: 400; font-size: var(--text-sm); color: var(--color-ink-soft); }
 .field input, .field select, .field textarea {
+  width: 100%;
   padding: var(--space-2) var(--space-3);
   border: var(--border);
   border-radius: var(--radius);
   background: var(--color-surface);
   color: var(--color-ink);
   font: inherit;
+  font-weight: 400;
 }
-.button:disabled { opacity: 0.55; cursor: not-allowed; }
+.field textarea { resize: vertical; }
+.field :disabled { opacity: 0.6; }
 
 .notice {
   padding: var(--space-3);
   border: var(--border);
   border-radius: var(--radius);
-  background: var(--color-surface);
-  font-weight: 600;
+  background: var(--color-sun);
+  font-weight: 700;
 }
-.status { min-height: 1.5em; margin: 0; }
-.status[data-tone="ok"] { color: var(--color-accent); }
-.status[data-tone="error"] { color: var(--color-primary); }
+.notice p { margin: 0; }
+.notice--error { background: var(--color-surface); border-color: var(--color-primary); }
+.notice[hidden] { display: none; }
+
+.status { min-height: 1.6em; margin: 0; }
+.status[data-tone="ok"] { color: var(--color-accent); font-weight: 700; }
+.status[data-tone="error"] { color: var(--color-primary); font-weight: 700; }
+
+@media (prefers-reduced-motion: reduce) {
+  .button { transition: none; }
+}
