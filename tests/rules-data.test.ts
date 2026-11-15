@@ -201,7 +201,12 @@ describe("classes (levels 1-4)", () => {
   const classChoices = () =>
     CLASSES_DATA.flatMap((c) => [...c.levels.flatMap((l) => l.choices), ...c.subclass.features.flatMap((f) => f.choices ?? [])]);
 
-  it.todo("has exactly the 12 SRD classes (second dispatch)");
+  it("has exactly the 12 SRD classes", () => {
+    expect(CLASSES_DATA).toHaveLength(12);
+    expect(sorted(CLASSES_DATA.map((c) => c.name))).toEqual(
+      sorted(["Bárbaro", "Bardo", "Brujo", "Clérigo", "Druida", "Explorador", "Guerrero", "Hechicero", "Mago", "Monje", "Paladín", "Pícaro"]),
+    );
+  });
 
   it("finds classes by id or Spanish name, ignoring case", () => {
     expect(findClass("barbarian")?.name).toBe("Bárbaro");
@@ -311,7 +316,10 @@ describe("classes (levels 1-4)", () => {
   const masteryTotal = (id: string) =>
     cls(id).levels.flatMap((l) => l.choices).filter((c) => c.id.startsWith(`class.${id}.weapon_mastery`)).reduce((n, c) => n + c.count, 0);
 
-  it.each([["barbarian", 3], ["fighter", 4], ["paladin", 2], ["ranger", 2], ["rogue", 2], ["monk", 0]])(
+  it.each([
+    ["barbarian", 3], ["fighter", 4], ["paladin", 2], ["ranger", 2], ["rogue", 2], ["monk", 0],
+    ["bard", 0], ["cleric", 0], ["druid", 0], ["sorcerer", 0], ["warlock", 0], ["wizard", 0],
+  ])(
     "%s has %i weapon mastery picks by level 4", (id, total) => {
       expect(masteryTotal(id)).toBe(total);
     },
@@ -324,6 +332,12 @@ describe("classes (levels 1-4)", () => {
     ["paladin", 2, ["athletics", "insight", "intimidation", "medicine", "persuasion", "religion"]],
     ["ranger", 3, ["animal_handling", "athletics", "insight", "investigation", "nature", "perception", "stealth", "survival"]],
     ["rogue", 4, ["acrobatics", "athletics", "deception", "insight", "intimidation", "investigation", "perception", "persuasion", "sleight_of_hand", "stealth"]],
+    ["bard", 3, SKILLS.map((x) => x.id).sort()],
+    ["cleric", 2, ["history", "insight", "medicine", "persuasion", "religion"]],
+    ["druid", 2, ["animal_handling", "arcana", "insight", "medicine", "nature", "perception", "religion", "survival"]],
+    ["sorcerer", 2, ["arcana", "deception", "insight", "intimidation", "persuasion", "religion"]],
+    ["warlock", 2, ["arcana", "deception", "history", "intimidation", "investigation", "nature", "religion"]],
+    ["wizard", 2, ["arcana", "history", "insight", "investigation", "medicine", "nature", "religion"]],
   ])("%s skill choice: %i of the SRD list", (id, count, options) => {
     expect(cls(id).skillChoice.count).toBe(count);
     expect(sorted(cls(id).skillChoice.options)).toEqual(options);
@@ -336,6 +350,12 @@ describe("classes (levels 1-4)", () => {
     ["paladin", ["Armaduras ligeras", "Armaduras medias", "Armaduras pesadas", "Escudos"], ["Armas sencillas", "Armas marciales"], []],
     ["ranger", ["Armaduras ligeras", "Armaduras medias", "Escudos"], ["Armas sencillas", "Armas marciales"], []],
     ["rogue", ["Armaduras ligeras"], ["Armas sencillas", "Armas marciales con las propiedades ligera o sutil"], ["Herramientas de ladrón"]],
+    ["bard", ["Armaduras ligeras"], ["Armas sencillas"], ["Tres instrumentos musicales a elección"]],
+    ["cleric", ["Armaduras ligeras", "Armaduras medias", "Escudos"], ["Armas sencillas"], []],
+    ["druid", ["Armaduras ligeras", "Escudos"], ["Armas sencillas"], ["Útiles de herborista"]],
+    ["sorcerer", [], ["Armas sencillas"], []],
+    ["warlock", ["Armaduras ligeras"], ["Armas sencillas"], []],
+    ["wizard", [], ["Armas sencillas"], []],
   ])("%s armor, weapon and tool proficiencies", (id, armor, weapons, tools) => {
     expect(cls(id)).toMatchObject({ armor, weapons, tools });
   });
@@ -364,5 +384,113 @@ describe("classes (levels 1-4)", () => {
     expect(find("rogue", 1, "class.rogue.expertise")?.count).toBe(2);
     expect(find("rogue", 1, "class.rogue.language")?.count).toBe(1);
     expect(find("rogue", 1, "class.rogue.language")?.options.some((o) => o.id === "thieves_cant")).toBe(false);
+  });
+  it("models the wizard", () => {
+    const w = cls("wizard");
+    expect(w).toMatchObject({ hitDie: 6, saves: ["int", "wis"], spellcasting: { ability: "int", spellList: "wizard" } });
+    expect(w.levels[0].cantrips).toBe(3);
+    expect(w.levels[0].preparedSpells).toBe(4);
+    expect(w.levels.map((l) => l.slots)).toEqual([[2], [3], [4, 2], [4, 3]]);
+    expect(w.levels.map((l) => l.cantrips)).toEqual([3, 3, 3, 4]);
+    expect(w.levels.map((l) => l.preparedSpells)).toEqual([4, 5, 6, 7]);
+    expect(w.subclass.id).toBe("evoker");
+    const scholar = row("wizard", 2).choices.find((c) => c.id === "class.wizard.scholar");
+    expect(scholar?.count).toBe(1);
+    expect(sorted(scholar!.options.map((o) => o.id))).toEqual(["arcana", "history", "investigation", "medicine", "nature", "religion"]);
+  });
+
+  it("models the warlock with Pact Magic slots and invocations", () => {
+    const w = cls("warlock");
+    expect(w).toMatchObject({ hitDie: 8, saves: ["wis", "cha"], spellcasting: { ability: "cha", spellList: "warlock" } });
+    expect(w.levels.map((l) => l.pactSlots)).toEqual([
+      { count: 1, slotLevel: 1 }, { count: 2, slotLevel: 1 }, { count: 2, slotLevel: 2 }, { count: 2, slotLevel: 2 },
+    ]);
+    expect(w.levels.every((l) => l.slots === undefined)).toBe(true);
+    expect(w.levels.map((l) => l.cantrips)).toEqual([2, 2, 2, 3]);
+    expect(w.levels.map((l) => l.preparedSpells)).toEqual([2, 3, 4, 5]);
+    expect(w.subclass.id).toBe("fiend");
+  });
+
+  it("gives the warlock 1 invocation at level 1 and 3 in total at level 2, all valid for that level", () => {
+    const inv = (n: number) => CLASS_LEVELS.slice(0, n).flatMap((l) => row("warlock", l).choices).filter((c) => c.id.startsWith("class.warlock.invocation"));
+    expect(inv(1).reduce((n, c) => n + c.count, 0)).toBe(1);
+    expect(inv(2).reduce((n, c) => n + c.count, 0)).toBe(3);
+    expect(inv(4).reduce((n, c) => n + c.count, 0)).toBe(3);
+    const first = row("warlock", 1).choices.find((c) => c.id === "class.warlock.invocation")!;
+    // Only invocations without a level prerequisite at level 1: the three pacts, Armor of Shadows and Eldritch Mind.
+    expect(sorted(first.options.map((o) => o.id))).toEqual(
+      ["armor_of_shadows", "eldritch_mind", "pact_of_the_blade", "pact_of_the_chain", "pact_of_the_tome"],
+    );
+    const more = row("warlock", 2).choices.find((c) => c.id === "class.warlock.invocation_2")!;
+    expect(more.count).toBe(2);
+    expect(more.options.map((o) => o.id)).toEqual(expect.arrayContaining(["agonizing_blast", "devils_sight", "lessons_of_the_first_ones"]));
+    // No invocation with a level 5+ prerequisite is offered yet.
+    expect(more.options.map((o) => o.id)).not.toContain("eldritch_smite");
+    expect(more.options.find((o) => o.id === "agonizing_blast")?.summary).toMatch(/Requisito/);
+  });
+
+  it("models the bard", () => {
+    const b = cls("bard");
+    expect(b).toMatchObject({ hitDie: 8, saves: ["dex", "cha"], spellcasting: { ability: "cha", spellList: "bard" } });
+    expect(b.levels.map((l) => l.cantrips)).toEqual([2, 2, 2, 3]);
+    expect(b.levels.map((l) => l.preparedSpells)).toEqual([4, 5, 6, 7]);
+    expect(b.levels.map((l) => l.slots)).toEqual([[2], [3], [4, 2], [4, 3]]);
+    expect(row("bard", 1).resources["Dado de Inspiración bárdica"]).toBe(6);
+    const instruments = row("bard", 1).choices.find((c) => c.id === "class.bard.instruments");
+    expect(instruments?.count).toBe(3);
+    expect(instruments?.options).toHaveLength(10);
+    expect(row("bard", 2).choices.find((c) => c.id === "class.bard.expertise")?.count).toBe(2);
+    expect(b.subclass.id).toBe("lore");
+    const bonus = b.subclass.features.flatMap((f) => f.choices ?? []).find((c) => c.id === "subclass.lore.bonus_skills");
+    expect(bonus?.count).toBe(3);
+  });
+
+  it("models the cleric with Divine Order and Channel Divinity", () => {
+    const c = cls("cleric");
+    expect(c).toMatchObject({ hitDie: 8, saves: ["wis", "cha"], spellcasting: { ability: "wis", spellList: "cleric" } });
+    expect(c.levels.map((l) => l.cantrips)).toEqual([3, 3, 3, 4]);
+    expect(c.levels.map((l) => l.preparedSpells)).toEqual([4, 5, 6, 7]);
+    expect(c.levels.map((l) => l.slots)).toEqual([[2], [3], [4, 2], [4, 3]]);
+    const order = row("cleric", 1).choices.find((x) => x.id === "class.cleric.divine_order");
+    expect(order?.options.map((o) => o.id)).toEqual(["protector", "thaumaturge"]);
+    expect(CLASS_LEVELS.map((n) => row("cleric", n).resources["Canalizar divinidad"])).toEqual([undefined, 2, 2, 2]);
+    expect(c.subclass.id).toBe("life");
+  });
+
+  it("models the druid with Primal Order, Wild Shape and the Circle of the Land", () => {
+    const d = cls("druid");
+    expect(d).toMatchObject({ hitDie: 8, saves: ["int", "wis"], spellcasting: { ability: "wis", spellList: "druid" } });
+    expect(d.levels.map((l) => l.cantrips)).toEqual([2, 2, 2, 3]);
+    expect(d.levels.map((l) => l.preparedSpells)).toEqual([4, 5, 6, 7]);
+    expect(d.levels.map((l) => l.slots)).toEqual([[2], [3], [4, 2], [4, 3]]);
+    expect(row("druid", 1).choices.find((x) => x.id === "class.druid.primal_order")?.options.map((o) => o.id)).toEqual(["magician", "warden"]);
+    expect(CLASS_LEVELS.map((n) => row("druid", n).resources["Forma salvaje"])).toEqual([undefined, 2, 2, 2]);
+    expect(d.subclass.id).toBe("land");
+    const land = d.subclass.features.flatMap((f) => f.choices ?? []).find((x) => x.id === "subclass.land.land_type");
+    expect(land?.options.map((o) => o.id)).toEqual(["arid", "polar", "temperate", "tropical"]);
+  });
+
+  it("models the sorcerer with Sorcery Points and Metamagic", () => {
+    const s = cls("sorcerer");
+    expect(s).toMatchObject({ hitDie: 6, saves: ["con", "cha"], spellcasting: { ability: "cha", spellList: "sorcerer" } });
+    expect(s.levels.map((l) => l.cantrips)).toEqual([4, 4, 4, 5]);
+    expect(s.levels.map((l) => l.preparedSpells)).toEqual([2, 4, 6, 7]);
+    expect(s.levels.map((l) => l.slots)).toEqual([[2], [3], [4, 2], [4, 3]]);
+    expect(CLASS_LEVELS.map((n) => row("sorcerer", n).resources["Puntos de hechicería"])).toEqual([undefined, 2, 3, 4]);
+    expect(CLASS_LEVELS.map((n) => row("sorcerer", n).resources["Hechicería innata"])).toEqual([2, 2, 2, 2]);
+    const meta = row("sorcerer", 2).choices.find((x) => x.id === "class.sorcerer.metamagic");
+    expect(meta?.count).toBe(2);
+    expect(meta?.options).toHaveLength(10);
+    expect(s.subclass).toMatchObject({ id: "draconic", unarmoredDefense: "draconic" });
+  });
+
+  it("only the draconic sorcerer subclass overrides unarmored defense", () => {
+    expect(CLASSES_DATA.filter((c) => c.subclass.unarmoredDefense).map((c) => c.id)).toEqual(["sorcerer"]);
+  });
+
+  it("uses the official Spanish subclass names", () => {
+    expect(
+      ["bard", "cleric", "druid", "sorcerer", "warlock", "wizard"].map((id) => cls(id).subclass.name),
+    ).toEqual(["Colegio del Conocimiento", "Dominio de la Vida", "Círculo de la Tierra", "Hechicería Dracónica", "Patrón Infernal", "Evocador"]);
   });
 });
