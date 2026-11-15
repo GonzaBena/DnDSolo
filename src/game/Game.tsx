@@ -14,7 +14,8 @@ type Screen =
   | { status: "loading" }
   | { status: "no_game" }
   | { status: "load_error" }
-  | { status: "playing"; engine: TurnEngine; state: GameState };
+  /** `loadedTurns`: how many turns the save had when it was opened. */
+  | { status: "playing"; engine: TurnEngine; state: GameState; loadedTurns: number };
 
 /** A turn that was sent and hasn't produced a saved result yet. */
 interface InFlight {
@@ -59,7 +60,12 @@ export default function Game() {
       repo,
     });
     repo.loadLatest().then(
-      (state) => setScreen(state ? { status: "playing", engine, state } : { status: "no_game" }),
+      (state) =>
+        setScreen(
+          state
+            ? { status: "playing", engine, state, loadedTurns: state.turns.length }
+            : { status: "no_game" },
+        ),
       () => setScreen({ status: "load_error" }),
     );
   }, []);
@@ -82,7 +88,12 @@ export default function Game() {
         return;
       }
       setInFlight(null);
-      setScreen({ status: "playing", engine, state: outcome.state });
+      setScreen((previous) => ({
+        status: "playing",
+        engine,
+        state: outcome.state,
+        loadedTurns: previous.status === "playing" ? previous.loadedTurns : 0,
+      }));
       if (outcome.saveError) {
         setWarning("El turno se jugó pero no se pudo guardar. Si recargás, lo perdés.");
       }
@@ -158,7 +169,7 @@ export default function Game() {
       <CharacterPanel state={state} />
 
       <div className="log" aria-live="polite">
-        <TurnLog turns={state.turns} players={state.players} />
+        <TurnLog turns={state.turns} players={state.players} enterCount={screen.loadedTurns} />
         {inFlight && (
           <div className="turn">
             <InputEntry input={inFlight.input} players={state.players} animated />

@@ -1,12 +1,13 @@
-import { enterFromRight, enterNarration, popIn } from "../animations/motion";
+import { useLayoutEffect, useRef } from "react";
+import { enterFromRight, enterNarration, enterPage, popIn } from "../animations/motion";
 import { formatDice } from "../domain/dice";
 import type { Character, EnemyRollResult, Turn, TurnInput } from "../domain/types";
 import { useEnter } from "./useEnter";
 
-// `animated` is only set for the turn being played right now. Turns that
-// are already in the log (including a whole loaded save) render still, and
-// a turn doesn't animate a second time when it moves from "in flight" to
-// the log.
+// `animated` is only set for the turn being played right now. Turns already
+// in the log render still, and a turn doesn't animate a second time when it
+// moves from "in flight" to the log. A save being opened gets its own
+// entrance instead (see TurnLog).
 
 /** A roll the app made for an enemy. The player's own rolls never get a
     card: they are plain chat messages. */
@@ -124,15 +125,48 @@ export function Narration({ text, animated }: { text: string; animated?: boolean
   );
 }
 
-export function TurnLog({ turns, players }: { turns: Turn[]; players: Character[] }) {
+// Opening a save scrolls to the end, so only the last turns are on screen.
+// Staggering every turn of a long game would make the visible ones wait.
+const ENTERING_TURNS = 6;
+
+/** `enterCount` is how many turns the save had when it was opened: the last
+    of those rise in one after another, like the blocks of a page. Later
+    turns already animated while they were in flight, so they join the log
+    still. */
+export function TurnLog({
+  turns,
+  players,
+  enterCount = 0,
+}: {
+  turns: Turn[];
+  players: Character[];
+  enterCount?: number;
+}) {
+  const entering = useRef<HTMLDivElement[]>([]);
+  useLayoutEffect(() => {
+    enterPage(entering.current);
+    // Mount-only on purpose: this is the entrance of the save as it opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <>
-      {turns.map((turn) => (
-        <div key={turn.number} className="turn">
-          <InputEntry input={turn.input} players={players} />
-          <Narration text={turn.narration} />
-        </div>
-      ))}
+      {turns.map((turn, index) => {
+        const enters = index < enterCount && index >= enterCount - ENTERING_TURNS;
+        return (
+          <div
+            key={turn.number}
+            className="turn"
+            ref={(element) => {
+              if (enters && element && !entering.current.includes(element)) {
+                entering.current.push(element);
+              }
+            }}
+          >
+            <InputEntry input={turn.input} players={players} />
+            <Narration text={turn.narration} />
+          </div>
+        );
+      })}
     </>
   );
 }
