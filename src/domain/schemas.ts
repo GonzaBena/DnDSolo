@@ -72,7 +72,8 @@ void _typeCheck;
 void _reverseCheck;
 
 /** Rewrites what Zod emits into the JSON Schema subset the model API
-    documents: no `$schema`, and `enum` instead of `const`. */
+    documents: no `$schema`, `enum` instead of `const`, and integer enums
+    typed as "integer". */
 export function toProviderSchema(node: unknown): unknown {
   if (Array.isArray(node)) return node.map(toProviderSchema);
   if (typeof node !== "object" || node === null) return node;
@@ -82,6 +83,8 @@ export function toProviderSchema(node: unknown): unknown {
     if (key === "const") out.enum = [value];
     else out[key] = toProviderSchema(value);
   }
+  // Zod types integer literals as "number"; tell the provider they are integers.
+  if (out.type === "number" && Array.isArray(out.enum) && out.enum.every(Number.isInteger)) out.type = "integer";
   // Non-standard hint some providers use to fix the generation order.
   if (out.type === "object" && typeof out.properties === "object" && out.properties !== null) {
     out.propertyOrdering = Object.keys(out.properties);

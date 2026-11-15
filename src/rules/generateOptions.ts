@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { toProviderSchema } from "../domain/schemas";
+import { LLMError } from "../llm/LLMClient";
 import type { LLMClient } from "../llm/LLMClient";
 import { buildSheet } from "./buildSheet";
 import type { CharacterChoices, ChoiceError } from "./buildSheet";
 import { activeChoices, requiredChoices } from "./choices";
-import { buildChoicesPrompt, buildConceptPrompt, GENERATOR_SYSTEM_PROMPT } from "./generatorPrompt";
+import { buildChoicesPrompt, buildConceptPrompt, GENERATOR_SYSTEM_PROMPT, OUTSIDE_SRD_PHRASE } from "./generatorPrompt";
 import { BACKGROUNDS, CLASSES_DATA, LOADED_MAX_LEVEL, SPECIES, STANDARD_ARRAY, findBackground } from "./index";
 import { ABILITIES } from "./types";
 import type { Ability, CharacterSheet, ChoiceSpec } from "./types";
@@ -14,6 +15,9 @@ export interface GeneratedOption {
   outsideSrdNote: string | null; choices: CharacterChoices; sheet: CharacterSheet;
 }
 export interface GenerationResult { options: GeneratedOption[]; failures: string[] }
+
+/** What the player sees when the model ignored the schema; the Zod detail only goes back to the model. */
+const FORMAT_FAILURE = "La respuesta no respetó el formato pedido.";
 
 const ids = (items: { id: string }[]) => items.map((i) => i.id) as [string, ...string[]];
 
@@ -50,6 +54,7 @@ function choicesSchema(concept: ConceptReply, specs: ChoiceSpec[]) {
 }
 type ChoicesReply = z.infer<ReturnType<typeof choicesSchema>>;
 
+/** `reason` is for the model's retry prompt, not for the player. */
 function parseJson<T>(raw: string, schema: z.ZodType<T>): { ok: true; value: T } | { ok: false; reason: string } {
   let json: unknown;
   try {
@@ -59,6 +64,18 @@ function parseJson<T>(raw: string, schema: z.ZodType<T>): { ok: true; value: T }
   }
   const parsed = schema.safeParse(json);
   return parsed.success ? { ok: true, value: parsed.data } : { ok: false, reason: z.prettifyError(parsed.error) };
+}
+
+/** A model error worth one more attempt: not an abort (the caller gave up) and not a bad key (retrying won't help). */
+function retriable(error: unknown, signal?: AbortSignal): error is LLMError {
+  return error instanceof LLMError && error.kind !== "auth" && !signal?.aborted;
+}
+
+/** The note always starts with the fixed phrase; an empty note means nothing was replaced. */
+export function normalizeOutsideSrdNote(note: string | null): string | null {
+  const trimmed = note?.trim() ?? "";
+  if (trimmed === "") return null;
+  return trimmed.startsWith(OUTSIDE_SRD_PHRASE) ? trimmed : `${OUTSIDE_SRD_PHRASE} ${trimmed}`;
 }
 
 /** Turns the model's arrays into CharacterChoices. Picks of specs that the other picks leave inactive are
@@ -83,18 +100,48 @@ function toChoices(concept: ConceptReply, level: number, specs: ChoiceSpec[], re
 }
 
 async function generateConcepts(llm: LLMClient, story: string, level: number, signal?: AbortSignal): Promise<ConceptReply[]> {
-  const prompt = buildConceptPrompt(story, level);
-  let reason = "";
+  let errors: string[] = [];
+  let modelError: LLMError | null = null;
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const raw = await llm.generateStructured({ system: GENERATOR_SYSTEM_PROMPT, prompt, jsonSchema: conceptsJsonSchema, signal });
+    const prompt = buildConceptPrompt(story, level, errors);
+    let raw: string;
+    try {
+      raw = await llm.generateStructured({ system: GENERATOR_SYSTEM_PROMPT, prompt, jsonSchema: conceptsJsonSchema, signal });
+    } catch (error) {
+      if (!retriable(error, signal)) throw error;
+      modelError = error;
+      continue;
+    }
+    modelError = null;
     const parsed = parseJson(raw, conceptsSchema);
     if (parsed.ok) return parsed.value.concepts;
-    reason = parsed.reason;
+    errors = [parsed.reason];
   }
-  throw new Error(`No se pudieron generar los conceptos de personaje: ${reason}`);
+  if (modelError) throw modelError;
+  throw new Error(`No se pudieron generar los conceptos de personaje. ${FORMAT_FAILURE}`);
 }
 
-type ConceptOutcome = { ok: true; option: GeneratedOption } | { ok: false; failure: string };
+type ConceptOutcome =
+  | { ok: true; option: GeneratedOption }
+  /** `modelError` is set when the last attempt failed because the model did not answer. */
+  | { ok: false; failure: string; modelError: LLMError | null };
+
+type Problem = { kind: "model"; error: LLMError } | { kind: "format" } | { kind: "rules"; errors: ChoiceError[] };
+
+function failureFor(name: string, problem: Problem): ConceptOutcome {
+  switch (problem.kind) {
+    case "model":
+      return { ok: false, failure: `No se pudo armar a ${name}: el modelo no respondió.`, modelError: problem.error };
+    case "format":
+      return { ok: false, failure: `No se pudo armar a ${name}. ${FORMAT_FAILURE}`, modelError: null };
+    case "rules":
+      return {
+        ok: false,
+        failure: `No se pudo armar a ${name} con reglas válidas: ${problem.errors.map((e) => e.message).join(" ")}`,
+        modelError: null,
+      };
+  }
+}
 
 async function generateChoices(
   llm: LLMClient, concept: ConceptReply, level: number, signal?: AbortSignal,
@@ -102,32 +149,42 @@ async function generateChoices(
   const specs = requiredChoices({ ...concept, level });
   const schema = choicesSchema(concept, specs);
   const jsonSchema = toProviderSchema(z.toJSONSchema(schema));
-  let errors: ChoiceError[] = [];
+  let errors: ChoiceError[] = []; // sent back to the model on the retry
+  let problem: Problem = { kind: "format" };
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const prompt = buildChoicesPrompt({ ...concept, level }, specs, errors);
-    const raw = await llm.generateStructured({ system: GENERATOR_SYSTEM_PROMPT, prompt, jsonSchema, signal });
+    let raw: string;
+    try {
+      raw = await llm.generateStructured({ system: GENERATOR_SYSTEM_PROMPT, prompt, jsonSchema, signal });
+    } catch (error) {
+      if (!retriable(error, signal)) throw error;
+      problem = { kind: "model", error };
+      continue;
+    }
     const parsed = parseJson(raw, schema);
     if (!parsed.ok) {
       errors = [{ field: "respuesta", message: parsed.reason }];
+      problem = { kind: "format" };
       continue;
     }
     const choices = toChoices(concept, level, specs, parsed.value);
     const built = buildSheet(choices);
     if (built.ok) {
-      const { name, story, pitch, outsideSrdNote } = concept;
+      const { name, story, pitch } = concept;
+      const outsideSrdNote = normalizeOutsideSrdNote(concept.outsideSrdNote);
       return { ok: true, option: { name, story, pitch, outsideSrdNote, choices, sheet: built.sheet } };
     }
     errors = built.errors;
+    problem = { kind: "rules", errors };
   }
-  return {
-    ok: false,
-    failure: `No se pudo armar a ${concept.name} con reglas válidas: ${errors.map((e) => e.message).join(" ")}`,
-  };
+  return failureFor(concept.name, problem);
 }
 
 /** Two steps: one call proposes three concepts (species, class, background), then one call per concept, in
-    parallel, chooses everything else. Code validates and computes; a concept that fails twice is reported in
-    `failures` and the others go on. Model errors (network, key, abort) propagate. */
+    parallel, chooses everything else. Code validates and computes; a concept that fails twice (invalid choices,
+    malformed JSON or a transient model error) is reported in `failures` and the others go on. An abort or an
+    auth error rejects the whole call, and so does the last model error when model errors left no option at
+    all, so the UI can explain it with describeLLMError. */
 export async function generateOptions(
   llm: LLMClient, story: string, level: number, signal?: AbortSignal,
 ): Promise<GenerationResult> {
@@ -138,8 +195,11 @@ export async function generateOptions(
 
   const concepts = await generateConcepts(llm, story, level, signal);
   const outcomes = await Promise.all(concepts.map((concept) => generateChoices(llm, concept, level, signal)));
+  const failed = outcomes.flatMap((o) => (o.ok ? [] : [o]));
+  const modelErrors = failed.flatMap((o) => (o.modelError ? [o.modelError] : []));
+  if (failed.length === outcomes.length && modelErrors.length === failed.length) throw modelErrors.at(-1)!;
   return {
     options: outcomes.flatMap((o) => (o.ok ? [o.option] : [])),
-    failures: outcomes.flatMap((o) => (o.ok ? [] : [o.failure])),
+    failures: failed.map((o) => o.failure),
   };
 }

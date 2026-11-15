@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { FakeLLMClient } from "../src/llm/FakeLLMClient";
-import type { LLMClient, StructuredRequest, TextRequest } from "../src/llm/LLMClient";
+import { LLMError } from "../src/llm/LLMClient";
+import type { LLMClient, StructuredRequest } from "../src/llm/LLMClient";
 import { SPECIES } from "../src/rules";
 import type { CharacterChoices } from "../src/rules/buildSheet";
-import { generateOptions } from "../src/rules/generateOptions";
+import { generateOptions, normalizeOutsideSrdNote } from "../src/rules/generateOptions";
+import { OUTSIDE_SRD_PHRASE } from "../src/rules/generatorPrompt";
 import { ABILITIES } from "../src/rules/types";
 import { fighterChoices, greedyChoices } from "./helpers";
 
@@ -38,6 +40,42 @@ const replyFor = (concept: ConceptReply, level = 1) =>
 const invalidFighter = () =>
   choicesReply(fighterChoices({ picks: { ...fighterChoices().picks, "class.fighter.skills": ["athletics", "survival"] } }));
 
+type Reply = object | string | Error;
+
+/** Replies keyed by prompt content instead of call order: step 1 has its own queue, each step-2 call is routed
+    by the character name in its prompt. Independent of how the parallel calls interleave. */
+class ScriptedClient implements LLMClient {
+  readonly requests: StructuredRequest[] = [];
+  constructor(private readonly concepts: Reply[], private readonly byName: Record<string, Reply[]>) {}
+
+  async generateStructured(request: StructuredRequest): Promise<string> {
+    this.requests.push(request);
+    const name = /^- Nombre: (.+)$/m.exec(request.prompt)?.[1];
+    const reply = (name === undefined ? this.concepts : this.byName[name] ?? []).shift();
+    if (reply === undefined) throw new Error(`ScriptedClient: no reply for ${name ?? "concepts"}.`);
+    if (reply instanceof Error) throw reply;
+    return typeof reply === "string" ? reply : JSON.stringify(reply);
+  }
+
+  async generateText(): Promise<string> {
+    throw new Error("ScriptedClient: not used.");
+  }
+
+  promptsFor(name: string): string[] {
+    return this.requests.map((r) => r.prompt).filter((p) => p.includes(`- Nombre: ${name}\n`));
+  }
+}
+
+/** Valid replies for the three concepts, with per-name overrides. */
+function scripted(byName: Record<string, Reply[]> = {}, concepts: Reply[] = [{ concepts: CONCEPTS }]) {
+  return new ScriptedClient(concepts, {
+    Brann: [choicesReply(fighterChoices())],
+    Ilsa: [replyFor(CONCEPTS[1]!)],
+    Vex: [replyFor(CONCEPTS[2]!)],
+    ...byName,
+  });
+}
+
 describe("generateOptions", () => {
   it("returns three options with computed sheets", async () => {
     const llm = new FakeLLMClient().queueStructured(
@@ -57,30 +95,18 @@ describe("generateOptions", () => {
   });
 
   it("retries a step-2 call once with the previous errors", async () => {
-    const llm = new FakeLLMClient().queueStructured(
-      { concepts: CONCEPTS },
-      invalidFighter(),
-      replyFor(CONCEPTS[1]!),
-      replyFor(CONCEPTS[2]!),
-      choicesReply(fighterChoices()),
-    );
+    const llm = scripted({ Brann: [invalidFighter(), choicesReply(fighterChoices())] });
     const result = await generateOptions(llm, STORY, 1);
     expect(result.failures).toEqual([]);
     expect(result.options).toHaveLength(3);
-    const retry = llm.structuredRequests[4]!.prompt;
+    const [first, retry] = llm.promptsFor("Brann");
+    expect(first).not.toContain("ERRORES DEL INTENTO ANTERIOR");
     expect(retry).toContain("ERRORES DEL INTENTO ANTERIOR");
     expect(retry).toContain("Atletismo");
-    expect(llm.structuredRequests[1]!.prompt).not.toContain("ERRORES DEL INTENTO ANTERIOR");
   });
 
   it("drops a concept that fails twice and keeps the others", async () => {
-    const llm = new FakeLLMClient().queueStructured(
-      { concepts: CONCEPTS },
-      invalidFighter(),
-      replyFor(CONCEPTS[1]!),
-      replyFor(CONCEPTS[2]!),
-      invalidFighter(),
-    );
+    const llm = scripted({ Brann: [invalidFighter(), invalidFighter()] });
     const result = await generateOptions(llm, STORY, 1);
     expect(result.options.map((o) => o.name)).toEqual(["Ilsa", "Vex"]);
     expect(result.failures).toHaveLength(1);
@@ -89,22 +115,100 @@ describe("generateOptions", () => {
     expect(result.failures[0]).toContain("Atletismo");
   });
 
-  it("retries step 1 once when it cannot be parsed", async () => {
-    const llm = new FakeLLMClient().queueStructured(
-      "no es json",
-      { concepts: CONCEPTS },
-      choicesReply(fighterChoices()),
-      replyFor(CONCEPTS[1]!),
-      replyFor(CONCEPTS[2]!),
-    );
+  it("reports malformed step-2 JSON in plain Spanish and keeps the Zod detail for the retry prompt", async () => {
+    const llm = scripted({ Brann: [{ baseScores: {} }, "no es json"] });
     const result = await generateOptions(llm, STORY, 1);
-    expect(result.options).toHaveLength(3);
+    expect(result.options).toHaveLength(2);
+    expect(result.failures).toEqual(["No se pudo armar a Brann. La respuesta no respetó el formato pedido."]);
+    expect(llm.promptsFor("Brann")[1]).toMatch(/ERRORES DEL INTENTO ANTERIOR[\s\S]*baseScores/);
   });
 
-  it("gives up when step 1 fails twice", async () => {
-    const llm = new FakeLLMClient().queueStructured("no es json", { concepts: CONCEPTS.slice(0, 2) });
-    await expect(generateOptions(llm, STORY, 1)).rejects.toThrow(/conceptos/);
-    expect(llm.structuredRequests).toHaveLength(2);
+  describe("model errors in step 2", () => {
+    it("retries once after a transient error", async () => {
+      const llm = scripted({ Brann: [new LLMError("network", "offline"), choicesReply(fighterChoices())] });
+      const result = await generateOptions(llm, STORY, 1);
+      expect(result.failures).toEqual([]);
+      expect(result.options).toHaveLength(3);
+    });
+
+    it("turns a second error into a failure and keeps the others", async () => {
+      const llm = scripted({ Brann: [new LLMError("network", "offline"), new LLMError("empty", "nada")] });
+      const result = await generateOptions(llm, STORY, 1);
+      expect(result.options.map((o) => o.name)).toEqual(["Ilsa", "Vex"]);
+      expect(result.failures).toEqual(["No se pudo armar a Brann: el modelo no respondió."]);
+    });
+
+    it("rejects the whole call on an auth error", async () => {
+      const llm = scripted({ Brann: [new LLMError("auth", "bad key")] });
+      await expect(generateOptions(llm, STORY, 1)).rejects.toMatchObject({ kind: "auth" });
+    });
+
+    it("rejects with the last model error when model errors left no option", async () => {
+      const down = () => [new LLMError("rate_limit", "quota"), new LLMError("rate_limit", "quota")];
+      const llm = scripted({ Brann: down(), Ilsa: down(), Vex: down() });
+      await expect(generateOptions(llm, STORY, 1)).rejects.toMatchObject({ kind: "rate_limit" });
+    });
+
+    it("does not retry after an abort", async () => {
+      const controller = new AbortController();
+      const llm = scripted({ Brann: [new LLMError("network", "aborted")] });
+      const original = llm.generateStructured.bind(llm);
+      llm.generateStructured = async (request) => {
+        if (request.prompt.includes("- Nombre: Brann")) controller.abort();
+        return original(request);
+      };
+      await expect(generateOptions(llm, STORY, 1, controller.signal)).rejects.toMatchObject({ kind: "network" });
+      expect(llm.promptsFor("Brann")).toHaveLength(1);
+    });
+  });
+
+  describe("step 1", () => {
+    it("retries once with the parse errors in the prompt", async () => {
+      const llm = scripted({}, [{ concepts: CONCEPTS.slice(0, 2) }, { concepts: CONCEPTS }]);
+      const result = await generateOptions(llm, STORY, 1);
+      expect(result.options).toHaveLength(3);
+      expect(llm.requests[0]!.prompt).not.toContain("ERRORES DEL INTENTO ANTERIOR");
+      expect(llm.requests[1]!.prompt).toMatch(/ERRORES DEL INTENTO ANTERIOR[\s\S]*concepts/);
+    });
+
+    it("retries once after an empty answer", async () => {
+      const llm = scripted({}, [new LLMError("empty", "nada"), { concepts: CONCEPTS }]);
+      expect((await generateOptions(llm, STORY, 1)).options).toHaveLength(3);
+    });
+
+    it("gives up in Spanish when it cannot be parsed twice", async () => {
+      const llm = scripted({}, ["no es json", { concepts: CONCEPTS.slice(0, 2) }]);
+      await expect(generateOptions(llm, STORY, 1)).rejects.toThrow(
+        "No se pudieron generar los conceptos de personaje. La respuesta no respetó el formato pedido.",
+      );
+      expect(llm.requests).toHaveLength(2);
+    });
+
+    it("rethrows a second model error and an auth error at once", async () => {
+      const twice = scripted({}, [new LLMError("network", "x"), new LLMError("network", "y")]);
+      await expect(generateOptions(twice, STORY, 1)).rejects.toMatchObject({ kind: "network", message: "y" });
+      const auth = scripted({}, [new LLMError("auth", "bad key")]);
+      await expect(generateOptions(auth, STORY, 1)).rejects.toMatchObject({ kind: "auth" });
+      expect(auth.requests).toHaveLength(1);
+    });
+  });
+
+  describe("outsideSrdNote", () => {
+    it("is normalized: empty is null and the fixed phrase always comes first", async () => {
+      const concepts = [
+        { ...CONCEPTS[0]!, outsideSrdNote: "" },
+        { ...CONCEPTS[1]!, outsideSrdNote: "Pediste un vampiro; usé un tiefling." },
+        { ...CONCEPTS[2]!, outsideSrdNote: `${OUTSIDE_SRD_PHRASE} Pediste un ninja; usé un pícaro.` },
+      ];
+      const result = await generateOptions(scripted({}, [{ concepts }]), STORY, 1);
+      expect(result.options.map((o) => o.outsideSrdNote)).toEqual([
+        null,
+        `${OUTSIDE_SRD_PHRASE} Pediste un vampiro; usé un tiefling.`,
+        `${OUTSIDE_SRD_PHRASE} Pediste un ninja; usé un pícaro.`,
+      ]);
+      expect(normalizeOutsideSrdNote(null)).toBeNull();
+      expect(normalizeOutsideSrdNote("   ")).toBeNull();
+    });
   });
 
   it("restricts step-1 ids to the catalog", async () => {
@@ -125,28 +229,27 @@ describe("generateOptions", () => {
   });
 
   it("builds the step-2 schema and prompt from the concept's specs", async () => {
-    const llm = new FakeLLMClient().queueStructured(
-      { concepts: CONCEPTS },
-      choicesReply(fighterChoices()),
-      replyFor(CONCEPTS[1]!),
-      replyFor(CONCEPTS[2]!),
-    );
+    const llm = scripted();
     await generateOptions(llm, STORY, 1);
-    const request = llm.structuredRequests[1]!;
+    const request = llm.requests.find((r) => r.prompt.includes("- Nombre: Brann\n"))!;
+    type Enum = { type: string; enum: (string | number)[] };
     const schema = request.jsonSchema as {
       properties: {
-        baseScores: { properties: Record<string, unknown> };
-        backgroundBonus: { items: { properties: { ability: { enum: string[] } } } };
-        classEquipment: { enum: string[] };
-        backgroundEquipment: { enum: string[] };
-        picks: { items: { properties: { choiceId: { enum: string[] } } } };
+        baseScores: { properties: Record<string, Enum> };
+        backgroundBonus: { items: { properties: { ability: Enum; amount: Enum } } };
+        classEquipment: Enum;
+        backgroundEquipment: Enum;
+        picks: { items: { properties: { choiceId: Enum } } };
       };
     };
-    expect(Object.keys(schema.properties.baseScores.properties).sort()).toEqual([...ABILITIES].sort());
-    expect(schema.properties.backgroundBonus.items.properties.ability.enum.sort()).toEqual(["con", "str", "dex"].sort());
-    expect(schema.properties.classEquipment.enum).toEqual(["A", "B", "C"]);
-    expect(schema.properties.backgroundEquipment.enum).toEqual(["A", "B"]);
-    const choiceIds = schema.properties.picks.items.properties.choiceId.enum;
+    const { baseScores, backgroundBonus, classEquipment, backgroundEquipment, picks } = schema.properties;
+    expect(Object.keys(baseScores.properties).sort()).toEqual([...ABILITIES].sort());
+    expect(baseScores.properties.str).toEqual({ type: "integer", enum: [15, 14, 13, 12, 10, 8] });
+    expect(backgroundBonus.items.properties.amount).toEqual({ type: "integer", enum: [1, 2] });
+    expect(backgroundBonus.items.properties.ability.enum.sort()).toEqual(["con", "dex", "str"]);
+    expect(classEquipment.enum).toEqual(["A", "B", "C"]);
+    expect(backgroundEquipment.enum).toEqual(["A", "B"]);
+    const choiceIds = picks.items.properties.choiceId.enum;
     expect(choiceIds).toContain("class.fighter.skills");
     expect(choiceIds).toContain("feat.skilled.skills"); // conditional: Versatile -> Skilled
     // Prompt: id, label, count, options and the condition of conditional specs.
@@ -157,22 +260,15 @@ describe("generateOptions", () => {
   });
 
   it("drops picks of choices that are not active instead of failing", async () => {
-    const fighter = fighterChoices();
-    const reply = choicesReply(fighter);
+    const reply = choicesReply(fighterChoices());
     reply.picks.push({ choiceId: "feat.skilled.skills", optionIds: ["history", "arcana", "religion"] });
-    const llm = new FakeLLMClient().queueStructured({ concepts: CONCEPTS }, reply, replyFor(CONCEPTS[1]!), replyFor(CONCEPTS[2]!));
-    const result = await generateOptions(llm, STORY, 1);
+    const result = await generateOptions(scripted({ Brann: [reply] }), STORY, 1);
     expect(result.failures).toEqual([]);
     expect(result.options[0]!.choices.picks["feat.skilled.skills"]).toBeUndefined();
   });
 
   it("runs the three step-2 calls in parallel", async () => {
-    const fake = new FakeLLMClient().queueStructured(
-      { concepts: CONCEPTS },
-      choicesReply(fighterChoices()),
-      replyFor(CONCEPTS[1]!),
-      replyFor(CONCEPTS[2]!),
-    );
+    const inner = scripted();
     let release!: () => void;
     const gate = new Promise<void>((resolve) => { release = resolve; });
     let started = 0;
@@ -180,9 +276,9 @@ describe("generateOptions", () => {
       async generateStructured(request: StructuredRequest) {
         started += 1;
         if (started > 1) await gate; // hold every step-2 call until all of them started
-        return fake.generateStructured(request);
+        return inner.generateStructured(request);
       },
-      generateText: (request: TextRequest) => fake.generateText(request),
+      generateText: () => inner.generateText(),
     };
     const pending = generateOptions(gated, STORY, 1);
     await vi.waitFor(() => expect(started).toBe(4), { timeout: 500 });
@@ -192,11 +288,9 @@ describe("generateOptions", () => {
 
   it("works at level 4 for a wizard", async () => {
     const wizard: ConceptReply = { ...CONCEPTS[0]!, speciesId: "gnome", classId: "wizard", backgroundId: "sage" };
-    const llm = new FakeLLMClient().queueStructured(
-      { concepts: [wizard, CONCEPTS[1], CONCEPTS[2]] },
-      replyFor(wizard, 4),
-      replyFor(CONCEPTS[1]!, 4),
-      replyFor(CONCEPTS[2]!, 4),
+    const llm = scripted(
+      { Brann: [replyFor(wizard, 4)], Ilsa: [replyFor(CONCEPTS[1]!, 4)], Vex: [replyFor(CONCEPTS[2]!, 4)] },
+      [{ concepts: [wizard, CONCEPTS[1], CONCEPTS[2]] }],
     );
     const result = await generateOptions(llm, STORY, 4);
     expect(result.failures).toEqual([]);

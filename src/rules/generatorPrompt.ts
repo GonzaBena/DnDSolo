@@ -33,7 +33,18 @@ function classLine(cls: ClassData): string {
     `atributo principal: ${cls.primaryAbility.map((a) => ABILITY_NAMES[a]).join(" o ")}${caster})`;
 }
 
-export function buildConceptPrompt(story: string, level: number): string {
+/** Appended on a retry: why the previous answer was rejected. */
+function retrySection(problems: string[]): string[] {
+  if (problems.length === 0) return [];
+  return [
+    "",
+    "ERRORES DEL INTENTO ANTERIOR",
+    "Tu respuesta anterior no era válida. Corregí estos problemas y mandá la respuesta completa de nuevo:",
+    ...problems.map((p) => `- ${p}`),
+  ];
+}
+
+export function buildConceptPrompt(story: string, level: number, errors: string[] = []): string {
   return [
     "HISTORIA DEL JUGADOR",
     story.trim(),
@@ -58,6 +69,7 @@ export function buildConceptPrompt(story: string, level: number): string {
     ...BACKGROUNDS.map((b) =>
       `- ${b.id} — ${b.name} (atributos: ${abilityNames(b.abilities)}; dote: ${findFeat(b.featId)?.name ?? b.featId}; ` +
       `habilidades: ${b.skills.map(skillName).join(", ")})`),
+    ...retrySection(errors),
   ].join("\n");
 }
 
@@ -165,13 +177,5 @@ export function buildChoicesPrompt(concept: ChoicesPromptInput, specs: ChoiceSpe
     "ELECCIONES",
     ...describeSpecs(specs),
   ];
-  if (errors.length > 0) {
-    lines.push(
-      "",
-      "ERRORES DEL INTENTO ANTERIOR",
-      "Tu respuesta anterior no era válida. Corregí estos problemas y mandá todas las elecciones de nuevo:",
-      ...errors.map((e) => `- ${e.field}: ${e.message}`),
-    );
-  }
-  return lines.join("\n");
+  return [...lines, ...retrySection(errors.map((e) => `${e.field}: ${e.message}`))].join("\n");
 }
