@@ -41,6 +41,22 @@ export function enterDrawer(element: Element): void {
   animate(element, { translateX: ["100%", "0%"], duration: 320, ease: "outCubic" });
 }
 
+/** The scene drawer sliding back out; `onDone` runs once it has left.
+    Returns a function that stops the animation. */
+export function leaveDrawer(element: Element, onDone: () => void): () => void {
+  if (!motionAllowed()) {
+    onDone();
+    return () => {};
+  }
+  const animation = animate(element, {
+    translateX: ["0%", "100%"],
+    duration: 240,
+    ease: "inCubic",
+    onComplete: onDone,
+  });
+  return () => animation.cancel();
+}
+
 const TUMBLE_MS = 750;
 const LEAVE_MS = 160;
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { formatDice } from "../domain/dice";
 import type { GameState, TurnInput } from "../domain/types";
 import { TurnEngine, type TurnFailure } from "../engine/TurnEngine";
@@ -7,8 +7,10 @@ import { describeLLMError } from "../llm/errorMessages";
 import { IndexedDBGameRepo } from "../persistence/IndexedDBGameRepo";
 import { isConfigured, loadSettings } from "../persistence/settings";
 import { CharacterPanel } from "./CharacterPanel";
+import { InfoDrawer } from "./InfoDrawer";
 import { SceneDrawer } from "./SceneDrawer";
 import { InputEntry, Narration, TurnLog } from "./TurnLog";
+import { useStickToBottom } from "./useStickToBottom";
 import "./game.css";
 
 type Screen =
@@ -45,8 +47,18 @@ export default function Game() {
   const [warning, setWarning] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [sceneOpen, setSceneOpen] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const { atBottom, scrollToBottom, follow } = useStickToBottom();
   const startedRef = useRef(false);
+  const draftRef = useRef<HTMLTextAreaElement>(null);
+
+  // Grow the textarea with its content: one line when empty, capped by CSS max-height.
+  useLayoutEffect(() => {
+    const el = draftRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [draft]);
 
   useEffect(() => {
     const settings = loadSettings();
@@ -77,6 +89,8 @@ export default function Game() {
   const send = useCallback(
     async (engine: TurnEngine, state: GameState, input: TurnInput) => {
       setBusy(true);
+      // Whoever sends wants to see the reply, even if they had scrolled up.
+      scrollToBottom();
       setError(null);
       setWarning(null);
       setInFlight({ input, narration: "" });
@@ -102,7 +116,7 @@ export default function Game() {
         setWarning("El turno se jugó pero no se pudo guardar. Si recargás, lo perdés.");
       }
     },
-    [],
+    [scrollToBottom],
   );
 
   // Turns the app takes on its own, with no player input:
@@ -125,9 +139,12 @@ export default function Game() {
 
   const turnCount = screen.status === "playing" ? screen.state.turns.length : 0;
   const streamed = inFlight?.narration ?? "";
+  const playing = screen.status === "playing";
+  // Opening the game lands at the latest turn; after that, new text keeps
+  // the view at the bottom unless the player scrolled up to reread.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [turnCount, streamed, error]);
+    follow();
+  }, [playing, turnCount, streamed, error, busy, follow]);
 
   const playerRoll = screen.status === "playing" ? screen.state.pendingPlayerRoll : null;
   const enemyRollsPending =
@@ -170,7 +187,10 @@ export default function Game() {
 
   return (
     <section className="game">
-      <CharacterPanel state={state} onOpenScene={() => setSceneOpen(true)} />
+      <CharacterPanel state={state} onOpenScene={() => setSceneOpen(true)}
+        onOpenInfo={() => setInfoOpen(true)}
+      />
+      <InfoDrawer state={state} open={infoOpen} onClose={() => setInfoOpen(false)} />
       <SceneDrawer
         state={state}
         dmActing={busy}
@@ -187,7 +207,6 @@ export default function Game() {
             {busy && streamed === "" && <p className="thinking">El DM está pensando…</p>}
           </div>
         )}
-        <div ref={bottomRef} />
       </div>
 
       {error && (
@@ -228,7 +247,9 @@ export default function Game() {
         <label className="field">
           <span>¿Qué hacés?</span>
           <textarea
-            rows={3}
+            ref={draftRef}
+            className="action-input"
+            rows={1}
             value={draft}
             disabled={!canAct}
             onChange={(event) => setDraft(event.target.value)}
@@ -247,6 +268,27 @@ export default function Game() {
           </button>
         </div>
       </form>
+
+      {!atBottom && (
+        <button
+          type="button"
+          className="button scroll-bottom"
+          aria-label="Ir al final"
+          title="Ir al final"
+          onClick={() => scrollToBottom("smooth")}
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <path
+              d="M12 4v15m-6-6 6 6 6-6"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      )}
     </section>
   );
 }

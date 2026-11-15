@@ -1,7 +1,6 @@
-import { useEffect, useRef } from "react";
-import { enterDrawer } from "../animations/motion";
 import type { Attitude, GameState } from "../domain/types";
 import { initials } from "./TurnLog";
+import { useDrawer } from "./useDrawer";
 
 const ATTITUDE_LABEL: Record<Attitude, string> = {
   friendly: "Amistoso",
@@ -67,36 +66,14 @@ interface Props {
     green otherwise) and dims the rest. A native modal <dialog> gives focus
     trapping and Escape-to-close for free. */
 export function SceneDrawer({ state, dmActing, open, onClose }: Props) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (open && !dialog.open) {
-      dialog.showModal();
-      if (panelRef.current) enterDrawer(panelRef.current);
-    } else if (!open && dialog.open) {
-      dialog.close();
-    }
-  }, [open]);
+  const { dialogProps, panelRef } = useDrawer(open, onClose);
 
   const members = sceneMembers(state, dmActing);
   const { inCombat } = state.scene;
   const npcsInScene = members.filter((m) => m.kind !== "player" && m.kind !== "dm").length;
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="drawer"
-      aria-labelledby="scene-title"
-      onClose={onClose}
-      // The dialog fills the screen; a click that lands on it rather than
-      // on the panel is a click on the backdrop.
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
+    <dialog {...dialogProps} aria-labelledby="scene-title">
       <div ref={panelRef} className="drawer__panel" data-mode={inCombat ? "combat" : "calm"}>
         <header className="drawer__header">
           <div>
