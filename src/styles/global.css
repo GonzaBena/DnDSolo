@@ -116,6 +116,30 @@ a { color: var(--color-accent); text-underline-offset: 0.15em; }
 .button:disabled { opacity: 0.5; cursor: not-allowed; }
 .button[hidden] { display: none; }
 
+/* Game-style main menu: one centered column of big buttons. */
+.menu { display: grid; gap: var(--space-3); max-width: 22rem; margin: var(--space-4) auto 0; }
+.menu .button { display: grid; gap: var(--space-1); padding: var(--space-3) var(--space-4); text-align: center; font-size: var(--text-lg); }
+.menu .button small { font-size: var(--text-sm); font-weight: 400; }
+.button[aria-disabled="true"] { opacity: 0.5; pointer-events: none; }
+
+.saves { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.save {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-flat);
+}
+.save strong, .save small { display: block; }
+.save small { color: var(--color-ink-soft); }
+.save .button { padding: var(--space-1) var(--space-3); box-shadow: none; }
+#menu-main[hidden], #menu-load[hidden] { display: none; }
+@media (max-width: 30rem) { .save { grid-template-columns: repeat(3, 1fr); } .save > div { grid-column: 1 / -1; } }
+
 .form { display: grid; gap: var(--space-4); }
 .field { display: grid; gap: var(--space-1); font-weight: 700; }
 .field small { font-weight: 400; font-size: var(--text-sm); color: var(--color-ink-soft); }

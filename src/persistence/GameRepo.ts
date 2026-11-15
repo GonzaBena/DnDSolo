@@ -7,5 +7,7 @@ export interface GameRepo {
   load(id: string): Promise<GameState | null>;
   /** The most recently updated game, for "Continuar". */
   loadLatest(): Promise<GameState | null>;
+  /** Every readable game, most recently updated first, for "Cargar campaña". */
+  list(): Promise<GameState[]>;
   delete(id: string): Promise<void>;
 }

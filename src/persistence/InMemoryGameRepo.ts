@@ -25,6 +25,12 @@ export class InMemoryGameRepo implements GameRepo {
     return latest ? structuredClone(latest) : null;
   }
 
+  async list(): Promise<GameState[]> {
+    return [...this.games.values()]
+      .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
+      .map((game) => structuredClone(game));
+  }
+
   async delete(id: string): Promise<void> {
     this.games.delete(id);
   }

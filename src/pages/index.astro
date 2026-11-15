@@ -22,37 +22,177 @@ import Base from "../layouts/Base.astro";
     </g>
   </svg>
   <h1>Tu aventura, tu Dungeon Master</h1>
-  <p>Una IA narra la campaña. Vos decidís qué hace tu personaje.</p>
-  <div class="actions">
-    <a class="button button--primary" href="/character">Nueva campaña</a>
-    <a id="continue" class="button" href="/play" hidden>Continuar</a>
-    {/* Development aid: only rendered by `npm run dev`, never in a build. */}
-    {import.meta.env.DEV && (
-      <button id="load-mock" type="button" class="button">Cargar partida de ejemplo</button>
-    )}
+
+  <div id="menu-main">
+    <p>Una IA narra la campaña. Vos decidís qué hace tu personaje.</p>
+    <nav class="menu" aria-label="Menú principal">
+      <a class="button button--primary" href="/character">Nueva campaña</a>
+      <a id="continue" class="button" href="/play" aria-disabled="true">
+        Continuar
+        <small id="continue-info">Todavía no hay campañas</small>
+      </a>
+      <button id="open-load" type="button" class="button">Cargar campaña</button>
+      <a class="button" href="/settings">Configuración</a>
+      {/* Development aid: only rendered by `npm run dev`, never in a build. */}
+      {import.meta.env.DEV && (
+        <button id="load-mock" type="button" class="button">Cargar partida de ejemplo</button>
+      )}
+    </nav>
   </div>
-  <p id="save-info" class="status"></p>
+
+  <div id="menu-load" hidden>
+    <h2>Cargar campaña</h2>
+    <p id="saves-empty" class="status" hidden>Todavía no hay campañas guardadas.</p>
+    <ul id="saves" class="saves"></ul>
+    <div class="actions">
+      <button id="close-load" type="button" class="button">Volver</button>
+      <button id="import-save" type="button" class="button">Importar campaña</button>
+      <input id="import-file" type="file" accept="application/json,.json" hidden />
+    </div>
+  </div>
+  <p id="save-info" class="status" role="status" aria-live="polite"></p>
 </Base>
 
 <script>
+  import type { GameState } from "../domain/types";
   import { IndexedDBGameRepo } from "../persistence/IndexedDBGameRepo";
+  import { migrateSave } from "../persistence/migrations";
 
-  // "Continuar" only appears when there is something to continue.
-  const link = document.querySelector<HTMLAnchorElement>("#continue")!;
+  const repo = new IndexedDBGameRepo();
+  const main = document.querySelector<HTMLElement>("#menu-main")!;
+  const loadPanel = document.querySelector<HTMLElement>("#menu-load")!;
+  const continueLink = document.querySelector<HTMLAnchorElement>("#continue")!;
+  const continueInfo = document.querySelector<HTMLElement>("#continue-info")!;
+  const openLoad = document.querySelector<HTMLButtonElement>("#open-load")!;
+  const savesList = document.querySelector<HTMLUListElement>("#saves")!;
   const info = document.querySelector<HTMLParagraphElement>("#save-info")!;
+  const emptyNote = document.querySelector<HTMLElement>("#saves-empty")!;
+  const importButton = document.querySelector<HTMLButtonElement>("#import-save")!;
+  const importFile = document.querySelector<HTMLInputElement>("#import-file")!;
 
-  new IndexedDBGameRepo().loadLatest().then(
-    (game) => {
-      const player = game?.players[0];
-      if (!game || !player) return;
-      link.hidden = false;
-      const turns = game.turns.length === 1 ? "1 turno" : `${game.turns.length} turnos`;
-      info.textContent = `Última partida: ${player.name}, ${player.characterClass} nivel ${player.level} · ${turns} jugados.`;
-    },
-    () => {
-      info.textContent = "No se pudo leer las partidas guardadas en este navegador.";
-    },
-  );
+  function report(message: string, tone: "ok" | "error") {
+    info.dataset.tone = tone;
+    info.textContent = message;
+  }
+
+  const describe = (game: GameState) => {
+    const player = game.players[0];
+    const who = player ? `${player.name}, ${player.characterClass} nivel ${player.level}` : "Sin personaje";
+    const turns = game.turns.length === 1 ? "1 turno" : `${game.turns.length} turnos`;
+    return { who, detail: `${turns} · ${new Date(game.updatedAt).toLocaleDateString("es-AR")}` };
+  };
+
+  // Names come from the player and the model, so they go in as text, never as HTML.
+  function renderSaves(games: GameState[]) {
+    savesList.replaceChildren(
+      ...games.map((game) => {
+        const { who, detail } = describe(game);
+        const item = document.createElement("li");
+        item.className = "save";
+
+        const text = document.createElement("div");
+        const title = document.createElement("strong");
+        title.textContent = who;
+        const sub = document.createElement("small");
+        sub.textContent = detail;
+        text.append(title, sub);
+
+        const play = document.createElement("a");
+        play.className = "button button--primary";
+        play.href = `/play?id=${encodeURIComponent(game.id)}`;
+        play.textContent = "Jugar";
+
+        // Two clicks to delete: the first arms the button, no browser dialog.
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "button";
+        remove.textContent = "Borrar";
+        remove.addEventListener("click", async () => {
+          if (remove.dataset.armed !== "true") {
+            remove.dataset.armed = "true";
+            remove.textContent = "¿Seguro?";
+            return;
+          }
+          try {
+            await repo.delete(game.id);
+            await refresh();
+            if (!savesList.children.length) showMain();
+          } catch {
+            info.dataset.tone = "error";
+            info.textContent = "No se pudo borrar la campaña.";
+          }
+        });
+
+        const exportButton = document.createElement("button");
+        exportButton.type = "button";
+        exportButton.className = "button";
+        exportButton.textContent = "Exportar";
+        exportButton.addEventListener("click", () => {
+          const blob = new Blob([JSON.stringify(game, null, 2)], { type: "application/json" });
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(blob);
+          const name = game.players[0]?.name ?? "campania";
+          link.download = `dnsolo-${name.replace(/[^\p{L}\p{N}]+/gu, "-")}.json`;
+          link.click();
+          URL.revokeObjectURL(link.href);
+        });
+
+        item.append(text, play, exportButton, remove);
+        return item;
+      }),
+    );
+  }
+
+  function showMain() {
+    loadPanel.hidden = true;
+    main.hidden = false;
+  }
+
+  async function refresh() {
+    const games = await repo.list();
+    const latest = games[0];
+    if (latest) {
+      const { who, detail } = describe(latest);
+      continueLink.removeAttribute("aria-disabled");
+      continueLink.href = `/play?id=${encodeURIComponent(latest.id)}`;
+      continueInfo.textContent = `${who} · ${detail}`;
+    } else {
+      continueLink.setAttribute("aria-disabled", "true");
+      continueLink.removeAttribute("href");
+      continueInfo.textContent = "Todavía no hay campañas";
+    }
+    emptyNote.hidden = games.length > 0;
+    renderSaves(games);
+  }
+
+  refresh().catch(() => {
+    info.dataset.tone = "error";
+    info.textContent = "No se pudo leer las partidas guardadas en este navegador.";
+  });
+
+  openLoad.addEventListener("click", () => {
+    main.hidden = true;
+    loadPanel.hidden = false;
+  });
+  importButton.addEventListener("click", () => importFile.click());
+  importFile.addEventListener("change", async () => {
+    const file = importFile.files?.[0];
+    importFile.value = "";
+    if (!file) return;
+    try {
+      // Same gate as loading from disk: migrate, validate, or refuse.
+      const game = migrateSave(JSON.parse(await file.text()));
+      if (!game) return report("Ese archivo no es una campaña válida de esta versión.", "error");
+      // Never overwrite a campaign that already has this id.
+      const imported = (await repo.load(game.id)) ? { ...game, id: crypto.randomUUID() } : game;
+      await repo.save(imported);
+      await refresh();
+      report("Campaña importada.", "ok");
+    } catch {
+      report("No se pudo importar el archivo.", "error");
+    }
+  });
+  document.querySelector("#close-load")!.addEventListener("click", showMain);
 
   // The dynamic import sits behind the DEV check so a production build
   // doesn't ship the sample game.
@@ -61,9 +201,11 @@ import Base from "../layouts/Base.astro";
     mockButton.addEventListener("click", async () => {
       try {
         const { loadMockGame } = await import("../persistence/mockGame");
-        await new IndexedDBGameRepo().save(loadMockGame());
-        location.href = "/play";
+        const game = loadMockGame();
+        await repo.save(game);
+        location.href = `/play?id=${encodeURIComponent(game.id)}`;
       } catch {
+        info.dataset.tone = "error";
         info.textContent = "No se pudo cargar la partida de ejemplo.";
       }
     });

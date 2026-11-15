@@ -25,6 +25,16 @@ describe("IndexedDBGameRepo", () => {
     expect((await repo.loadLatest())!.id).toBe("mid");
   });
 
+  it("list returns readable games, newest first", async () => {
+    const repo = new IndexedDBGameRepo();
+    await repo.save({ ...newGame(), id: "list-a", updatedAt: "2000-01-01T00:00:00.000Z" });
+    await repo.save({ ...newGame(), id: "list-b", updatedAt: "2000-02-01T00:00:00.000Z" });
+    await repo.save({ ...newGame(), id: "list-bad", version: 999, updatedAt: "2000-03-01T00:00:00.000Z" });
+    const ids = (await repo.list()).map((game) => game.id);
+    expect(ids.indexOf("list-b")).toBeLessThan(ids.indexOf("list-a"));
+    expect(ids).not.toContain("list-bad");
+  });
+
   it("skips saves written by another version of the app", async () => {
     const repo = new IndexedDBGameRepo();
     await repo.save({ ...newGame(), id: "future", version: 999, updatedAt: "2099-01-01T00:00:00.000Z" });

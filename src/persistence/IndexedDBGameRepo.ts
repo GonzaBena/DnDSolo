@@ -31,6 +31,9 @@ export class IndexedDBGameRepo implements GameRepo {
   private db: Promise<IDBDatabase> | null = null;
 
   private open(): Promise<IDBDatabase> {
+    // Ask the browser not to evict saves under storage pressure. Best
+    // effort: unsupported or refused is fine, the export is the backup.
+    void globalThis.navigator?.storage?.persist?.().catch(() => {});
     this.db ??= new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
       request.onupgradeneeded = () => {
@@ -69,6 +72,22 @@ export class IndexedDBGameRepo implements GameRepo {
         const state = readable(cursor.value);
         if (state) resolve(state);
         else cursor.continue();
+      };
+    });
+  }
+
+  async list(): Promise<GameState[]> {
+    const index = (await this.open()).transaction(STORE).objectStore(STORE).index(BY_UPDATED);
+    return new Promise((resolve, reject) => {
+      const games: GameState[] = [];
+      const request = index.openCursor(null, "prev");
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (!cursor) return resolve(games);
+        const state = readable(cursor.value);
+        if (state) games.push(state);
+        cursor.continue();
       };
     });
   }

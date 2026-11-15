@@ -61,7 +61,9 @@ export default function Game() {
       llm: new GeminiClient(settings.apiKey, settings.model),
       repo,
     });
-    repo.loadLatest().then(
+    // /play?id=... opens a specific campaign; without it, the latest one.
+    const id = new URLSearchParams(location.search).get("id");
+    (id ? repo.load(id) : repo.loadLatest()).then(
       (state) =>
         setScreen(
           state
