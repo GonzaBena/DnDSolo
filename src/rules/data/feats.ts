@@ -1,12 +1,8 @@
-import { ABILITIES, SKILLS } from "../types";
+import { ABILITIES, ABILITY_NAMES, SKILLS } from "../types";
 import type { Ability, ChoiceSpec, FeatData, Option } from "../types";
 import { spellOptions } from "./spells";
 
 const SOURCE = "SRD 5.2" as const;
-
-const ABILITY_NAMES: Record<Ability, string> = {
-  str: "Fuerza", dex: "Destreza", con: "Constitución", int: "Inteligencia", wis: "Sabiduría", cha: "Carisma",
-};
 
 const abilityOptions = (abilities: Ability[] = ABILITIES): Option[] =>
   abilities.map((a) => ({ id: a, name: ABILITY_NAMES[a], summary: ABILITY_NAMES[a] }));

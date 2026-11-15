@@ -26,12 +26,12 @@ const LEVEL_1_INVOCATIONS: Option[] = [
 // Level 5+ options (e.g. Eldritch Smite, Thirsting Blade) are added when higher levels are loaded.
 const LEVEL_2_INVOCATIONS: Option[] = [
   {
-    id: "agonizing_blast", name: "Descarga agónica",
+    id: "agonizing_blast", name: "Descarga agónica", repeatable: true,
     summary: "Requisito: brujo de nivel 2+ y un truco de brujo que cause daño. Sumás tu modificador de Carisma al daño de ese truco. Repetible con un truco distinto cada vez.",
   },
   { id: "devils_sight", name: "Vista del diablo", summary: "Requisito: brujo de nivel 2+. Ves con normalidad en luz tenue y oscuridad, mágica o no, a 36 m." },
   {
-    id: "eldritch_spear", name: "Lanza sobrenatural",
+    id: "eldritch_spear", name: "Lanza sobrenatural", repeatable: true,
     summary: "Requisito: brujo de nivel 2+ y un truco de brujo que cause daño con alcance de 3 m o más. Su alcance aumenta 10 m por nivel de brujo. Repetible con un truco distinto cada vez.",
   },
   {
@@ -40,7 +40,7 @@ const LEVEL_2_INVOCATIONS: Option[] = [
     ...free("false_life"),
   },
   {
-    id: "lessons_of_the_first_ones", name: "Lecciones de los primeros",
+    id: "lessons_of_the_first_ones", name: "Lecciones de los primeros", repeatable: true,
     summary: "Requisito: brujo de nivel 2+. Obtenés una dote de origen a elección. Repetible con una dote de origen distinta cada vez.",
   },
   {
@@ -56,7 +56,7 @@ const LEVEL_2_INVOCATIONS: Option[] = [
     summary: "Requisito: brujo de nivel 2+. Lanzás salto sobre vos sin gastar espacio de conjuro.", ...free("jump"),
   },
   {
-    id: "repelling_blast", name: "Descarga ahuyentadora",
+    id: "repelling_blast", name: "Descarga ahuyentadora", repeatable: true,
     summary: "Requisito: brujo de nivel 2+ y un truco de brujo que requiera tirada de ataque. Al acertar a una criatura Grande o menor, la empujás hasta 3 m. Repetible con un truco distinto cada vez.",
   },
 ];

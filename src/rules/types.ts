@@ -1,6 +1,10 @@
 export type Ability = "str" | "dex" | "con" | "int" | "wis" | "cha";
 export const ABILITIES: Ability[] = ["str", "dex", "con", "int", "wis", "cha"];
 
+export const ABILITY_NAMES: Record<Ability, string> = {
+  str: "Fuerza", dex: "Destreza", con: "Constitución", int: "Inteligencia", wis: "Sabiduría", cha: "Carisma",
+};
+
 export type SkillId =
   | "acrobatics" | "animal_handling" | "arcana" | "athletics" | "deception"
   | "history" | "insight" | "intimidation" | "investigation" | "medicine" | "nature"
@@ -37,6 +41,8 @@ export interface Option {
   spells?: { fromLevel: number; spellId: string }[];
   /** Skill proficiency it grants (e.g. Keen Senses). */
   skill?: SkillId;
+  /** Can be picked more than once, even across choices (SRD "Repetible", e.g. Agonizing Blast). */
+  repeatable?: boolean;
 }
 
 export interface ChoiceSpec {

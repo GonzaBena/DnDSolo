@@ -1,5 +1,6 @@
 import { createGame } from "../src/domain/character";
 import type { DMResponse, GameState } from "../src/domain/types";
+import type { CharacterChoices } from "../src/rules/buildSheet";
 
 export function newGame(): GameState {
   let counter = 0;
@@ -18,6 +19,29 @@ export function reply(overrides: Partial<DMResponse> = {}): DMResponse {
     enemyRolls: [],
     stateChanges: [],
     events: [],
+    ...overrides,
+  };
+}
+
+/** A valid level 1 human fighter with the soldier background. */
+export function fighterChoices(overrides: Partial<CharacterChoices> = {}): CharacterChoices {
+  return {
+    speciesId: "human",
+    classId: "fighter",
+    backgroundId: "soldier",
+    level: 1,
+    baseScores: { str: 15, dex: 14, con: 13, int: 8, wis: 12, cha: 10 },
+    backgroundBonus: { str: 2, con: 1 },
+    classEquipment: "A",
+    backgroundEquipment: "A",
+    picks: {
+      "species.human.skillful": ["perception"],
+      "species.human.versatile": ["alert"],
+      "background.soldier.tool": ["dice"],
+      "class.fighter.skills": ["acrobatics", "survival"],
+      "class.fighter.fighting_style": ["defense"],
+      "class.fighter.weapon_mastery": ["longsword", "greatsword", "longbow"],
+    },
     ...overrides,
   };
 }

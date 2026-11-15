@@ -1,0 +1,253 @@
+import { ABILITY_INCREASE_CHOICES, activeChoices, isFeatChoice, requiredChoices } from "./choices";
+import type { Concept } from "./choices";
+import { CLASSES_DATA, LOADED_MAX_LEVEL, SPECIES, STANDARD_ARRAY, findBackground, findFeat } from "./index";
+import { ABILITIES, ABILITY_NAMES, SKILLS } from "./types";
+import type { Ability, BackgroundData, ChoiceSpec, Option, SkillId } from "./types";
+
+export interface CharacterChoices extends Concept {
+  baseScores: Record<Ability, number>;
+  backgroundBonus: Partial<Record<Ability, number>>;
+  classEquipment: "A" | "B" | "C";
+  backgroundEquipment: "A" | "B";
+  picks: Record<string, string[]>;
+}
+
+/** `message` is in Spanish: it is sent back to the model when it retries. */
+export interface ChoiceError { field: string; message: string }
+
+type Picks = Record<string, string[]>;
+
+const skillName = (id: SkillId) => SKILLS.find((s) => s.id === id)!.name;
+const field = (spec: ChoiceSpec) => `picks.${spec.id}`;
+
+/** Expertise-like choices: their picks must be skills the character is already proficient in. */
+const isExpertise = (id: string) => id.endsWith(".expertise") || id === "class.wizard.scholar";
+
+/** Choices of the same kind whose picks cannot repeat across choices (unless the option is repeatable). */
+function relatedGroup(id: string): string | null {
+  if (/^class\.\w+\.weapon_mastery/.test(id)) return "weapon_mastery";
+  if (/^class\.warlock\.invocation/.test(id)) return "invocation";
+  if (/(cantrips|_cantrip)$/.test(id)) return "cantrip";
+  if (/\.languages?$/.test(id)) return "language";
+  if (isExpertise(id)) return "expertise";
+  return null;
+}
+
+function validateConcept(c: CharacterChoices): ChoiceError[] {
+  const errors: ChoiceError[] = [];
+  if (!Number.isInteger(c.level) || c.level < 1 || c.level > LOADED_MAX_LEVEL) {
+    errors.push({ field: "level", message: `El nivel debe ser un entero entre 1 y ${LOADED_MAX_LEVEL}.` });
+  }
+  if (!SPECIES.some((s) => s.id === c.speciesId)) {
+    errors.push({ field: "speciesId", message: `Especie desconocida "${c.speciesId}". Opciones: ${SPECIES.map((s) => s.id).join(", ")}.` });
+  }
+  if (!CLASSES_DATA.some((cl) => cl.id === c.classId)) {
+    errors.push({ field: "classId", message: `Clase desconocida "${c.classId}". Opciones: ${CLASSES_DATA.map((cl) => cl.id).join(", ")}.` });
+  }
+  if (!findBackground(c.backgroundId)) {
+    errors.push({ field: "backgroundId", message: `Trasfondo desconocido "${c.backgroundId}".` });
+  }
+  return errors;
+}
+
+function validateBaseScores(scores: Record<Ability, number>): ChoiceError[] {
+  const values = ABILITIES.map((a) => scores[a]).sort((x, y) => y - x);
+  const ok = Object.keys(scores).length === ABILITIES.length && values.every((v, i) => v === STANDARD_ARRAY[i]);
+  return ok ? [] : [{
+    field: "baseScores",
+    message: `Las puntuaciones base deben ser la matriz estándar (${STANDARD_ARRAY.join(", ")}), un valor por característica.`,
+  }];
+}
+
+function backgroundBonusProblem(bonus: Partial<Record<Ability, number>>, background: BackgroundData): string | null {
+  const allowed = background.abilities.map((a) => ABILITY_NAMES[a]).join(", ");
+  const entries = Object.entries(bonus).filter(([, v]) => v !== 0) as [string, number][];
+  const foreign = entries.find(([a]) => !background.abilities.includes(a as Ability));
+  if (foreign) {
+    const name = ABILITY_NAMES[foreign[0] as Ability] ?? foreign[0];
+    return `${background.name} solo permite aumentar ${allowed}; no ${name}.`;
+  }
+  const values = entries.map(([, v]) => v).sort((x, y) => y - x).join(",");
+  if (values !== "2,1" && values !== "1,1,1") {
+    return `El bonus de trasfondo debe ser +2 a una y +1 a otra, o +1 a las tres (${allowed}).`;
+  }
+  return null;
+}
+
+function validateEquipment(c: CharacterChoices): ChoiceError[] {
+  const errors: ChoiceError[] = [];
+  const cls = CLASSES_DATA.find((cl) => cl.id === c.classId)!;
+  if (!["A", "B", "C"].includes(c.classEquipment) || !cls.equipment[c.classEquipment]) {
+    const options = (["A", "B", "C"] as const).filter((k) => cls.equipment[k]).join(" o ");
+    errors.push({ field: "classEquipment", message: `${cls.name} no tiene la opción de equipo "${c.classEquipment}"; elegí ${options}.` });
+  }
+  if (!["A", "B"].includes(c.backgroundEquipment)) {
+    errors.push({ field: "backgroundEquipment", message: `El equipo de trasfondo debe ser A o B.` });
+  }
+  return errors;
+}
+
+/** Count, existence and repetition of each active spec; unknown pick keys. */
+function validatePickShape(specs: ChoiceSpec[], picks: Picks): ChoiceError[] {
+  const errors: ChoiceError[] = [];
+  for (const spec of specs) {
+    const chosen = picks[spec.id];
+    if (!chosen || chosen.length === 0) {
+      errors.push({ field: field(spec), message: `Falta elegir "${spec.label}" (${spec.count}).` });
+      continue;
+    }
+    const problems: string[] = [];
+    if (chosen.length !== spec.count) problems.push(`hay que elegir ${spec.count} y se eligieron ${chosen.length}`);
+    const unknown = chosen.filter((p) => !spec.options.some((o) => o.id === p));
+    if (unknown.length > 0) problems.push(`${unknown.map((u) => `"${u}"`).join(", ")} no es una opción válida`);
+    const repeated = chosen.filter((p, i) => chosen.indexOf(p) !== i);
+    const badRepeats = [...new Set(repeated)].filter((p) => !spec.allowRepeat && !optionOf(spec, p)?.repeatable);
+    if (badRepeats.length > 0) problems.push(`${badRepeats.map((p) => optionOf(spec, p)?.name ?? p).join(", ")} está repetida`);
+    if (problems.length > 0) errors.push({ field: field(spec), message: `"${spec.label}": ${problems.join("; ")}.` });
+  }
+  for (const key of Object.keys(picks)) {
+    if (!specs.some((s) => s.id === key)) {
+      errors.push({
+        field: `picks.${key}`,
+        message: "Esta elección no corresponde a este personaje (revisá especie, clase, nivel y las elecciones de las que depende).",
+      });
+    }
+  }
+  return errors;
+}
+
+const optionOf = (spec: ChoiceSpec, id: string): Option | undefined => spec.options.find((o) => o.id === id);
+
+/** Valid, distinct picks of a spec, as options. */
+function pickedOptions(spec: ChoiceSpec, picks: Picks): Option[] {
+  return [...new Set(picks[spec.id] ?? [])].flatMap((p) => optionOf(spec, p) ?? []);
+}
+
+/** No skill twice across sources; expertise only in proficient skills. */
+function validateSkills(c: CharacterChoices, specs: ChoiceSpec[]): ChoiceError[] {
+  const errors: ChoiceError[] = [];
+  const background = findBackground(c.backgroundId)!;
+  const species = SPECIES.find((s) => s.id === c.speciesId)!;
+  const owned = new Map<SkillId, string>();
+  for (const s of background.skills) owned.set(s, `el trasfondo ${background.name}`);
+  for (const s of species.fixedSkills) owned.set(s, `la especie ${species.name}`);
+
+  for (const spec of specs.filter((s) => !isExpertise(s.id))) {
+    const repeats: string[] = [];
+    for (const option of pickedOptions(spec, c.picks)) {
+      if (!option.skill) continue;
+      const source = owned.get(option.skill);
+      if (source) repeats.push(`${skillName(option.skill)} ya la tenés por ${source}`);
+      else owned.set(option.skill, `"${spec.label}"`);
+    }
+    if (repeats.length > 0) errors.push({ field: field(spec), message: `${repeats.join("; ")}. Elegí otra habilidad.` });
+  }
+
+  for (const spec of specs.filter((s) => isExpertise(s.id))) {
+    const missing = pickedOptions(spec, c.picks).filter((o) => !owned.has(o.id as SkillId));
+    if (missing.length > 0) {
+      const names = missing.map((o) => skillName(o.id as SkillId)).join(", ");
+      errors.push({
+        field: field(spec),
+        message: `"${spec.label}": no sos competente en ${names}; la pericia solo puede ir en habilidades en las que seas competente.`,
+      });
+    }
+  }
+  return errors;
+}
+
+function validateRelated(specs: ChoiceSpec[], picks: Picks): ChoiceError[] {
+  const errors: ChoiceError[] = [];
+  const seen = new Map<string, Map<string, string>>(); // group → option id → label of the spec that took it
+  for (const spec of specs) {
+    const group = relatedGroup(spec.id);
+    if (!group) continue;
+    const taken = seen.get(group) ?? new Map<string, string>();
+    seen.set(group, taken);
+    const repeats = pickedOptions(spec, picks).filter((o) => !o.repeatable && taken.has(o.id));
+    if (repeats.length > 0) {
+      const detail = repeats.map((o) => `${o.name} ya está en "${taken.get(o.id)}"`).join("; ");
+      errors.push({ field: field(spec), message: `"${spec.label}": ${detail}. Elegí otra opción.` });
+    }
+    for (const o of pickedOptions(spec, picks)) if (!taken.has(o.id)) taken.set(o.id, spec.label);
+  }
+  return errors;
+}
+
+function scoresBeforeFeats(c: CharacterChoices): Record<Ability, number> {
+  return Object.fromEntries(ABILITIES.map((a) => [a, c.baseScores[a] + (c.backgroundBonus[a] ?? 0)])) as Record<Ability, number>;
+}
+
+/** Feats are taken once (none of the loaded ones is repeatable at levels 1-4) and must meet their prerequisites. */
+function validateFeats(c: CharacterChoices, specs: ChoiceSpec[]): ChoiceError[] {
+  const errors: ChoiceError[] = [];
+  const background = findBackground(c.backgroundId)!;
+  const owned = new Map<string, string>([[background.featId, `el trasfondo ${background.name}`]]);
+  const scores = scoresBeforeFeats(c);
+  for (const spec of specs.filter((s) => isFeatChoice(s.id))) {
+    const problems: string[] = [];
+    for (const option of pickedOptions(spec, c.picks)) {
+      const feat = findFeat(option.id);
+      if (!feat) continue; // non-feat fighting style options (Blessed Warrior, Druidic Warrior)
+      const source = owned.get(feat.id);
+      if (source) problems.push(`ya tenés la dote ${feat.name} por ${source} y solo se obtiene una vez`);
+      else owned.set(feat.id, `"${spec.label}"`);
+      const pre = feat.prerequisite;
+      if (pre?.minLevel && c.level < pre.minLevel) problems.push(`${feat.name} requiere nivel ${pre.minLevel}`);
+      if (pre?.anyAbility && !pre.anyAbility.abilities.some((a) => scores[a] >= pre.anyAbility!.min)) {
+        const { abilities, min } = pre.anyAbility;
+        const names = abilities.map((a) => ABILITY_NAMES[a]).join(" o ");
+        const current = abilities.map((a) => `${ABILITY_NAMES[a]} ${scores[a]}`).join(", ");
+        problems.push(`${feat.name} requiere ${names} ${min} o más (tenés ${current})`);
+      }
+    }
+    if (problems.length > 0) errors.push({ field: field(spec), message: `"${spec.label}": ${problems.join("; ")}.` });
+  }
+  return errors;
+}
+
+function validateAbilityCap(c: CharacterChoices, specs: ChoiceSpec[]): ChoiceError[] {
+  const errors: ChoiceError[] = [];
+  const scores = scoresBeforeFeats(c);
+  for (const spec of specs.filter((s) => ABILITY_INCREASE_CHOICES.has(s.id))) {
+    for (const p of c.picks[spec.id] ?? []) if (ABILITIES.includes(p as Ability)) scores[p as Ability] += 1;
+    const over = ABILITIES.filter((a) => scores[a] > 20);
+    if (over.length > 0) {
+      const detail = over.map((a) => `${ABILITY_NAMES[a]} quedaría en ${scores[a]}`).join(", ");
+      errors.push({ field: field(spec), message: `"${spec.label}": ${detail}; el máximo es 20.` });
+    }
+  }
+  return errors;
+}
+
+function validateSpellbook(specs: ChoiceSpec[], picks: Picks): ChoiceError[] {
+  const prepared = specs.find((s) => s.id === "class.wizard.prepared");
+  if (!prepared || !specs.some((s) => s.id === "class.wizard.spellbook")) return [];
+  const book = new Set(picks["class.wizard.spellbook"] ?? []);
+  const outside = pickedOptions(prepared, picks).filter((o) => !book.has(o.id));
+  return outside.length === 0 ? [] : [{
+    field: field(prepared),
+    message: `"${prepared.label}": ${outside.map((o) => o.name).join(", ")} no está en tu libro de conjuros; solo podés preparar conjuros de tu libro.`,
+  }];
+}
+
+/** Every rule a character's choices must meet; [] when they are legal. */
+export function validateChoices(choices: CharacterChoices): ChoiceError[] {
+  const conceptErrors = validateConcept(choices);
+  if (conceptErrors.length > 0) return conceptErrors;
+
+  const background = findBackground(choices.backgroundId)!;
+  const bonusProblem = backgroundBonusProblem(choices.backgroundBonus, background);
+  const specs = activeChoices(requiredChoices(choices), choices.picks);
+  return [
+    ...validateBaseScores(choices.baseScores),
+    ...(bonusProblem ? [{ field: "backgroundBonus", message: bonusProblem }] : []),
+    ...validateEquipment(choices),
+    ...validatePickShape(specs, choices.picks),
+    ...validateSkills(choices, specs),
+    ...validateRelated(specs, choices.picks),
+    ...validateFeats(choices, specs),
+    ...validateAbilityCap(choices, specs),
+    ...validateSpellbook(specs, choices.picks),
+  ];
+}
