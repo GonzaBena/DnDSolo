@@ -73,7 +73,7 @@ void _reverseCheck;
 
 /** Rewrites what Zod emits into the JSON Schema subset the model API
     documents: no `$schema`, and `enum` instead of `const`. */
-function toProviderSchema(node: unknown): unknown {
+export function toProviderSchema(node: unknown): unknown {
   if (Array.isArray(node)) return node.map(toProviderSchema);
   if (typeof node !== "object" || node === null) return node;
   const out: Record<string, unknown> = {};
