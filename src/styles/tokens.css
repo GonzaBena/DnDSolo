@@ -4,6 +4,8 @@
    Look: flat storybook illustration. Warm paper, one dark ink for every
    outline, solid fills, hard offset shadows instead of blur. */
 :root {
+  color-scheme: light;
+
   /* Color */
   --color-bg: #f4e7cf;          /* paper */
   --color-surface: #fff8ea;     /* cards */
@@ -13,7 +15,10 @@
   --color-primary-ink: #fff8ea;
   --color-accent: #1f6f66;      /* teal: links, player, success */
   --color-accent-ink: #fff8ea;
+  --color-dialog: #e8751a;      /* pumpkin: the player's speech bubbles */
+  --color-dialog-ink: #2a1f1a;
   --color-sun: #f2b134;         /* highlight, focus ring */
+  --color-sun-ink: #2a1f1a;     /* text on top of the highlight */
   --color-sky: #bfe0d8;
   --color-hill: #7fb69a;
 
@@ -44,4 +49,26 @@
   --shadow-pressed: 1px 1px 0 var(--color-ink);
   --content-width: 44rem;
   --speaker-width: 1.75rem;    /* side column with the initials of who spoke */
+}
+
+/* Dark mode: the same storybook at night. The ink flips to cream, so every
+   outline and hard shadow turns light; fills that carry text get dark ink.
+   Set on <html> by Base.astro (saved choice, or the system setting). */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-bg: #1b1512;
+  --color-surface: #2b221d;
+  --color-ink: #f4e7cf;
+  --color-ink-soft: #bba791;
+  --color-primary: #e8684b;
+  --color-primary-ink: #1b1512;
+  --color-accent: #58bfb0;
+  --color-accent-ink: #1b1512;
+  --color-dialog: #ee7f22;
+  --color-dialog-ink: #1b1512;
+  --color-sun: #f2b134;
+  --color-sun-ink: #1b1512;
+  --color-sky: #22324a;
+  --color-hill: #2f5a4b;
 }

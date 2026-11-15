@@ -57,8 +57,8 @@
   padding: var(--space-2) var(--space-3);
   border: var(--border);
   border-radius: var(--radius) var(--radius) 0 var(--radius);
-  background: var(--color-accent);
-  color: var(--color-accent-ink);
+  background: var(--color-dialog);
+  color: var(--color-dialog-ink);
   white-space: pre-wrap;
 }
 .entry--dm { max-width: 62ch; }
@@ -100,6 +100,7 @@
   border: var(--border);
   border-radius: var(--radius);
   background: var(--color-sun);
+  color: var(--color-sun-ink);
   box-shadow: var(--shadow-flat);
 }
 .roll-request p { margin: 0; }

@@ -14,8 +14,19 @@ const { title } = Astro.props;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>{title} · DnSolo</title>
+    <title>{title} · DnDSolo</title>
     <script is:inline>
+      // Theme is resolved before first paint so the page never flashes the
+      // wrong palette: the saved choice wins, otherwise the system setting.
+      (() => {
+        let theme = null;
+        try { theme = localStorage.getItem("dnsolo.theme"); } catch {}
+        if (theme !== "light" && theme !== "dark") {
+          theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.dataset.theme = theme;
+      })();
+
       // Runs before first paint: hides the page's blocks only when they are
       // about to be animated in, so there's no flash of final content. The
       // timeout is a safety net in case the animation script never loads.
@@ -32,9 +43,20 @@ const { title } = Astro.props;
           <polygon class="brand__die" points="16,2 29,9.5 29,22.5 16,30 3,22.5 3,9.5" />
           <path class="brand__lines" d="M3 9.5L16 14L29 9.5M16 14L16 30" />
         </svg>
-        DnSolo
+        DnDSolo
       </a>
-      <a href="/settings">Configuración</a>
+      <nav class="site-nav">
+        <a href="/settings">Configuración</a>
+        <button class="theme-toggle" type="button" aria-label="Cambiar a modo oscuro">
+          <svg class="theme-toggle__moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" />
+          </svg>
+          <svg class="theme-toggle__sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <circle cx="12" cy="12" r="4.5" />
+            <path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" />
+          </svg>
+        </button>
+      </nav>
     </header>
     <main class="page">
       <slot />
@@ -45,6 +67,26 @@ const { title } = Astro.props;
       const blocks = [...document.querySelectorAll(".page > *")];
       enterPage(blocks);
       document.documentElement.classList.remove("entering");
+
+      const root = document.documentElement;
+      const toggle = document.querySelector<HTMLButtonElement>(".theme-toggle");
+      const labelToggle = () => {
+        toggle?.setAttribute(
+          "aria-label",
+          root.dataset.theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro",
+        );
+      };
+      labelToggle();
+      toggle?.addEventListener("click", () => {
+        const next = root.dataset.theme === "dark" ? "light" : "dark";
+        root.dataset.theme = next;
+        try {
+          localStorage.setItem("dnsolo.theme", next);
+        } catch {
+          // Blocked storage: the choice still applies to this page.
+        }
+        labelToggle();
+      });
     </script>
   </body>
 </html>
