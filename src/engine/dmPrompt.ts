@@ -1,4 +1,5 @@
 import { formatDice } from "../domain/dice";
+import { describeCharacterRules } from "./rulesBlock";
 import type { GameState, PlayerRollRequest, Turn, TurnInput } from "../domain/types";
 
 // The prompt is in Spanish because it is content, not code: it sets the
@@ -33,6 +34,11 @@ ESCENA
 - Cada NPC tiene "present": si está en la escena actual. Cuando un NPC aparece, se acerca o se va, mandá su cambio "npc" con "present" actualizado. Al cambiar de lugar, el sistema saca a todos de la escena: volvé a marcar con "present": true a los que estén en el nuevo lugar. Los enemigos con los que se pelea también son NPCs (con actitud "hostile"); si son varios iguales, numeralos ("Goblin 1", "Goblin 2").
 - "scene" dice si hay combate ("inCombat") y quién tiene el turno ("turnOf": el nombre exacto de un jugador o de un NPC presente; null es el jugador). Mandá un cambio "scene" cuando empiece o termine un combate y cada vez que el turno pase a otro personaje: por ejemplo, cuando un enemigo actúa y pedís sus tiradas, el turno es suyo; cuando le toca de nuevo al jugador, volvé a poner su nombre o null.
 - En combate seguí el orden de iniciativa y anunciá en la narración de quién es el turno.
+
+REGLAS
+- En REGLAS DE LOS PERSONAJES tenés los rasgos reales (SRD 5.2, reglas 2024) del nivel actual y del siguiente de cada personaje. Para preguntas de reglas o de subida de nivel, usá solo eso.
+- Si te preguntan algo que no figura ahí, respondé: "Eso no lo tengo, revisalo en tu manual o podés disfrutar las alucinaciones." Si el jugador elige las alucinaciones, podés improvisar, pero aclarale que no sale de las reglas.
+- Cuando la historia lo justifique o el jugador lo pida, subí al personaje un nivel con un cambio "level" (de a uno).
 
 EVENTOS
 - En "events" poné etiquetas de lo que pasó, solo de esta lista: damage, healing, scene_change, combat_start, combat_end, item_gained, new_npc, new_quest, quest_completed, death.
@@ -94,6 +100,7 @@ export function buildTurnPrompt(state: GameState, input: TurnInput, recentTurns:
   const recent = turnsForPrompt(state, recentTurns);
   return [
     `ESTADO\n${JSON.stringify(stateForModel(state), null, 2)}`,
+    `REGLAS DE LOS PERSONAJES\n${describeCharacterRules(state.players)}`,
     `RESUMEN\n${state.summary || "(La aventura recién empieza.)"}`,
     `TURNOS RECIENTES\n${recent.length ? recent.map(describeTurn).join("\n\n") : "(Ninguno todavía.)"}`,
     // Tells the DM what the number in the player's message refers to.
