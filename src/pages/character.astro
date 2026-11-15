@@ -1,6 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
-import { CLASSES, MAX_LEVEL, MIN_LEVEL, RACES } from "../domain/character";
+import { CLASSES, MAX_LEVEL, MIN_LEVEL, SPECIES_OPTIONS } from "../domain/character";
 ---
 
 <Base title="Crear personaje">
@@ -13,9 +13,9 @@ import { CLASSES, MAX_LEVEL, MIN_LEVEL, RACES } from "../domain/character";
     </label>
 
     <label class="field">
-      <span>Raza</span>
-      <select name="race" required>
-        {RACES.map((race) => <option value={race}>{race}</option>)}
+      <span>Especie</span>
+      <select name="speciesId" required>
+        {SPECIES_OPTIONS.map((option) => <option value={option.id}>{option.label}</option>)}
       </select>
     </label>
 
@@ -57,8 +57,10 @@ import { CLASSES, MAX_LEVEL, MIN_LEVEL, RACES } from "../domain/character";
     const data = new FormData(form);
     const game = createGame({
       name: String(data.get("name") ?? ""),
-      race: String(data.get("race") ?? ""),
+      speciesId: String(data.get("speciesId") ?? ""),
       classId: String(data.get("classId") ?? ""),
+      subclassId: null,
+      srdBackgroundId: null,
       level: Number(data.get("level") ?? 1),
       background: String(data.get("background") ?? ""),
     });

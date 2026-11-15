@@ -12,8 +12,14 @@ export interface InventoryItem {
 export interface Character {
   id: string;
   name: string;
+  /** Labels in Spanish, taken from the rules data. */
   race: string;
   characterClass: string;
+  /** Ids in the SRD rules data; null for saves made before they existed. */
+  speciesId: string | null;
+  classId: string | null;
+  subclassId: string | null;
+  srdBackgroundId: string | null;
   level: number;
   background: string | null;
   /** Story items the DM handed out. The player's real sheet (HP, stats,
@@ -140,4 +146,4 @@ export interface GameState {
   pendingEnemyRolls: EnemyRollRequest[];
 }
 
-export const GAME_STATE_VERSION = 3;
+export const GAME_STATE_VERSION = 4;

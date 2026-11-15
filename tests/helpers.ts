@@ -10,7 +10,7 @@ import type { Ability } from "../src/rules/types";
 export function newGame(): GameState {
   let counter = 0;
   return createGame(
-    { name: "Lira", race: "Elfo", classId: "rogue", level: 3, background: "" },
+    { name: "Lira", speciesId: "elf", classId: "rogue", subclassId: null, srdBackgroundId: null, level: 3, background: "" },
     { newId: () => `id-${(counter += 1)}`, now: () => new Date("2026-01-01T00:00:00Z") },
   );
 }

@@ -1,3 +1,4 @@
+import { BACKGROUNDS, CLASSES_DATA, SPECIES, findBackground, findClass, findSpecies } from "../rules";
 import { GAME_STATE_VERSION, type Character, type GameState } from "./types";
 
 export interface ClassOption {
@@ -6,40 +7,19 @@ export interface ClassOption {
   label: string;
 }
 
-export const CLASSES: ClassOption[] = [
-  { id: "barbarian", label: "Bárbaro" },
-  { id: "bard", label: "Bardo" },
-  { id: "cleric", label: "Clérigo" },
-  { id: "druid", label: "Druida" },
-  { id: "fighter", label: "Guerrero" },
-  { id: "monk", label: "Monje" },
-  { id: "paladin", label: "Paladín" },
-  { id: "ranger", label: "Explorador" },
-  { id: "rogue", label: "Pícaro" },
-  { id: "sorcerer", label: "Hechicero" },
-  { id: "warlock", label: "Brujo" },
-  { id: "wizard", label: "Mago" },
-];
-
-export const RACES: string[] = [
-  "Humano",
-  "Elfo",
-  "Enano",
-  "Mediano",
-  "Gnomo",
-  "Semielfo",
-  "Semiorco",
-  "Dracónido",
-  "Tiefling",
-];
+export const CLASSES: ClassOption[] = CLASSES_DATA.map((c) => ({ id: c.id, label: c.name }));
+export const SPECIES_OPTIONS: ClassOption[] = SPECIES.map((s) => ({ id: s.id, label: s.name }));
+export const BACKGROUND_OPTIONS: ClassOption[] = BACKGROUNDS.map((b) => ({ id: b.id, label: b.name }));
 
 export const MIN_LEVEL = 1;
 export const MAX_LEVEL = 20;
 
 export interface CharacterInput {
   name: string;
-  race: string;
+  speciesId: string;
   classId: string;
+  subclassId: string | null;
+  srdBackgroundId: string | null;
   level: number;
   background: string;
 }
@@ -50,15 +30,28 @@ interface CreateOptions {
 }
 
 export function createCharacter(input: CharacterInput, newId: () => string): Character {
-  const option = CLASSES.find((c) => c.id === input.classId);
-  if (!option) throw new Error(`Unknown class: ${input.classId}`);
+  const species = findSpecies(input.speciesId);
+  if (!species) throw new Error(`Unknown species: ${input.speciesId}`);
+  const cls = findClass(input.classId);
+  if (!cls) throw new Error(`Unknown class: ${input.classId}`);
+  if (input.srdBackgroundId !== null && !findBackground(input.srdBackgroundId)) {
+    throw new Error(`Unknown background: ${input.srdBackgroundId}`);
+  }
   const level = Math.min(MAX_LEVEL, Math.max(MIN_LEVEL, Math.trunc(input.level)));
+  if (input.subclassId !== null) {
+    if (input.subclassId !== cls.subclass.id) throw new Error(`Unknown subclass for ${cls.id}: ${input.subclassId}`);
+    if (level < cls.subclass.level) throw new Error(`Subclass ${input.subclassId} needs level ${cls.subclass.level}`);
+  }
   const background = input.background.trim();
   return {
     id: newId(),
     name: input.name.trim(),
-    race: input.race,
-    characterClass: option.label,
+    race: species.name,
+    characterClass: cls.name,
+    speciesId: species.id,
+    classId: cls.id,
+    subclassId: input.subclassId,
+    srdBackgroundId: input.srdBackgroundId,
     level,
     background: background === "" ? null : background,
     inventory: [],

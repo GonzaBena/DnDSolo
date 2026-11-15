@@ -1,4 +1,5 @@
 import { gameStateSchema } from "../domain/schemas";
+import { findClass, findSpecies } from "../rules";
 import { GAME_STATE_VERSION, type GameState } from "../domain/types";
 
 type Raw = Record<string, unknown>;
@@ -40,6 +41,25 @@ function fromV2(raw: Raw): Raw {
   return { ...raw, version: 3, npcs, scene: { inCombat: false, turnOf: null } };
 }
 
+/** v3 -> v4. Characters carry the ids of the SRD rules data, recovered from
+    the old Spanish labels. What SRD 5.2 lacks (Semielfo, Semiorco) stays
+    null and the save still loads. */
+function fromV3(raw: Raw): Raw {
+  const players = (Array.isArray(raw.players) ? raw.players : []).map((player) => {
+    if (!isObject(player)) return player;
+    const race = typeof player.race === "string" ? player.race : "";
+    const characterClass = typeof player.characterClass === "string" ? player.characterClass : "";
+    return {
+      ...player,
+      speciesId: findSpecies(race)?.id ?? null,
+      classId: findClass(characterClass)?.id ?? null,
+      subclassId: null,
+      srdBackgroundId: null,
+    };
+  });
+  return { ...raw, version: 4, players };
+}
+
 /** Turns whatever was stored into a GameState of the current version, or
     null if it can't be trusted (unknown version or wrong shape). Loading
     code must go through here so the screens never see a malformed save. */
@@ -48,6 +68,7 @@ export function migrateSave(raw: unknown): GameState | null {
   let current = raw;
   if (current.version === 1) current = fromV1(current);
   if (current.version === 2) current = fromV2(current);
+  if (current.version === 3) current = fromV3(current);
   if (current.version !== GAME_STATE_VERSION) return null;
   const parsed = gameStateSchema.safeParse(current);
   return parsed.success ? parsed.data : null;
