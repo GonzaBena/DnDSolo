@@ -56,15 +56,41 @@ function stateForModel(state: GameState) {
   };
 }
 
+/** Turns the model must see verbatim: the last `recentTurns`, widened to
+    every turn the summary doesn't cover yet. Without the widening, turns
+    older than the window but newer than the last summary would be in no
+    layer at all, and the DM would forget them until the next summary. */
+export function turnsForPrompt(state: GameState, recentTurns: number): Turn[] {
+  const unsummarized = state.turns.length - state.summarizedThroughTurn;
+  const count = Math.max(recentTurns, unsummarized);
+  return count > 0 ? state.turns.slice(-count) : [];
+}
+
 /** Assembles the three memory layers for one call (Spec, architecture
     rule 3). The full history is never sent: only state, the running
-    summary and the last `recentTurns` turns. */
+    summary and the turns chosen by turnsForPrompt. */
 export function buildTurnPrompt(state: GameState, input: TurnInput, recentTurns: number): string {
-  const recent = recentTurns > 0 ? state.turns.slice(-recentTurns) : [];
+  const recent = turnsForPrompt(state, recentTurns);
   return [
     `ESTADO\n${JSON.stringify(stateForModel(state), null, 2)}`,
     `RESUMEN\n${state.summary || "(La aventura recién empieza.)"}`,
     `TURNOS RECIENTES\n${recent.length ? recent.map(describeTurn).join("\n\n") : "(Ninguno todavía.)"}`,
     `TURNO ACTUAL\n${describeInput(input)}`,
+  ].join("\n\n");
+}
+
+export const SUMMARY_SYSTEM_PROMPT = `Sos el archivista de una partida de D&D. Mantenés un resumen acumulado que el Dungeon Master usa como memoria a largo plazo.
+
+Te paso el RESUMEN ANTERIOR y los TURNOS NUEVOS. Devolvé un único resumen actualizado que los integre, en español, en prosa, de 300 palabras como máximo.
+
+- Conservá siempre los nombres propios exactos de personas, lugares y objetos, aunque hayan aparecido una sola vez.
+- Conservá promesas, deudas, pistas, secretos descubiertos y cabos sueltos.
+- Si hace falta espacio, comprimí lo viejo y lo anecdótico, nunca los nombres.
+- No inventes nada que no esté en el material. Respondé solo con el resumen.`;
+
+export function buildSummaryPrompt(previousSummary: string, newTurns: Turn[]): string {
+  return [
+    `RESUMEN ANTERIOR\n${previousSummary || "(Todavía no hay resumen.)"}`,
+    `TURNOS NUEVOS\n${newTurns.map(describeTurn).join("\n\n")}`,
   ].join("\n\n");
 }

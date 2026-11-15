@@ -4,7 +4,12 @@ import { dmResponseJsonSchema, parseDMResponse } from "../domain/schemas";
 import type { DMResponse, GameState, RollResult, Turn, TurnInput } from "../domain/types";
 import type { LLMClient } from "../llm/LLMClient";
 import type { GameRepo } from "../persistence/GameRepo";
-import { buildTurnPrompt, DM_SYSTEM_PROMPT } from "./dmPrompt";
+import {
+  buildSummaryPrompt,
+  buildTurnPrompt,
+  DM_SYSTEM_PROMPT,
+  SUMMARY_SYSTEM_PROMPT,
+} from "./dmPrompt";
 import { extractPartialNarration } from "./narrationStream";
 
 export interface EngineConfig {
@@ -148,12 +153,12 @@ export class TurnEngine {
       narration: response.narration,
       events: response.events,
     };
-    const next: GameState = {
+    const next = await this.refreshSummary({
       ...applied.state,
       turns: [...state.turns, turn],
       pendingRoll: response.rollRequest,
       updatedAt: this.now().toISOString(),
-    };
+    });
 
     let saveError: unknown | null = null;
     try {
@@ -162,5 +167,24 @@ export class TurnEngine {
       saveError = error;
     }
     return { ok: true, state: next, response, rejectedChanges: applied.rejected, saveError };
+  }
+
+  /** Memory layer 2: every `summaryEveryTurns` turns, folds the turns the
+      summary doesn't cover yet into it. A failure here must not cost the
+      player their turn: the old summary is kept and, because the turns
+      stay unsummarized, the next turn tries again. */
+  private async refreshSummary(state: GameState): Promise<GameState> {
+    const pending = state.turns.slice(state.summarizedThroughTurn);
+    if (pending.length < this.config.summaryEveryTurns) return state;
+    try {
+      const summary = await this.llm.generateText({
+        system: SUMMARY_SYSTEM_PROMPT,
+        prompt: buildSummaryPrompt(state.summary, pending),
+      });
+      if (summary.trim() === "") return state;
+      return { ...state, summary: summary.trim(), summarizedThroughTurn: state.turns.length };
+    } catch {
+      return state;
+    }
   }
 }
