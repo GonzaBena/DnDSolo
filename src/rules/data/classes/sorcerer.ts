@@ -80,7 +80,7 @@ const levels: LevelRow[] = [
   },
   {
     level: 3, proficiencyBonus: 2, resources: { ...innate, "Puntos de hechicería": 3 }, cantrips: 4, preparedSpells: 6, slots: [4, 2],
-    features: [subclassTrait("hechicero", "Hechicería Dracónica")],
+    features: [subclassTrait("hechicero", "Hechicería dracónica")],
     choices: [],
   },
   {
@@ -110,12 +110,12 @@ export const SORCERER: ClassData = {
   unarmoredDefense: null,
   levels,
   subclass: {
-    id: "draconic", name: "Hechicería Dracónica", level: 3, unarmoredDefense: "draconic",
+    id: "draconic", name: "Hechicería dracónica", level: 3, unarmoredDefense: "draconic",
     features: [
       {
         level: 3,
         feature: {
-          name: "Resiliencia dracónica",
+          name: "Resistencia dracónica",
           summary: "Tus puntos de golpe máximos aumentan en 3 y en 1 más por cada nivel de hechicero que subas. Sin armadura, tu CA base es 10 + modificadores de Destreza y Carisma.",
         },
       },

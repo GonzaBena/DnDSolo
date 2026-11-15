@@ -32,7 +32,7 @@ const levels: LevelRow[] = [
         summary: "Ganás pericia (doble bonificador por competencia) en dos de tus habilidades competentes. Se recomiendan Interpretación y Persuasión.",
       },
       {
-        name: "Aficionado a todo",
+        name: "Aprendiz de mucho",
         summary: "Sumás la mitad de tu bonificador por competencia (redondeando hacia abajo) a las pruebas de característica con habilidades en las que no seas competente y que no usen ya tu bonificador.",
       },
     ],
@@ -40,7 +40,7 @@ const levels: LevelRow[] = [
   },
   {
     level: 3, proficiencyBonus: 2, resources: die, cantrips: 2, preparedSpells: 6, slots: [4, 2],
-    features: [subclassTrait("bardo", "Colegio del Conocimiento")],
+    features: [subclassTrait("bardo", "Colegio del conocimiento")],
     choices: [],
   },
   {
@@ -70,7 +70,7 @@ export const BARD: ClassData = {
   unarmoredDefense: null,
   levels,
   subclass: {
-    id: "lore", name: "Colegio del Conocimiento", level: 3,
+    id: "lore", name: "Colegio del conocimiento", level: 3,
     features: [
       {
         level: 3,

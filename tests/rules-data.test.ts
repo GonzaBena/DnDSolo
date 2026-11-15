@@ -465,6 +465,7 @@ describe("classes (levels 1-4)", () => {
     expect(d.levels.map((l) => l.slots)).toEqual([[2], [3], [4, 2], [4, 3]]);
     expect(row("druid", 1).choices.find((x) => x.id === "class.druid.primal_order")?.options.map((o) => o.id)).toEqual(["magician", "warden"]);
     expect(CLASS_LEVELS.map((n) => row("druid", n).resources["Forma salvaje"])).toEqual([undefined, 2, 2, 2]);
+    expect(CLASS_LEVELS.map((n) => row("druid", n).resources["Formas conocidas"])).toEqual([undefined, 4, 4, 6]);
     expect(d.subclass.id).toBe("land");
     const land = d.subclass.features.flatMap((f) => f.choices ?? []).find((x) => x.id === "subclass.land.land_type");
     expect(land?.options.map((o) => o.id)).toEqual(["arid", "polar", "temperate", "tropical"]);
@@ -491,6 +492,6 @@ describe("classes (levels 1-4)", () => {
   it("uses the official Spanish subclass names", () => {
     expect(
       ["bard", "cleric", "druid", "sorcerer", "warlock", "wizard"].map((id) => cls(id).subclass.name),
-    ).toEqual(["Colegio del Conocimiento", "Dominio de la Vida", "Círculo de la Tierra", "Hechicería Dracónica", "Patrón Infernal", "Evocador"]);
+    ).toEqual(["Colegio del conocimiento", "Dominio de la vida", "Círculo de la tierra", "Hechicería dracónica", "Patrón infernal", "Evocador"]);
   });
 });

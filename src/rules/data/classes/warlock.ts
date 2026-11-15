@@ -94,7 +94,7 @@ const levels: LevelRow[] = [
   },
   {
     level: 3, proficiencyBonus: 2, resources: {}, cantrips: 2, preparedSpells: 4, pactSlots: { count: 2, slotLevel: 2 },
-    features: [subclassTrait("brujo", "Patrón Infernal")],
+    features: [subclassTrait("brujo", "Patrón infernal")],
     choices: [],
   },
   {
@@ -130,7 +130,7 @@ export const WARLOCK: ClassData = {
   unarmoredDefense: null,
   levels,
   subclass: {
-    id: "fiend", name: "Patrón Infernal", level: 3,
+    id: "fiend", name: "Patrón infernal", level: 3,
     features: [
       {
         level: 3,

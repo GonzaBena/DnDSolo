@@ -41,7 +41,7 @@ const levels: LevelRow[] = [
   },
   {
     level: 3, proficiencyBonus: 2, resources: { "Canalizar divinidad": 2 }, cantrips: 3, preparedSpells: 6, slots: [4, 2],
-    features: [subclassTrait("clérigo", "Dominio de la Vida")],
+    features: [subclassTrait("clérigo", "Dominio de la vida")],
     choices: [],
   },
   {
@@ -68,7 +68,7 @@ export const CLERIC: ClassData = {
   unarmoredDefense: null,
   levels,
   subclass: {
-    id: "life", name: "Dominio de la Vida", level: 3,
+    id: "life", name: "Dominio de la vida", level: 3,
     features: [
       {
         level: 3,

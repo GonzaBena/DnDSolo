@@ -34,7 +34,7 @@ const levels: LevelRow[] = [
     ],
   },
   {
-    level: 2, proficiencyBonus: 2, resources: { "Forma salvaje": 2 }, cantrips: 2, preparedSpells: 5, slots: [3],
+    level: 2, proficiencyBonus: 2, resources: { "Forma salvaje": 2, "Formas conocidas": 4 }, cantrips: 2, preparedSpells: 5, slots: [3],
     features: [
       {
         name: "Forma salvaje",
@@ -48,13 +48,19 @@ const levels: LevelRow[] = [
     choices: [],
   },
   {
-    level: 3, proficiencyBonus: 2, resources: { "Forma salvaje": 2 }, cantrips: 2, preparedSpells: 6, slots: [4, 2],
-    features: [subclassTrait("druida", "Círculo de la Tierra")],
+    level: 3, proficiencyBonus: 2, resources: { "Forma salvaje": 2, "Formas conocidas": 4 }, cantrips: 2, preparedSpells: 6, slots: [4, 2],
+    features: [subclassTrait("druida", "Círculo de la tierra")],
     choices: [],
   },
   {
-    level: 4, proficiencyBonus: 2, resources: { "Forma salvaje": 2 }, cantrips: 3, preparedSpells: 7, slots: [4, 3],
-    features: [ASI_TRAIT],
+    level: 4, proficiencyBonus: 2, resources: { "Forma salvaje": 2, "Formas conocidas": 6 }, cantrips: 3, preparedSpells: 7, slots: [4, 3],
+    features: [
+      {
+        name: "Formas de bestia (nivel 4)",
+        summary: "Tabla Formas de bestia: desde el nivel 4 conocés 6 formas y su valor de desafío máximo sube a 1/2 (sin velocidad de vuelo hasta el nivel 8).",
+      },
+      ASI_TRAIT,
+    ],
     choices: [level4FeatChoice("druid")],
   },
 ];
@@ -85,7 +91,7 @@ export const DRUID: ClassData = {
   unarmoredDefense: null,
   levels,
   subclass: {
-    id: "land", name: "Círculo de la Tierra", level: 3,
+    id: "land", name: "Círculo de la tierra", level: 3,
     features: [
       {
         level: 3,
