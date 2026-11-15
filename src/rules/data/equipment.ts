@@ -70,7 +70,7 @@ export const WEAPONS: WeaponData[] = [
     ["trident", "Tridente", "1d8", "perforante", ["Arrojadizo (alcance 6/18)", "Versátil (1d10)"], "Derribar"],
   ]),
   ...weapons("martial", true, [
-    ["longbow", "Arco largo", "1d8", "perforante", ["A dos manos", "Munición (alcance 45/180; flecha)", "Pesado"], "Ralentizar"],
+    ["longbow", "Arco largo", "1d8", "perforante", ["A dos manos", "Munición (alcance 45/180; flecha)", "Pesada"], "Ralentizar"],
     ["hand_crossbow", "Ballesta de mano", "1d6", "perforante", ["Ligera", "Munición (alcance 9/36; virote)", "Recarga"], "Molestar"],
     ["heavy_crossbow", "Ballesta pesada", "1d10", "perforante", ["A dos manos", "Munición (alcance 30/120; virote)", "Pesada", "Recarga"], "Empujar"],
     ["blowgun", "Cerbatana", "1", "perforante", ["Munición (alcance 7,5/30; dardo)", "Recarga"], "Molestar"],

@@ -153,7 +153,7 @@ describe("integrity", () => {
   });
 
   it("marks every entry as SRD 5.2", () => {
-    for (const x of [...SPECIES, ...BACKGROUNDS, ...FEATS]) expect(x.source).toBe("SRD 5.2");
+    for (const x of [...SPECIES, ...BACKGROUNDS, ...FEATS, ...WEAPONS, ...ARMOR]) expect(x.source).toBe("SRD 5.2");
   });
 
   it("exposes the constants", () => {
@@ -173,5 +173,19 @@ describe("equipment data", () => {
     expect(new Set(ids).size).toBe(ids.length);
     expect(WEAPONS).toHaveLength(38);
     expect(ARMOR).toHaveLength(13);
+  });
+  it.each([
+    ["lance", "1d10", "perforante", "Derribar"],
+    ["greataxe", "1d12", "cortante", "Hender"],
+    ["rapier", "1d8", "perforante", "Molestar"],
+    ["spear", "1d6", "perforante", "Debilitar"],
+    ["longbow", "1d8", "perforante", "Ralentizar"],
+    ["hand_crossbow", "1d6", "perforante", "Molestar"],
+  ])("matches the SRD table for %s", (id, damage, damageType, mastery) => {
+    const w = WEAPONS.find((x) => x.id === id);
+    expect(w).toMatchObject({ damage, damageType, mastery });
+  });
+  it("uses the PDF gender for Pesada on the longbow", () => {
+    expect(WEAPONS.find((x) => x.id === "longbow")?.properties).toContain("Pesada");
   });
 });

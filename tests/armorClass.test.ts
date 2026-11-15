@@ -38,4 +38,13 @@ describe("armorClass", () => {
   it("ignores unknown or non-armor ids", () => {
     expect(ac({ armorId: "longsword" })).toBe(12);
   });
+  it("barbarian with negative Con falls back to the base formula", () => {
+    expect(ac({ unarmoredDefense: "barbarian", mods: { ...mods, con: -1 } })).toBe(12);
+  });
+  it("ignores shield as armorId", () => {
+    expect(ac({ armorId: "shield" })).toBe(12);
+  });
+  it("defense style stacks with a shield", () => {
+    expect(ac({ armorId: "chain_mail", shield: true, defenseStyle: true })).toBe(19);
+  });
 });
