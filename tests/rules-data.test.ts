@@ -15,7 +15,7 @@ import type { ChoiceSpec } from "../src/rules/types";
 const sorted = (xs: string[]) => [...xs].sort();
 
 function allChoices(): ChoiceSpec[] {
-  return [...SPECIES.flatMap((s) => s.choices), ...FEATS.flatMap((f) => f.choices)];
+  return [...SPECIES.flatMap((s) => s.choices), ...BACKGROUNDS.flatMap((b) => b.choices), ...FEATS.flatMap((f) => f.choices)];
 }
 
 describe("species", () => {
@@ -70,6 +70,30 @@ describe("backgrounds", () => {
     expect(findBackground("acolyte")?.featId).toBe("magic_initiate_cleric");
     expect(findBackground("sage")?.featId).toBe("magic_initiate_wizard");
     expect(findBackground("criminal")?.featId).toBe("alert");
+  });
+});
+
+describe("choices", () => {
+  it("models the soldier gaming set pick", () => {
+    const pick = findBackground("soldier")!.choices.find((c) => c.id === "background.soldier.tool")!;
+    expect(pick.count).toBe(1);
+    expect(pick.options.map((o) => o.id)).toEqual(["dice", "dragonchess", "playing_cards", "three_dragon_ante"]);
+    for (const id of ["acolyte", "criminal", "sage"]) expect(findBackground(id)?.choices).toEqual([]);
+  });
+
+  it("models the spellcasting ability of lineage species", () => {
+    for (const id of ["elf", "gnome", "tiefling"]) {
+      const pick = findSpecies(id)!.choices.find((c) => c.id === `species.${id}.spell_ability`)!;
+      expect(pick.count).toBe(1);
+      expect(pick.options.map((o) => o.id)).toEqual(["int", "wis", "cha"]);
+    }
+  });
+
+  it("namespaces the Magic Initiate ability choice", () => {
+    for (const list of ["cleric", "druid", "wizard"]) {
+      const ids = findFeat(`magic_initiate_${list}`)!.choices.map((c) => c.id);
+      expect(ids).toContain(`feat.magic_initiate_${list}.ability`);
+    }
   });
 });
 

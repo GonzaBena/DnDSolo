@@ -61,6 +61,7 @@ export interface BackgroundData {
   featId: string; skills: [SkillId, SkillId]; tool: string;
   equipment: { A: string[]; B: string[] };  // B is the gold option
   gold: { A: number; B: number };
+  choices: ChoiceSpec[];            // e.g. the soldier's gaming set
 }
 
 export interface FeatData {

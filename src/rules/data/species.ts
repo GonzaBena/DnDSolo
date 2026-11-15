@@ -7,10 +7,19 @@ const SOURCE = "SRD 5.2" as const;
 const skillOptions = (): Option[] =>
   SKILLS.map((s) => ({ id: s.id, name: s.name, summary: `Competencia en ${s.name}.`, skill: s.id }));
 
-/** The elf, gnome and tiefling lineages all let the player pick the
-    spellcasting ability; that pick belongs to the character sheet step, so it
-    is described in the trait summary rather than modeled here. */
 const SPELL_ABILITY_NOTE = "La aptitud mágica es Inteligencia, Sabiduría o Carisma (a elección).";
+
+/** Lineage/legacy spells use one ability of these three, chosen with the lineage. */
+const spellAbility = (speciesId: string): ChoiceSpec => ({
+  id: `species.${speciesId}.spell_ability`,
+  label: "Aptitud mágica",
+  count: 1,
+  options: [
+    { id: "int", name: "Inteligencia", summary: "Inteligencia" },
+    { id: "wis", name: "Sabiduría", summary: "Sabiduría" },
+    { id: "cha", name: "Carisma", summary: "Carisma" },
+  ],
+});
 
 const dragonAncestry: ChoiceSpec = {
   id: "species.dragonborn.ancestry",
@@ -202,7 +211,7 @@ export const SPECIES_DATA: SpeciesData[] = [
       { name: "Sentidos agudos", summary: "Competencia en Perspicacia, Percepción o Supervivencia (a elección)." },
       { name: "Trance", summary: "No necesitás dormir ni la magia puede dormirte. Un descanso largo te lleva 4 horas de meditación consciente." },
     ],
-    choices: [elfLineage, elfKeenSenses],
+    choices: [elfLineage, spellAbility("elf"), elfKeenSenses],
   },
   {
     id: "gnome", name: "Gnomo", source: SOURCE,
@@ -212,7 +221,7 @@ export const SPECIES_DATA: SpeciesData[] = [
       { name: "Astucia gnoma", summary: "Ventaja en salvaciones de Inteligencia, Sabiduría y Carisma." },
       { name: "Linaje gnomo", summary: `Elegís gnomo de los bosques o de las rocas. ${SPELL_ABILITY_NOTE}` },
     ],
-    choices: [gnomeLineage],
+    choices: [gnomeLineage, spellAbility("gnome")],
   },
   {
     id: "goliath", name: "Goliat", source: SOURCE,
@@ -263,6 +272,6 @@ export const SPECIES_DATA: SpeciesData[] = [
       { name: "Legado infernal", summary: `Elegís un legado (abisal, ctónico o infernal) con un beneficio de nivel 1 y conjuros a nivel 3 y 5, que podés lanzar una vez gratis por descanso largo. ${SPELL_ABILITY_NOTE}` },
       { name: "Presencia sobrenatural", summary: "Conocés el truco taumaturgia, con la misma aptitud mágica que tu legado." },
     ],
-    choices: [tieflingLegacy],
+    choices: [tieflingLegacy, spellAbility("tiefling")],
   },
 ];
