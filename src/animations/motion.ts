@@ -1,4 +1,4 @@
-import { animate, stagger } from "animejs";
+import { animate, stagger, utils } from "animejs";
 
 // Every animation in the app goes through this file so that
 // prefers-reduced-motion is honoured in exactly one place. Elements are
@@ -35,8 +35,36 @@ export function enterFromRight(element: Element): void {
   animate(element, { opacity: [0, 1], translateX: [24, 0], duration: 300, ease: "outCubic" });
 }
 
-/** The roll result landing. Not a dice animation: the number just pops. */
-export function popIn(element: Element): void {
+const TUMBLE_MS = 750;
+
+/** An enemy roll: the card pops in, a die tumbles where the number will be,
+    then the die gives way to the result. The die only exists for this: it is
+    hidden in CSS, so without the animation the card just shows the number. */
+export function rollIn(card: Element): void {
   if (!motionAllowed()) return;
-  animate(element, { opacity: [0, 1], scale: [0.6, 1], duration: 450, ease: "outBack" });
+  animate(card, { opacity: [0, 1], scale: [0.6, 1], duration: 450, ease: "outBack" });
+
+  const die = card.querySelector(".roll-card__die");
+  const value = card.querySelector(".roll-card__value");
+  if (!die || !value) return;
+  utils.set(value, { opacity: 0 });
+  // One animation with keyframes: the die tumbles, then shrinks away.
+  animate(die, {
+    rotate: { from: 0, to: 900, duration: TUMBLE_MS, ease: "outCubic" },
+    scale: [
+      { from: 0.7, to: 1, duration: TUMBLE_MS, ease: "outCubic" },
+      { to: 0.3, duration: 160, ease: "inQuad" },
+    ],
+    opacity: [
+      { from: 1, to: 1, duration: TUMBLE_MS },
+      { to: 0, duration: 160, ease: "inQuad" },
+    ],
+  });
+  animate(value, {
+    opacity: [0, 1],
+    scale: [0.3, 1],
+    duration: 420,
+    delay: TUMBLE_MS + 60,
+    ease: "outBack",
+  });
 }

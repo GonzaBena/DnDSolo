@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from "react";
-import { enterFromRight, enterNarration, enterPage, popIn } from "../animations/motion";
+import { enterFromRight, enterNarration, enterPage, rollIn } from "../animations/motion";
 import { formatDice } from "../domain/dice";
 import type { Character, EnemyRollResult, Turn, TurnInput } from "../domain/types";
 import { useEnter } from "./useEnter";
@@ -12,13 +12,20 @@ import { useEnter } from "./useEnter";
 /** A roll the app made for an enemy. The player's own rolls never get a
     card: they are plain chat messages. */
 function EnemyRollCard({ result, animated }: { result: EnemyRollResult; animated?: boolean }) {
-  const ref = useEnter<HTMLDivElement>(animated ? popIn : null);
+  const ref = useEnter<HTMLDivElement>(animated ? rollIn : null);
   // Only worth spelling out when the total isn't just the single die.
   const showDice = result.values.length > 1 || result.modifier !== 0;
   return (
     <div ref={ref} className="roll-card">
       <span className="roll-card__label">Tirada del enemigo</span>
-      <span className="roll-card__value">{result.total}</span>
+      <span className="roll-card__result">
+        {/* Only visible while the roll animates (see rollIn). */}
+        <svg className="roll-card__die" viewBox="0 0 32 32" aria-hidden="true">
+          <polygon points="16,2 29,9.5 29,22.5 16,30 3,22.5 3,9.5" />
+          <path d="M3 9.5L16 14L29 9.5M16 14L16 30" />
+        </svg>
+        <span className="roll-card__value">{result.total}</span>
+      </span>
       <span className="roll-card__meta">
         {result.reason} · {formatDice(result)}
         {showDice && ` · dados: ${result.values.join(", ")}`}

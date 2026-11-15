@@ -76,7 +76,22 @@
   background: var(--color-surface);
   box-shadow: var(--shadow-flat);
 }
+.roll-card__result { position: relative; display: grid; place-items: center; }
+/* The tumbling die sits over the number and is hidden unless animated. */
+.roll-card__die {
+  position: absolute;
+  width: var(--text-roll);
+  height: var(--text-roll);
+  opacity: 0;
+  pointer-events: none;
+  fill: var(--color-primary);
+  stroke: var(--color-ink);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.roll-card__die path { fill: none; }
 .roll-card__value {
+  display: block;
   font-family: var(--font-display);
   font-size: var(--text-roll);
   font-weight: 800;
