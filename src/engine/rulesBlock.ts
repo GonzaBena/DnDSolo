@@ -11,18 +11,24 @@ function describeSlots(row: LevelRow): string | null {
   return parts.length ? `  Espacios de conjuro: ${parts.join("; ")}` : null;
 }
 
-/** One line per feature ("name: summary"), class and subclass, for one level. */
-function describeLevel(cls: ClassData, withSubclass: boolean, level: number): string[] {
+/** One line per feature ("name: summary"), class and subclass, for one level.
+    `previewSubclass` lists the unchosen SRD subclass's features under an explicit label. */
+function describeLevel(cls: ClassData, subclassChosen: boolean, previewSubclass: boolean, level: number): string[] {
   const row = cls.levels.find((r) => r.level === level);
   if (!row) return [];
-  const features = [
-    ...row.features,
-    ...(withSubclass ? cls.subclass.features.filter((f) => f.level === level).map((f) => f.feature) : []),
-  ];
+  const subclassFeatures = cls.subclass.features.filter((f) => f.level === level).map((f) => f.feature);
+  const features = [...row.features, ...(subclassChosen ? subclassFeatures : [])];
+  const slots = describeSlots(row);
   return [
     `Nivel ${level} (bonificador de competencia +${row.proficiencyBonus}):`,
     ...features.map((f) => `  ${f.name}: ${f.summary}`),
-    ...(describeSlots(row) ? [describeSlots(row)!] : []),
+    ...(slots ? [slots] : []),
+    ...(previewSubclass && subclassFeatures.length
+      ? [
+          `  Si elige la subclase SRD (${cls.subclass.name}, aún no elegida):`,
+          ...subclassFeatures.map((f) => `    ${f.name}: ${f.summary}`),
+        ]
+      : []),
   ];
 }
 
@@ -36,7 +42,10 @@ function describeCharacter(c: Character): string {
   if (cls && !subclassChosen && c.level >= cls.subclass.level) {
     missing.push(`subclase no elegida (se obtiene en el nivel ${cls.subclass.level})`);
   }
-  if (c.level + 1 > LOADED_MAX_LEVEL) missing.push(`nivel ${c.level + 1} (solo hay datos hasta el nivel ${LOADED_MAX_LEVEL})`);
+  if (c.level + 1 > LOADED_MAX_LEVEL) {
+    const levels = c.level > LOADED_MAX_LEVEL ? `${c.level} y ${c.level + 1}` : `${c.level + 1}`;
+    missing.push(`nivel ${levels} (solo hay datos hasta el nivel ${LOADED_MAX_LEVEL})`);
+  }
 
   const subclassLabel = subclassChosen ? ` (${cls.subclass.name})` : "";
   const lines = [`${c.name} — ${species?.name ?? c.race} ${cls?.name ?? c.characterClass}${subclassLabel} nivel ${c.level}`];
@@ -45,7 +54,7 @@ function describeCharacter(c: Character): string {
       // The SRD has one subclass per class, so even before it is chosen the DM
       // can preview what level-up brings (e.g. a level 2 fighter's Champion).
       const preview = !subclassChosen && c.level < cls.subclass.level && level === cls.subclass.level;
-      lines.push(...describeLevel(cls, subclassChosen || preview, level));
+      lines.push(...describeLevel(cls, subclassChosen, preview, level));
     }
   }
   if (species) lines.push(`Rasgos de especie: ${species.traits.map((t) => t.name).join(", ")}`);

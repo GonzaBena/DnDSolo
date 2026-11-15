@@ -20,6 +20,15 @@ describe("describeCharacterRules", () => {
     expect(block).toContain("bonificador de competencia +2");
     // The subclass is not chosen yet at level 2, but level 3 previews the Champion.
     expect(block).toContain("Crítico mejorado");
+    const label = block.indexOf("Si elige la subclase SRD (Campeón, aún no elegida):");
+    expect(label).toBeGreaterThan(-1);
+    expect(block.indexOf("Crítico mejorado")).toBeGreaterThan(label);
+    expect(block.indexOf("Atleta sobresaliente")).toBeGreaterThan(label);
+  });
+
+  it("does not label the subclass features when it is chosen", () => {
+    const block = describeCharacterRules([hero({ level: 2, subclassId: "champion" })]);
+    expect(block).not.toContain("aún no elegida");
   });
 
   it("includes the champion features at level 3 with the subclass chosen", () => {
@@ -34,7 +43,7 @@ describe("describeCharacterRules", () => {
       hero({ level: 3, race: "Elfo", speciesId: "elf", characterClass: "Pícaro", classId: "rogue" }),
     ]);
     expect(block).toContain("Sin datos de reglas");
-    expect(block).toContain("subclase");
+    expect(block).toContain("subclase no elegida");
   });
 
   it("falls back to labels and flags unknown species", () => {
@@ -49,6 +58,24 @@ describe("describeCharacterRules", () => {
   it("names the next level as not loaded at the cap", () => {
     const block = describeCharacterRules([hero({ level: 4 })]);
     expect(block).toMatch(/Sin datos de reglas:.*nivel 5/);
+  });
+});
+
+describe("casters and caps", () => {
+  it("lists wizard spell slots for the current and next level", () => {
+    const block = describeCharacterRules([hero({ classId: "wizard", characterClass: "Mago", level: 1 })]);
+    expect(block).toMatch(/Nivel 1 [^\n]*\n(  [^\n]*\n)*  Espacios de conjuro: 2 de nivel 1/);
+    expect(block).toMatch(/Nivel 2 [^\n]*\n(  [^\n]*\n)*  Espacios de conjuro: 3 de nivel 1/);
+  });
+
+  it("lists warlock pact slots", () => {
+    const block = describeCharacterRules([hero({ classId: "warlock", characterClass: "Brujo", level: 1 })]);
+    expect(block).toContain("de pacto (nivel 1)");
+  });
+
+  it("flags both levels when above the loaded cap", () => {
+    const block = describeCharacterRules([hero({ level: 6 })]);
+    expect(block).toContain("nivel 6 y 7");
   });
 });
 
