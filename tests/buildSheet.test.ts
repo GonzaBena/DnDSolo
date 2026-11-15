@@ -3,7 +3,7 @@ import { buildSheet, validateChoices } from "../src/rules/buildSheet";
 import type { CharacterChoices, ChoiceError } from "../src/rules/buildSheet";
 import { WEAPONS, findClass, findSpell, spellsFor } from "../src/rules";
 import type { CharacterSheet, SkillId } from "../src/rules";
-import { isWeaponProficient } from "../src/rules/sheet";
+import { isWeaponProficient, weaponAbilityModifier } from "../src/rules/sheet";
 import { fighterChoices, greedyChoices } from "./helpers";
 
 const fields = (errors: ChoiceError[]) => errors.map((e) => e.field);
@@ -723,6 +723,15 @@ describe("buildSheet: speed", () => {
     expect(sheetOf(greedyChoices("human", "monk", "soldier", 1)).speed).toBe(30);
     expect(sheetOf(greedyChoices("human", "monk", "soldier", 2)).speed).toBe(40);
   });
+
+  it("takes 10 feet off in heavy armor whose Strength requirement is not met", () => {
+    // Chain mail (option A) needs Str 13.
+    const weak = fighterChoices({ baseScores: { str: 8, dex: 15, con: 13, int: 10, wis: 14, cha: 12 }, backgroundBonus: { dex: 2, con: 1 } });
+    expect(sheetOf(weak).speed).toBe(20);
+    const enough = fighterChoices({ baseScores: { str: 13, dex: 15, con: 14, int: 8, wis: 12, cha: 10 }, backgroundBonus: { dex: 2, con: 1 } });
+    expect(sheetOf(enough).speed).toBe(30);
+    expect(sheetOf(fighterChoices()).speed).toBe(30); // Str 17
+  });
 });
 
 describe("buildSheet: attacks", () => {
@@ -770,6 +779,14 @@ describe("buildSheet: attacks", () => {
     expect(attackOf(monk, "Daga")).toMatchObject({ attackBonus: 5, damage: "1d6+3" });
     expect(attackOf(monk, "Ataque sin armas")).toMatchObject({ attackBonus: 5, damage: "1d6+3", mastery: null });
     expect(monk.armorClass).toBe(15); // 10 + 3 + 2
+  });
+
+  it("lets finesse win over ranged (the Dart)", () => {
+    const dart = WEAPONS.find((w) => w.id === "dart")!;
+    const strong = { str: 3, dex: 1, con: 0, int: 0, wis: 0, cha: 0 };
+    expect(weaponAbilityModifier(dart, strong)).toBe(3);
+    expect(weaponAbilityModifier(WEAPONS.find((w) => w.id === "shortbow")!, strong)).toBe(1);
+    expect(weaponAbilityModifier(WEAPONS.find((w) => w.id === "longsword")!, strong)).toBe(3);
   });
 
   it("adds Archery to ranged attacks", () => {
@@ -861,6 +878,25 @@ describe("buildSheet: features from picked options", () => {
     ]));
     const sorcerer = sheetOf(greedyChoices("human", "sorcerer", "sage", 2));
     expect(sorcerer.features.filter((f) => f.source === "Metamagia")).toHaveLength(2);
+  });
+});
+
+describe("validateChoices: always-prepared spells", () => {
+  const paladinL2 = (prepared: string[]) => withPicks(
+    { "class.paladin.fighting_style": ["defense"], "class.paladin.prepared": prepared },
+    { ...paladinChoices(), level: 2 },
+  );
+  const others = spellIds("paladin", 1).filter((id) => id !== "divine_smite");
+
+  it("rejects preparing a spell a class feature already keeps prepared", () => {
+    const errors = validateChoices(paladinL2(["divine_smite", ...others.slice(0, 2)]));
+    expect(fields(errors)).toEqual(["picks.class.paladin.prepared"]);
+    expect(errors[0]!.message).toContain("Castigo divino");
+  });
+
+  it("allows it before the feature is gained", () => {
+    expect(validateChoices(withPicks({ "class.paladin.prepared": ["divine_smite", others[0]!] }, paladinChoices()))).toEqual([]);
+    expect(validateChoices(paladinL2(others.slice(0, 3)))).toEqual([]);
   });
 });
 

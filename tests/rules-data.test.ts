@@ -17,7 +17,7 @@ import {
   findSpell,
   spellsFor,
 } from "../src/rules";
-import { isWeaponProficient } from "../src/rules/sheet";
+import { SHEET_HOOKS, isWeaponProficient } from "../src/rules/sheet";
 import { SKILLS, requirementsOf } from "../src/rules/types";
 import type { ChoiceSpec } from "../src/rules/types";
 
@@ -553,6 +553,27 @@ describe("spells (cantrips to level 2)", () => {
       .flatMap((o) => o.spells ?? []);
     expect(granted.length).toBeGreaterThan(0);
     for (const g of granted) expect(findSpell(g.spellId), g.spellId).toBeDefined();
+  });
+
+  it("has the class resources, features and options the sheet calculation relies on", () => {
+    for (const [classId, names] of Object.entries(SHEET_HOOKS.resources)) {
+      for (const name of names) expect(findClass(classId)!.levels.some((l) => name in l.resources), `${classId}: ${name}`).toBe(true);
+    }
+    for (const [classId, names] of Object.entries(SHEET_HOOKS.features)) {
+      const features = findClass(classId)!.levels.flatMap((l) => l.features.map((f) => f.name));
+      for (const name of names) expect(features, `${classId}: ${name}`).toContain(name);
+    }
+    const specs = CLASSES_DATA.flatMap((c) => c.levels.flatMap((l) => l.choices));
+    for (const [choiceId, ids] of Object.entries(SHEET_HOOKS.options)) {
+      const options = specs.find((s) => s.id === choiceId)?.options.map((o) => o.id);
+      for (const id of ids) expect(options, `${choiceId}: ${id}`).toContain(id);
+    }
+  });
+
+  it("gives the Strength column of heavy armor", () => {
+    const strength = (id: string) => ARMOR.find((a) => a.id === id)?.strength;
+    expect([strength("ring_mail"), strength("chain_mail"), strength("splint_armor"), strength("plate_armor")]).toEqual([undefined, 13, 15, 15]);
+    expect(ARMOR.filter((a) => a.strength !== undefined).map((a) => a.id)).toEqual(["chain_mail", "splint_armor", "plate_armor"]);
   });
 
   it("every always-prepared spell of species and class features exists", () => {

@@ -28,10 +28,20 @@ interface Context {
 }
 
 const MAX_SCORE = 20;
-// Resource names as they appear in the class tables (data/classes).
+// Names the sheet looks up in the class data (resources of the class tables and a feature name).
+// A data test checks they exist, so a rename cannot silently turn an effect off.
 const MARTIAL_ARTS_DIE = "Dado de artes marciales";
 const UNARMORED_MOVEMENT_M = "Movimiento sin armadura (m)";
 const JACK_OF_ALL_TRADES = "Aprendiz de mucho";
+export const SHEET_HOOKS = {
+  resources: { monk: [MARTIAL_ARTS_DIE, UNARMORED_MOVEMENT_M] },
+  features: { bard: [JACK_OF_ALL_TRADES] },
+  /** Option ids of the cleric and druid orders whose effects the sheet applies. */
+  options: {
+    "class.cleric.divine_order": ["protector", "thaumaturge"],
+    "class.druid.primal_order": ["magician", "warden"],
+  },
+} as const;
 
 const modifier = (score: number) => Math.floor((score - 10) / 2);
 
@@ -121,6 +131,15 @@ function orderSkillBonus(ctx: Context, skill: SkillId): number {
   if (pickIds(ctx, "class.cleric.divine_order").includes("thaumaturge") && (skill === "arcana" || skill === "religion")) return bonus;
   if (pickIds(ctx, "class.druid.primal_order").includes("magician") && (skill === "arcana" || skill === "nature")) return bonus;
   return 0;
+}
+
+/** Spell ids a class (and its subclass, once gained) always has prepared at a level, from Trait.spells. */
+export function alwaysPreparedSpells(cls: ClassData, level: number): string[] {
+  const traits = [
+    ...cls.levels.filter((r) => r.level <= level).flatMap((r) => r.features),
+    ...(level >= cls.subclass.level ? cls.subclass.features.filter((f) => f.level <= level).map((f) => f.feature) : []),
+  ];
+  return traits.flatMap((t) => t.spells ?? []);
 }
 
 const classFeatures = (ctx: Context): { row: LevelRow; feature: Trait }[] =>
@@ -213,18 +232,27 @@ function computeArmorClass(ctx: Context): number {
   });
 }
 
-/** Species speed (or the lineage's, e.g. Wood Elf 35 ft) plus the monk's Unarmored Movement, in feet. */
+/** Species speed (or the lineage's, e.g. Wood Elf 35 ft) plus the monk's Unarmored Movement, minus 10 ft in armor
+    whose Strength requirement the wearer does not meet (SRD "Armor" table, Strength column), in feet. */
 function speed(ctx: Context): number {
   const lineage = ctx.specs.filter((s) => s.id.startsWith("species.")).flatMap((s) => picked(s, ctx.c.picks));
   const base = lineage.find((o) => o.speed !== undefined)?.speed ?? ctx.species.speed;
   const metres = ctx.row.resources[UNARMORED_MOVEMENT_M] ?? 0;
   // The class table gives metres (3 m = 10 ft, as the Spanish SRD converts 1.5 m per 5 ft).
-  return base + (unarmored(ctx) ? Math.round((metres * 10) / 3) : 0);
+  const heavy = ctx.armor?.strength !== undefined && ctx.scores.str < ctx.armor.strength ? 10 : 0;
+  return base + (unarmored(ctx) ? Math.round((metres * 10) / 3) : 0) - heavy;
 }
 
 // ── Attacks ───────────────────────────────────────────────────────────────
 
 const formatDamage = (dice: string, mod: number) => (mod === 0 ? dice : `${dice}${mod > 0 ? "+" : ""}${mod}`);
+
+/** Finesse lets the wielder pick Str or Dex (even for a ranged weapon like the Dart); otherwise Dex for ranged
+    weapons and Str for melee ones. */
+export function weaponAbilityModifier(w: WeaponData, mods: Record<Ability, number>): number {
+  if (w.finesse) return Math.max(mods.str, mods.dex);
+  return w.ranged ? mods.dex : mods.str;
+}
 
 /** Average of "XdY" (or a flat number such as the blowgun's "1"). */
 function average(dice: string): number {
@@ -245,7 +273,7 @@ function attacks(ctx: Context, weaponProficiencies: string[]): Sheet["attacks"] 
   const weapons = [...new Set(ctx.items)].flatMap((id) => weaponOf(id) ?? []);
   const result: Sheet["attacks"] = weapons.map((w) => {
     const monk = martialArts && isMonkWeapon(w);
-    const mod = w.ranged ? mods.dex : w.finesse || monk ? Math.max(mods.str, mods.dex) : mods.str;
+    const mod = monk ? Math.max(mods.str, mods.dex) : weaponAbilityModifier(w, mods);
     const proficient = isWeaponProficient(w, weaponProficiencies);
     const dice = monk && average(`1d${martialDie}`) > average(w.damage) ? `1d${martialDie}` : w.damage;
     return {
@@ -301,8 +329,7 @@ function otherSpellIds(ctx: Context): string[] {
     }
     if (isSpellChoice(spec.id) && !own.has(spec.id)) ids.push(...(c.picks[spec.id] ?? []));
   }
-  const traits = [...classFeatures(ctx).map((f) => f.feature), ...subclassFeatures(ctx)];
-  ids.push(...traits.flatMap((t) => t.spells ?? []));
+  ids.push(...alwaysPreparedSpells(cls, c.level));
   return [...new Set(ids)];
 }
 

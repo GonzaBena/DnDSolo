@@ -6,7 +6,7 @@ import type { Concept } from "./choices";
 import { CLASSES_DATA, LOADED_MAX_LEVEL, SPECIES, STANDARD_ARRAY, findBackground, findFeat } from "./index";
 import { ABILITIES, ABILITY_NAMES, SKILLS } from "./types";
 import type { Ability, BackgroundData, CharacterSheet, ChoiceSpec, Option, SkillId } from "./types";
-import { computeSheet } from "./sheet";
+import { alwaysPreparedSpells, computeSheet } from "./sheet";
 
 export interface CharacterChoices extends Concept {
   baseScores: Record<Ability, number>;
@@ -270,6 +270,20 @@ function validateSpellbook(specs: ChoiceSpec[], picks: Picks): ChoiceError[] {
   }];
 }
 
+/** Spells a class feature always keeps prepared do not count against the prepared spells (SRD, e.g. the Paladin's
+    Spellcasting), so preparing one of them again would waste a pick. */
+function validateAlwaysPrepared(c: CharacterChoices, specs: ChoiceSpec[]): ChoiceError[] {
+  const cls = CLASSES_DATA.find((x) => x.id === c.classId)!;
+  const prepared = specs.find((s) => s.id === `class.${cls.id}.prepared`);
+  if (!prepared) return [];
+  const always = new Set(alwaysPreparedSpells(cls, c.level));
+  const repeats = pickedOptions(prepared, c.picks).filter((o) => always.has(o.id));
+  return repeats.length === 0 ? [] : [{
+    field: field(prepared),
+    message: `"${prepared.label}": ${repeats.map((o) => o.name).join(", ")} ya lo tenés siempre preparado por un rasgo de ${cls.name}; elegí otro conjuro.`,
+  }];
+}
+
 /** Every rule a character's choices must meet; [] when they are legal. */
 export function validateChoices(choices: CharacterChoices): ChoiceError[] {
   const conceptErrors = validateConcept(choices);
@@ -290,6 +304,7 @@ export function validateChoices(choices: CharacterChoices): ChoiceError[] {
     ...validateFeats(choices, specs),
     ...validateAbilityCap(choices, specs),
     ...validateSpellbook(specs, choices.picks),
+    ...validateAlwaysPrepared(choices, specs),
   ];
 }
 

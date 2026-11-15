@@ -18,6 +18,8 @@ export interface ArmorData {
   name: string;
   type: "light" | "medium" | "heavy" | "shield";
   baseAc: number;
+  /** Strength score needed to avoid a 10 ft speed penalty (the table's Strength column), if any. */
+  strength?: number;
   source: "SRD 5.2";
 }
 
@@ -90,9 +92,9 @@ export const ARMOR: ArmorData[] = [
   { id: "breastplate", name: "Coraza", type: "medium", baseAc: 14, source: SOURCE },
   { id: "half_plate_armor", name: "Media armadura", type: "medium", baseAc: 15, source: SOURCE },
   { id: "ring_mail", name: "Cota guarnecida", type: "heavy", baseAc: 14, source: SOURCE },
-  { id: "chain_mail", name: "Cota de malla", type: "heavy", baseAc: 16, source: SOURCE },
-  { id: "splint_armor", name: "Armadura de bandas", type: "heavy", baseAc: 17, source: SOURCE },
-  { id: "plate_armor", name: "Armadura de placas", type: "heavy", baseAc: 18, source: SOURCE },
+  { id: "chain_mail", name: "Cota de malla", type: "heavy", baseAc: 16, strength: 13, source: SOURCE },
+  { id: "splint_armor", name: "Armadura de bandas", type: "heavy", baseAc: 17, strength: 15, source: SOURCE },
+  { id: "plate_armor", name: "Armadura de placas", type: "heavy", baseAc: 18, strength: 15, source: SOURCE },
   { id: "shield", name: "Escudo", type: "shield", baseAc: 2, source: SOURCE },
 ];
 

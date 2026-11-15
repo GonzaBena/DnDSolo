@@ -3,6 +3,7 @@ import type { DMResponse, GameState } from "../src/domain/types";
 import type { CharacterChoices } from "../src/rules/buildSheet";
 import { activeChoices, isInvocationCantripChoice, requiredChoices } from "../src/rules/choices";
 import { CLASSES_DATA, SPECIES, STANDARD_ARRAY, findBackground } from "../src/rules";
+import { alwaysPreparedSpells } from "../src/rules/sheet";
 import { ABILITIES } from "../src/rules/types";
 import type { Ability } from "../src/rules/types";
 
@@ -63,7 +64,9 @@ export function greedyChoices(speciesId: string, classId: string, backgroundId: 
 
   const picks: Record<string, string[]> = {};
   const speciesSpells = (species.spells ?? []).map((g) => g.spellId);
-  const used = new Set<string>([background.featId, ...background.skills, ...species.fixedSkills, ...speciesSpells]);
+  const used = new Set<string>([
+    background.featId, ...background.skills, ...species.fixedSkills, ...speciesSpells, ...alwaysPreparedSpells(cls, level),
+  ]);
   const proficient = new Set<string>([...background.skills, ...species.fixedSkills]);
   for (let round = 0; round < 20; round++) {
     const todo = activeChoices(requiredChoices({ speciesId, classId, backgroundId, level }), picks).filter((s) => !picks[s.id]);
