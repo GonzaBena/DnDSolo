@@ -1,13 +1,19 @@
 import { BACKGROUNDS_DATA } from "./data/backgrounds";
+import { ARMOR as ARMOR_DATA, WEAPONS as WEAPONS_DATA, findItem } from "./data/equipment";
+import type { ArmorData, WeaponData } from "./data/equipment";
 import { FEATS_DATA } from "./data/feats";
 import { SPECIES_DATA } from "./data/species";
 import type { BackgroundData, FeatData, SpeciesData } from "./types";
 
 export * from "./types";
+export { findItem };
+export type { ArmorData, WeaponData };
 
 export const SPECIES: SpeciesData[] = SPECIES_DATA;
 export const BACKGROUNDS: BackgroundData[] = BACKGROUNDS_DATA;
 export const FEATS: FeatData[] = FEATS_DATA;
+export const WEAPONS: WeaponData[] = WEAPONS_DATA;
+export const ARMOR: ArmorData[] = ARMOR_DATA;
 
 /** Class data is only loaded up to this level (see the phase 1 design). */
 export const LOADED_MAX_LEVEL = 4;

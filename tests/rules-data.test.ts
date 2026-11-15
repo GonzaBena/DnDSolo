@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  ARMOR,
   BACKGROUNDS,
   FEATS,
   LOADED_MAX_LEVEL,
   SPECIES,
   STANDARD_ARRAY,
+  WEAPONS,
   findBackground,
   findFeat,
+  findItem,
   findSpecies,
 } from "../src/rules";
 import { SKILLS } from "../src/rules/types";
@@ -156,5 +159,19 @@ describe("integrity", () => {
   it("exposes the constants", () => {
     expect(LOADED_MAX_LEVEL).toBe(4);
     expect(STANDARD_ARRAY).toEqual([15, 14, 13, 12, 10, 8]);
+  });
+});
+
+describe("equipment data", () => {
+  it("has a longsword with a mastery property", () => {
+    const sword = findItem("longsword");
+    expect(sword && "damage" in sword ? sword.damage : null).toBe("1d8");
+    expect(sword && "mastery" in sword ? sword.mastery.length : 0).toBeGreaterThan(0);
+  });
+  it("has unique ids across weapons and armor", () => {
+    const ids = [...WEAPONS, ...ARMOR].map((i) => i.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(WEAPONS).toHaveLength(38);
+    expect(ARMOR).toHaveLength(13);
   });
 });
