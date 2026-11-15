@@ -4,8 +4,123 @@ import Base from "../layouts/Base.astro";
 
 <Base title="Configuración">
   <h1>Configuración</h1>
-  <p class="placeholder">Acá vas a cargar tu API key de Gemini y elegir el modelo.</p>
+  <p id="missing-notice" class="notice" hidden>
+    Para jugar necesitás cargar tu API key de Gemini y elegir un modelo.
+  </p>
+
+  <form id="settings-form" class="form">
+    <label class="field">
+      <span>API key de Gemini</span>
+      <input id="api-key" type="password" autocomplete="off" spellcheck="false" required />
+      <small>
+        Se guarda solo en este navegador. Podés crear una en
+        <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a>.
+      </small>
+    </label>
+
+    <label class="field">
+      <span>Modelo</span>
+      <select id="model" required disabled>
+        <option value="">Cargá tu key para ver los modelos</option>
+      </select>
+    </label>
+
+    <div class="actions">
+      <button id="load-models" type="button" class="button">Cargar modelos</button>
+      <button id="test" type="button" class="button">Probar conexión</button>
+      <button type="submit" class="button button--primary">Guardar</button>
+    </div>
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+  </form>
+
   <div class="actions">
     <a class="button" href="/">Volver</a>
   </div>
 </Base>
+
+<script>
+  import { GeminiClient, listGeminiModels } from "../llm/GeminiClient";
+  import { describeLLMError } from "../llm/errorMessages";
+  import { loadSettings, saveSettings } from "../persistence/settings";
+
+  const form = document.querySelector<HTMLFormElement>("#settings-form")!;
+  const keyInput = document.querySelector<HTMLInputElement>("#api-key")!;
+  const modelSelect = document.querySelector<HTMLSelectElement>("#model")!;
+  const loadButton = document.querySelector<HTMLButtonElement>("#load-models")!;
+  const testButton = document.querySelector<HTMLButtonElement>("#test")!;
+  const status = document.querySelector<HTMLParagraphElement>("#status")!;
+  const notice = document.querySelector<HTMLParagraphElement>("#missing-notice")!;
+
+  function setStatus(text: string, tone: "info" | "ok" | "error" = "info") {
+    status.textContent = text;
+    status.dataset.tone = tone;
+  }
+
+  async function loadModels(preferred: string) {
+    const apiKey = keyInput.value.trim();
+    if (!apiKey) {
+      setStatus("Primero pegá tu API key.", "error");
+      return;
+    }
+    setStatus("Cargando modelos…");
+    loadButton.disabled = true;
+    try {
+      const models = await listGeminiModels(apiKey);
+      modelSelect.replaceChildren(
+        new Option("Elegí un modelo", ""),
+        ...models.map((m) => new Option(m.label, m.id)),
+      );
+      modelSelect.disabled = false;
+      // Keep the saved choice only if this key can still use it.
+      if (models.some((m) => m.id === preferred)) modelSelect.value = preferred;
+      setStatus(`${models.length} modelos disponibles.`, "ok");
+    } catch (error) {
+      setStatus(describeLLMError(error), "error");
+    } finally {
+      loadButton.disabled = false;
+    }
+  }
+
+  loadButton.addEventListener("click", () => void loadModels(modelSelect.value));
+
+  testButton.addEventListener("click", async () => {
+    const apiKey = keyInput.value.trim();
+    const model = modelSelect.value;
+    if (!apiKey || !model) {
+      setStatus("Necesitás una API key y un modelo para probar.", "error");
+      return;
+    }
+    setStatus("Probando…");
+    testButton.disabled = true;
+    try {
+      const reply = await new GeminiClient(apiKey, model).generateText({
+        prompt: "Saludá en una sola oración corta, como un Dungeon Master que da la bienvenida.",
+      });
+      setStatus(`Funciona. El modelo respondió: «${reply.trim()}»`, "ok");
+    } catch (error) {
+      setStatus(describeLLMError(error), "error");
+    } finally {
+      testButton.disabled = false;
+    }
+  });
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const apiKey = keyInput.value.trim();
+    const model = modelSelect.value;
+    if (!apiKey || !model) {
+      setStatus("Necesitás una API key y un modelo para guardar.", "error");
+      return;
+    }
+    saveSettings({ apiKey, model });
+    notice.hidden = true;
+    setStatus("Configuración guardada.", "ok");
+  });
+
+  const saved = loadSettings();
+  notice.hidden = !new URLSearchParams(location.search).has("missing");
+  if (saved) {
+    keyInput.value = saved.apiKey;
+    void loadModels(saved.model);
+  }
+</script>

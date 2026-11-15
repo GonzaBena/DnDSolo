@@ -56,3 +56,27 @@ a { color: var(--color-accent); }
   border-radius: var(--radius);
   color: var(--color-ink-soft);
 }
+
+.form { display: grid; gap: var(--space-4); }
+.field { display: grid; gap: var(--space-1); font-weight: 600; }
+.field small { font-weight: 400; color: var(--color-ink-soft); }
+.field input, .field select, .field textarea {
+  padding: var(--space-2) var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+}
+.button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.notice {
+  padding: var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  font-weight: 600;
+}
+.status { min-height: 1.5em; margin: 0; }
+.status[data-tone="ok"] { color: var(--color-accent); }
+.status[data-tone="error"] { color: var(--color-primary); }
