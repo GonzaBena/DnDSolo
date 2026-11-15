@@ -239,6 +239,16 @@
   font-size: var(--text-sm);
 }
 
+/* The composer stays pinned to the bottom of the screen so the player can
+   write while scrolled up through the story. */
+.action-form {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding: var(--space-3) 0;
+  border-top: var(--border);
+  background: var(--color-bg);
+}
 .action-form .actions {
   margin-top: var(--space-2);
   justify-content: flex-end;
@@ -501,11 +511,12 @@
   font-size: var(--text-sm);
 }
 
-/* Jump-to-latest button: shows up once the player scrolls away from the end. */
+/* Jump-to-latest button: shows up once the player scrolls away from the end,
+   floating just above the pinned composer. */
 .scroll-bottom {
-  position: fixed;
-  right: var(--space-4);
-  bottom: var(--space-4);
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + var(--space-3));
   z-index: 2;
   display: grid;
   place-items: center;

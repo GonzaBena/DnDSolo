@@ -244,6 +244,26 @@ export default function Game() {
       )}
 
       <form className="action-form" onSubmit={submitAction}>
+        {!atBottom && (
+          <button
+            type="button"
+            className="button scroll-bottom"
+            aria-label="Ir al final"
+            title="Ir al final"
+            onClick={() => scrollToBottom("smooth")}
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path
+                d="M12 4v15m-6-6 6 6 6-6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        )}
         <label className="field">
           <span>¿Qué hacés?</span>
           <textarea
@@ -268,27 +288,6 @@ export default function Game() {
           </button>
         </div>
       </form>
-
-      {!atBottom && (
-        <button
-          type="button"
-          className="button scroll-bottom"
-          aria-label="Ir al final"
-          title="Ir al final"
-          onClick={() => scrollToBottom("smooth")}
-        >
-          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-            <path
-              d="M12 4v15m-6-6 6 6 6-6"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-      )}
     </section>
   );
 }
