@@ -72,3 +72,31 @@ export interface FeatData {
   choices: ChoiceSpec[];            // e.g. Skilled: 3 skills; Magic Initiate: cantrips + spell; ASI: 2 abilities allowRepeat
   initiativeAddsProficiency?: boolean; // Alert
 }
+
+export interface LevelRow {
+  level: number; proficiencyBonus: number; features: Trait[];
+  /** Class resources by name, e.g. { "Furias": 2 } */
+  resources: Record<string, number>;
+  cantrips?: number; preparedSpells?: number; slots?: number[];   // slots[0] = 1st level
+  pactSlots?: { count: number; slotLevel: number };
+  /** Choices gained at this level, e.g. fighting style at 1, ASI feat at 4. */
+  choices: ChoiceSpec[];
+}
+
+export interface ClassData {
+  id: string; name: string; source: "SRD 5.2";
+  hitDie: 6 | 8 | 10 | 12; primaryAbility: Ability[]; saves: [Ability, Ability];
+  skillChoice: { count: number; options: SkillId[] };
+  armor: string[]; weapons: string[]; tools: string[];
+  weaponMasteryCount: number;              // 0 if none
+  /** Items are ids known to findItem, or free text prefixed with "text:". */
+  equipment: Record<"A" | "B" | "C", { items: string[]; gold: number } | undefined>;
+  spellcasting: { ability: Ability; spellList: string } | null;
+  unarmoredDefense: "barbarian" | "monk" | null;
+  levels: LevelRow[];                      // rows 1..LOADED_MAX_LEVEL
+  subclass: {
+    id: string; name: string; level: number;
+    features: { level: number; feature: Trait; choices?: ChoiceSpec[] }[];
+    unarmoredDefense?: "draconic";
+  };
+}

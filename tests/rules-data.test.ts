@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   ARMOR,
   BACKGROUNDS,
+  CLASSES_DATA,
   FEATS,
   LOADED_MAX_LEVEL,
   SPECIES,
   STANDARD_ARRAY,
   WEAPONS,
   findBackground,
+  findClass,
   findFeat,
   findItem,
   findSpecies,
@@ -187,5 +189,121 @@ describe("equipment data", () => {
   });
   it("uses the PDF gender for Pesada on the longbow", () => {
     expect(WEAPONS.find((x) => x.id === "longbow")?.properties).toContain("Pesada");
+  });
+});
+
+describe("classes (levels 1-4)", () => {
+  const cls = (id: string) => findClass(id)!;
+  const row = (id: string, level: number) => cls(id).levels[level - 1];
+  const choiceIds = (id: string, level: number) => row(id, level).choices.map((c) => c.id);
+  const generalFeats = FEATS.filter((f) => f.category === "general").map((f) => f.id);
+  const classChoices = () =>
+    CLASSES_DATA.flatMap((c) => [...c.levels.flatMap((l) => l.choices), ...c.subclass.features.flatMap((f) => f.choices ?? [])]);
+
+  it.todo("has exactly the 12 SRD classes (second dispatch)");
+
+  it("finds classes by id or Spanish name, ignoring case", () => {
+    expect(findClass("barbarian")?.name).toBe("Bárbaro");
+    expect(findClass("BÁRBARO")?.id).toBe("barbarian");
+    expect(findClass("paladín")?.id).toBe("paladin");
+    expect(findClass("explorador")?.id).toBe("ranger");
+    expect(findClass("pícaro")?.id).toBe("rogue");
+    expect(findClass("nope")).toBeUndefined();
+  });
+
+  it.each(CLASSES_DATA.map((c) => [c.id]))("%s has rows 1..LOADED_MAX_LEVEL with proficiency 2", (id) => {
+    const c = cls(id);
+    expect(c.levels).toHaveLength(LOADED_MAX_LEVEL);
+    expect(c.levels.map((l) => l.level)).toEqual([1, 2, 3, 4]);
+    for (const l of c.levels) expect(l.proficiencyBonus).toBe(2);
+    expect(c.source).toBe("SRD 5.2");
+  });
+
+  it.each(CLASSES_DATA.map((c) => [c.id]))("%s gets its subclass at level 3 and a level 4 feat choice", (id) => {
+    expect(cls(id).subclass.level).toBe(3);
+    expect(cls(id).subclass.features.length).toBeGreaterThan(0);
+    const feat = row(id, 4).choices.find((c) => c.id === `class.${id}.level4_feat`);
+    expect(feat?.options.map((o) => o.id).sort()).toEqual([...generalFeats].sort());
+    expect(feat?.options.map((o) => o.id)).toContain("ability_score_improvement");
+  });
+
+  it("has unique choice ids across species, backgrounds, feats and classes", () => {
+    const ids = [...allChoices(), ...classChoices()].map((c) => c.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("only references existing equipment or text items", () => {
+    for (const c of CLASSES_DATA) {
+      for (const opt of Object.values(c.equipment)) {
+        for (const item of opt?.items ?? []) {
+          expect(item.startsWith("text:") || findItem(item) !== undefined, `${c.id}: ${item}`).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("weapon mastery choices use real weapons and match the class count", () => {
+    for (const c of CLASSES_DATA) {
+      const picks = c.levels.flatMap((l) => l.choices).filter((x) => x.id.startsWith(`class.${c.id}.weapon_mastery`));
+      for (const p of picks) for (const o of p.options) expect(WEAPONS.some((w) => w.id === o.id)).toBe(true);
+      expect(row(c.id, 1).choices.find((x) => x.id === `class.${c.id}.weapon_mastery`)?.count ?? 0).toBe(c.weaponMasteryCount);
+    }
+  });
+
+  it("models the barbarian", () => {
+    const b = cls("barbarian");
+    expect(b).toMatchObject({ hitDie: 12, saves: ["str", "con"], weaponMasteryCount: 2, unarmoredDefense: "barbarian", spellcasting: null });
+    expect(b.skillChoice.count).toBe(2);
+    expect(sorted(b.skillChoice.options)).toEqual(
+      sorted(["animal_handling", "athletics", "intimidation", "nature", "perception", "survival"]),
+    );
+    expect(row("barbarian", 1).resources.Furias).toBe(2);
+    expect(row("barbarian", 3).resources.Furias).toBe(3);
+    expect(choiceIds("barbarian", 1)).toContain("class.barbarian.weapon_mastery");
+    expect(b.subclass.id).toBe("berserker");
+  });
+
+  it("models the fighter", () => {
+    const f = cls("fighter");
+    expect(f).toMatchObject({ hitDie: 10, saves: ["str", "con"], weaponMasteryCount: 3 });
+    const style = row("fighter", 1).choices.find((c) => c.id === "class.fighter.fighting_style");
+    expect(style?.options.map((o) => o.id).sort()).toEqual(
+      FEATS.filter((x) => x.category === "fighting_style").map((x) => x.id).sort(),
+    );
+    expect(f.subclass.id).toBe("champion");
+    expect(row("fighter", 1).resources["Tomar aliento"]).toBe(2);
+  });
+
+  it("models the rogue", () => {
+    const r = cls("rogue");
+    expect(r).toMatchObject({ hitDie: 8, saves: ["dex", "int"] });
+    expect(r.skillChoice.count).toBe(4);
+    expect(row("rogue", 1).choices.find((c) => c.id === "class.rogue.expertise")?.count).toBe(2);
+    expect(r.subclass.id).toBe("thief");
+  });
+
+  it("models the monk", () => {
+    const m = cls("monk");
+    expect(m).toMatchObject({ hitDie: 8, saves: ["str", "dex"], weaponMasteryCount: 0, unarmoredDefense: "monk" });
+    expect(row("monk", 2).resources["Puntos de concentración"]).toBe(2);
+    expect(row("monk", 4).resources["Puntos de concentración"]).toBe(4);
+  });
+
+  it("models the paladin as a caster from level 1", () => {
+    const p = cls("paladin");
+    expect(p).toMatchObject({ hitDie: 10, saves: ["wis", "cha"], spellcasting: { ability: "cha" } });
+    expect(p.levels.map((l) => l.slots)).toEqual([[2], [2], [3], [3]]);
+    expect(p.levels.map((l) => l.preparedSpells)).toEqual([2, 3, 4, 5]);
+    expect(choiceIds("paladin", 2)).toContain("class.paladin.fighting_style");
+  });
+
+  it("models the ranger as a caster from level 1", () => {
+    const r = cls("ranger");
+    expect(r).toMatchObject({ hitDie: 10, saves: ["str", "dex"], spellcasting: { ability: "wis" } });
+    expect(r.levels.map((l) => l.slots)).toEqual([[2], [2], [3], [3]]);
+    expect(r.levels.map((l) => l.preparedSpells)).toEqual([2, 3, 4, 5]);
+    expect(choiceIds("ranger", 2)).toEqual(
+      expect.arrayContaining(["class.ranger.fighting_style", "class.ranger.expertise"]),
+    );
   });
 });
