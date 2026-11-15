@@ -1,8 +1,14 @@
 import { z } from "zod";
-import { DICE, type DMResponse } from "./types";
+import { DICE, type DMResponse, type GameState } from "./types";
 
 const attitude = z.enum(["friendly", "neutral", "hostile"]);
 const questStatus = z.enum(["active", "completed", "failed"]);
+
+const rollRequest = z.object({
+  die: z.enum(DICE),
+  reason: z.string().min(1),
+  difficulty: z.number().int().nullable(),
+});
 
 const stateChange = z.discriminatedUnion("type", [
   z.object({ type: z.literal("hp"), playerId: z.string(), delta: z.number().int() }),
@@ -37,13 +43,7 @@ export const dmResponseSchema = z.object({
   // First on purpose: the UI streams this field while the rest is still
   // being generated, so it has to come before everything else.
   narration: z.string().min(1),
-  rollRequest: z
-    .object({
-      die: z.enum(DICE),
-      reason: z.string().min(1),
-      difficulty: z.number().int().nullable(),
-    })
-    .nullable(),
+  rollRequest: rollRequest.nullable(),
   stateChanges: z.array(stateChange),
   events: z.array(z.string()),
 });
@@ -88,3 +88,56 @@ export function parseDMResponse(raw: string): ParseResult {
   if (!parsed.success) return { ok: false, reason: z.prettifyError(parsed.error) };
   return { ok: true, response: parsed.data };
 }
+
+const turnInput = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("start") }),
+  z.object({ type: z.literal("action"), text: z.string() }),
+  z.object({
+    type: z.literal("roll"),
+    result: rollRequest.extend({ value: z.number().int(), success: z.boolean().nullable() }),
+  }),
+]);
+
+/** For game states that come from outside the engine (an imported file),
+    where the TypeScript types guarantee nothing. */
+export const gameStateSchema = z.object({
+  id: z.string().min(1),
+  version: z.number().int(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  players: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        name: z.string(),
+        race: z.string(),
+        characterClass: z.string(),
+        level: z.number().int(),
+        background: z.string().nullable(),
+        hp: z.number().int(),
+        maxHp: z.number().int(),
+        inventory: z.array(z.object({ name: z.string(), quantity: z.number().int() })),
+      }),
+    )
+    .min(1),
+  location: z.object({ name: z.string(), description: z.string() }),
+  npcs: z.array(z.object({ name: z.string(), description: z.string(), attitude })),
+  quests: z.array(z.object({ title: z.string(), description: z.string(), status: questStatus })),
+  summary: z.string(),
+  summarizedThroughTurn: z.number().int().min(0),
+  turns: z.array(
+    z.object({
+      number: z.number().int(),
+      input: turnInput,
+      narration: z.string(),
+      events: z.array(z.string()),
+    }),
+  ),
+  pendingRoll: rollRequest.nullable(),
+});
+
+type InferredState = z.infer<typeof gameStateSchema>;
+const _stateCheck: GameState = {} as InferredState;
+const _stateReverseCheck: InferredState = {} as GameState;
+void _stateCheck;
+void _stateReverseCheck;

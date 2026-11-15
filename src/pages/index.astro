@@ -26,6 +26,10 @@ import Base from "../layouts/Base.astro";
   <div class="actions">
     <a class="button button--primary" href="/character">Nueva campaña</a>
     <a id="continue" class="button" href="/play" hidden>Continuar</a>
+    {/* Development aid: only rendered by `npm run dev`, never in a build. */}
+    {import.meta.env.DEV && (
+      <button id="load-mock" type="button" class="button">Cargar partida de ejemplo</button>
+    )}
   </div>
   <p id="save-info" class="status"></p>
 </Base>
@@ -49,4 +53,19 @@ import Base from "../layouts/Base.astro";
       info.textContent = "No se pudo leer las partidas guardadas en este navegador.";
     },
   );
+
+  // The dynamic import sits behind the DEV check so a production build
+  // doesn't ship the sample game.
+  const mockButton = document.querySelector<HTMLButtonElement>("#load-mock");
+  if (import.meta.env.DEV && mockButton) {
+    mockButton.addEventListener("click", async () => {
+      try {
+        const { loadMockGame } = await import("../persistence/mockGame");
+        await new IndexedDBGameRepo().save(loadMockGame());
+        location.href = "/play";
+      } catch {
+        info.textContent = "No se pudo cargar la partida de ejemplo.";
+      }
+    });
+  }
 </script>
