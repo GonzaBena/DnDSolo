@@ -1,0 +1,28 @@
+/* Single source of truth for colors, type and spacing (Spec: "Estilo").
+   Values are provisional until the style pass (step g); components must
+   only reference these variables so that pass is a one-file change. */
+:root {
+  --color-bg: #f6ecd9;
+  --color-surface: #fffaf0;
+  --color-ink: #2b2118;
+  --color-ink-soft: #6b5a4a;
+  --color-primary: #c8553d;
+  --color-primary-ink: #fffaf0;
+  --color-accent: #2f6f6a;
+  --color-line: #2b2118;
+
+  --font-display: Georgia, "Times New Roman", serif;
+  --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 1rem;
+  --space-4: 1.5rem;
+  --space-5: 2.5rem;
+  --space-6: 4rem;
+
+  --radius: 12px;
+  --border: 2px solid var(--color-line);
+  --shadow-flat: 4px 4px 0 var(--color-line);
+  --content-width: 44rem;
+}
