@@ -32,9 +32,26 @@
 .turn { display: grid; gap: var(--space-3); }
 .entry p { margin: 0 0 var(--space-2); }
 .entry p:last-child { margin-bottom: 0; }
+/* A message is its text plus, on the outer side, who said it: the DM's
+   name sits to the left of the narration, a player's to the right of
+   their bubble. */
+.message { display: grid; gap: var(--space-2); align-items: start; }
+.message--dm { grid-template-columns: var(--speaker-width) minmax(0, 1fr); }
+.message--player { grid-template-columns: minmax(0, 1fr) var(--speaker-width); }
+.speaker {
+  padding-top: 0.35em;
+  font-size: var(--text-xs);
+  line-height: 1.3;
+  color: var(--color-ink-soft);
+  opacity: 0.75;
+  overflow-wrap: anywhere;
+}
+.message--dm .speaker { text-align: right; }
+.thinking { padding-left: calc(var(--speaker-width) + var(--space-2)); }
+
 .entry--player {
   justify-self: end;
-  max-width: 85%;
+  max-width: 100%;
   margin: 0;
   padding: var(--space-2) var(--space-3);
   border: var(--border);
@@ -88,3 +105,13 @@
 .roll-request__hint { font-size: var(--text-sm); }
 
 .action-form .actions { margin-top: var(--space-2); justify-content: flex-end; }
+
+/* On narrow screens a side column would squeeze the text, so the name
+   goes above the message instead. */
+@media (max-width: 34rem) {
+  .message--dm, .message--player { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .message--player .speaker { order: -1; text-align: right; }
+  .message--dm .speaker { text-align: left; }
+  .speaker { padding-top: 0; }
+  .thinking { padding-left: 0; }
+}

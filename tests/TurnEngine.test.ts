@@ -243,3 +243,21 @@ describe("TurnEngine.playTurn", () => {
     expect(outcome.rejectedChanges).toHaveLength(1);
   });
 });
+
+describe("message authorship", () => {
+  it("keeps who said each action through save and load", async () => {
+    const ctx = setup();
+    const game = await started(ctx);
+    ctx.llm.queueStructured(reply());
+
+    const outcome = await ctx.engine.playTurn(game, {
+      type: "action",
+      text: "Saludo",
+      playerId: PLAYER_ID,
+    });
+
+    const saved = (await ctx.repo.load(game.id))!;
+    expect(outcome.ok).toBe(true);
+    expect(saved.turns.at(-1)!.input).toEqual({ type: "action", text: "Saludo", playerId: PLAYER_ID });
+  });
+});

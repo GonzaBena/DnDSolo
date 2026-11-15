@@ -89,7 +89,9 @@ export interface DMResponse {
 
 export type TurnInput =
   | { type: "start" }
-  | { type: "action"; text: string }
+  /** `playerId` says whose character spoke. Optional because saves from
+      before it existed don't have it; those belong to the only player. */
+  | { type: "action"; text: string; playerId?: string | undefined }
   /** Sent automatically by the app after rolling what the DM asked for. */
   | { type: "enemy_rolls"; results: EnemyRollResult[] };
 

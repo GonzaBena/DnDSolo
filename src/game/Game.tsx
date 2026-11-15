@@ -149,7 +149,8 @@ export default function Game() {
     const text = draft.trim();
     if (!canAct || text === "") return;
     setDraft("");
-    void send(engine, state, { type: "action", text });
+    // Solo game: the one player is always the author.
+    void send(engine, state, { type: "action", text, playerId: state.players[0]?.id });
   };
 
   return (
@@ -157,10 +158,10 @@ export default function Game() {
       <CharacterPanel state={state} />
 
       <div className="log" aria-live="polite">
-        <TurnLog turns={state.turns} />
+        <TurnLog turns={state.turns} players={state.players} />
         {inFlight && (
           <div className="turn">
-            <InputEntry input={inFlight.input} animated />
+            <InputEntry input={inFlight.input} players={state.players} animated />
             {streamed !== "" && <Narration text={streamed} animated />}
             {busy && streamed === "" && <p className="thinking">El DM está pensando…</p>}
           </div>
