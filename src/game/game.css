@@ -80,16 +80,33 @@
 /* The tumbling die sits over the number and is hidden unless animated. */
 .roll-card__die {
   position: absolute;
+  top: 50%;
+  left: 50%;
   width: var(--text-roll);
   height: var(--text-roll);
+  margin: calc(var(--text-roll) / -2) 0 0 calc(var(--text-roll) / -2);
   opacity: 0;
   pointer-events: none;
   fill: var(--color-primary);
   stroke: var(--color-ink);
-  stroke-width: 2;
+  stroke-width: 1.5;
   stroke-linejoin: round;
+  overflow: visible;
 }
 .roll-card__die path { fill: none; }
+/* Ring thrown out when the two d10s of a d100 meet. Animation-only too. */
+.roll-card__burst {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--text-roll);
+  height: var(--text-roll);
+  margin: calc(var(--text-roll) / -2) 0 0 calc(var(--text-roll) / -2);
+  border: var(--line) solid var(--color-sun);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
 .roll-card__value {
   display: block;
   font-family: var(--font-display);

@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef } from "react";
 import { enterFromRight, enterNarration, enterPage, rollIn } from "../animations/motion";
 import { formatDice } from "../domain/dice";
 import type { Character, EnemyRollResult, Turn, TurnInput } from "../domain/types";
+import { DieShape } from "./DieShape";
 import { useEnter } from "./useEnter";
 
 // `animated` is only set for the turn being played right now. Turns already
@@ -20,10 +21,8 @@ function EnemyRollCard({ result, animated }: { result: EnemyRollResult; animated
       <span className="roll-card__label">Tirada del enemigo</span>
       <span className="roll-card__result">
         {/* Only visible while the roll animates (see rollIn). */}
-        <svg className="roll-card__die" viewBox="0 0 32 32" aria-hidden="true">
-          <polygon points="16,2 29,9.5 29,22.5 16,30 3,22.5 3,9.5" />
-          <path d="M3 9.5L16 14L29 9.5M16 14L16 30" />
-        </svg>
+        <DieShape die={result.die} className="roll-card__die" />
+        {result.die === "d100" && <span className="roll-card__burst" />}
         <span className="roll-card__value">{result.total}</span>
       </span>
       <span className="roll-card__meta">
