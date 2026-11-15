@@ -1,6 +1,6 @@
 {
   "id": "mock-puerto-ceniza-001",
-  "version": 2,
+  "version": 3,
   "createdAt": "2026-11-15T14:00:00.000Z",
   "updatedAt": "2026-11-15T14:42:00.000Z",
   "players": [
@@ -51,24 +51,32 @@
     {
       "name": "Mora",
       "description": "Tabernera curtida de El Ancla Oxidada, de voz ronca y mirada atenta. Conoce todos los rumores del puerto.",
-      "attitude": "friendly"
+      "attitude": "friendly",
+      "present": false
     },
     {
       "name": "Braulio el Rengo",
       "description": "Contrabandista local que opera en el muelle viejo. Desconfiado pero pragmático cuando ve acero de por medio.",
-      "attitude": "neutral"
+      "attitude": "neutral",
+      "present": false
     },
     {
       "name": "Don Anselmo",
       "description": "El viejo farero de Puerto Ceniza, herido en una pierna tras ser encerrado en el sótano del faro.",
-      "attitude": "friendly"
+      "attitude": "friendly",
+      "present": true
     },
     {
       "name": "Vigía Ahogado",
       "description": "Espectro de un marino cubierto de algas luminiscentes que custodiaba la lente robada.",
-      "attitude": "hostile"
+      "attitude": "hostile",
+      "present": false
     }
   ],
+  "scene": {
+    "inCombat": false,
+    "turnOf": null
+  },
   "quests": [
     {
       "title": "La luz apagada de Puerto Ceniza",

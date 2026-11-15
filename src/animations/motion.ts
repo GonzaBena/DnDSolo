@@ -35,6 +35,12 @@ export function enterFromRight(element: Element): void {
   animate(element, { opacity: [0, 1], translateX: [24, 0], duration: 300, ease: "outCubic" });
 }
 
+/** The scene drawer sliding in from the right edge. */
+export function enterDrawer(element: Element): void {
+  if (!motionAllowed()) return;
+  animate(element, { translateX: ["100%", "0%"], duration: 320, ease: "outCubic" });
+}
+
 const TUMBLE_MS = 750;
 const LEAVE_MS = 160;
 

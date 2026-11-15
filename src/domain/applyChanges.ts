@@ -38,6 +38,20 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
     next = { ...next, players: next.players.map((p, i) => (i === index ? update(p) : p)) };
   };
 
+  // A new place is a new scene: nobody from the last one comes along unless
+  // the DM marks them present again. Done before the loop so an "npc"
+  // change listed ahead of the "location" one in the same turn still counts.
+  const moves = changes.some(
+    (c) => c.type === "location" && !sameName(c.name, state.location.name),
+  );
+  if (moves) {
+    next = {
+      ...next,
+      npcs: next.npcs.map((n) => ({ ...n, present: false })),
+      scene: { ...next.scene, turnOf: null },
+    };
+  }
+
   for (const change of changes) {
     switch (change.type) {
       case "inventory_add": {
@@ -86,10 +100,14 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
           name: change.name,
           description: change.description,
           attitude: change.attitude,
+          present: change.present,
         };
         next = { ...next, npcs: upsert(next.npcs, npc, (n) => sameName(n.name, change.name)) };
         break;
       }
+      case "scene":
+        next = { ...next, scene: { inCombat: change.inCombat, turnOf: change.turnOf } };
+        break;
       case "quest": {
         const quest = {
           title: change.title,
@@ -105,5 +123,22 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
     }
   }
 
-  return { state: next, rejected };
+  return { state: settleTurn(next, changes, rejected), rejected };
+}
+
+/** The turn can only belong to someone who is in the scene. A name that
+    matches nobody (or someone who just left) hands it back to the player
+    instead of leaving the drawer with no one highlighted. */
+function settleTurn(state: GameState, changes: StateChange[], rejected: RejectedChange[]): GameState {
+  const { turnOf } = state.scene;
+  if (turnOf === null) return state;
+  const inScene = [
+    ...state.players.map((p) => p.name),
+    ...state.npcs.filter((n) => n.present).map((n) => n.name),
+  ];
+  const match = inScene.find((name) => sameName(name, turnOf));
+  if (match !== undefined) return { ...state, scene: { ...state.scene, turnOf: match } };
+  const change = changes.findLast((c) => c.type === "scene");
+  if (change) rejected.push({ change, reason: "Nobody by that name is in the scene." });
+  return { ...state, scene: { ...state.scene, turnOf: null } };
 }

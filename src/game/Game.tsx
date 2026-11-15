@@ -7,6 +7,7 @@ import { describeLLMError } from "../llm/errorMessages";
 import { IndexedDBGameRepo } from "../persistence/IndexedDBGameRepo";
 import { isConfigured, loadSettings } from "../persistence/settings";
 import { CharacterPanel } from "./CharacterPanel";
+import { SceneDrawer } from "./SceneDrawer";
 import { InputEntry, Narration, TurnLog } from "./TurnLog";
 import "./game.css";
 
@@ -43,6 +44,7 @@ export default function Game() {
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [sceneOpen, setSceneOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef(false);
 
@@ -166,7 +168,8 @@ export default function Game() {
 
   return (
     <section className="game">
-      <CharacterPanel state={state} />
+      <CharacterPanel state={state} onOpenScene={() => setSceneOpen(true)} />
+      <SceneDrawer state={state} open={sceneOpen} onClose={() => setSceneOpen(false)} />
 
       <div className="log" aria-live="polite">
         <TurnLog turns={state.turns} players={state.players} enterCount={screen.loadedTurns} />

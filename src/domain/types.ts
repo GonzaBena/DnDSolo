@@ -61,6 +61,17 @@ export interface Npc {
   name: string;
   description: string;
   attitude: Attitude;
+  /** Whether they are in the current scene. Moving to another location
+      clears it for everyone; the DM marks who is around. */
+  present: boolean;
+}
+
+/** What is happening right now, for the scene drawer. */
+export interface Scene {
+  inCombat: boolean;
+  /** Name of whoever acts now: a player or an NPC in the scene. null means
+      the player, which is the resting state between DM replies. */
+  turnOf: string | null;
 }
 
 export interface Quest {
@@ -74,7 +85,8 @@ export type StateChange =
   | { type: "inventory_add"; playerId: string; item: string; quantity: number }
   | { type: "inventory_remove"; playerId: string; item: string; quantity: number }
   | { type: "location"; name: string; description: string }
-  | { type: "npc"; name: string; description: string; attitude: Attitude }
+  | { type: "npc"; name: string; description: string; attitude: Attitude; present: boolean }
+  | { type: "scene"; inCombat: boolean; turnOf: string | null }
   | { type: "quest"; title: string; description: string; status: QuestStatus };
 
 export interface DMResponse {
@@ -113,6 +125,7 @@ export interface GameState {
   players: Character[];
   location: Location;
   npcs: Npc[];
+  scene: Scene;
   quests: Quest[];
   /** Memory layer 2: running summary of everything up to summarizedThroughTurn. */
   summary: string;
@@ -127,4 +140,4 @@ export interface GameState {
   pendingEnemyRolls: EnemyRollRequest[];
 }
 
-export const GAME_STATE_VERSION = 2;
+export const GAME_STATE_VERSION = 3;

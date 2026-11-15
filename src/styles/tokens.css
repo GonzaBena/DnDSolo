@@ -21,6 +21,10 @@
   --color-sun-ink: #2a1f1a;     /* text on top of the highlight */
   --color-sky: #bfe0d8;
   --color-hill: #7fb69a;
+  --color-turn-combat: #ec7a1c; /* border of whoever has the turn in a fight */
+  --color-turn-calm: #3d9a5f;   /* ...and outside of one */
+  --color-hostile: #d1492e;
+  --color-friendly: #1f6f66;
 
   /* Type */
   --font-display: "Fraunces Variable", Georgia, serif;
@@ -49,6 +53,7 @@
   --shadow-pressed: 1px 1px 0 var(--color-ink);
   --content-width: 44rem;
   --speaker-width: 1.75rem;    /* side column with the initials of who spoke */
+  --drawer-width: 22rem;
 }
 
 /* Dark mode: the same storybook at night. The ink flips to cream, so every
@@ -71,4 +76,8 @@
   --color-sun-ink: #1b1512;
   --color-sky: #22324a;
   --color-hill: #2f5a4b;
+  --color-turn-combat: #f29233;
+  --color-turn-calm: #5cc283;
+  --color-hostile: #e8684b;
+  --color-friendly: #58bfb0;
 }

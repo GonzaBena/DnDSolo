@@ -57,7 +57,7 @@ describe("IndexedDBGameRepo", () => {
     await new IndexedDBGameRepo().save(stored as never);
 
     const loaded = (await new IndexedDBGameRepo().load("legacy"))!;
-    expect(loaded.version).toBe(2);
+    expect(loaded.version).toBe(3);
     expect(loaded.players[0]).not.toHaveProperty("hp");
     expect(loaded.pendingPlayerRoll).toEqual({ die: "d20", count: 1, reason: "Sigilo", difficulty: 12 });
     expect(loaded.pendingEnemyRolls).toEqual([]);
@@ -65,6 +65,22 @@ describe("IndexedDBGameRepo", () => {
       type: "action",
       text: 'Tiré d20 por "Trepar": me dio 14 en total.',
     });
+  });
+
+  it("migrates a v2 save, which knew nothing about the scene", async () => {
+    const { scene: _scene, ...game } = newGame();
+    const v2 = {
+      ...game,
+      id: "v2",
+      version: 2,
+      npcs: [{ name: "Berta", description: "Posadera", attitude: "friendly" }],
+    };
+    await new IndexedDBGameRepo().save(v2 as never);
+
+    const loaded = (await new IndexedDBGameRepo().load("v2"))!;
+    expect(loaded.version).toBe(3);
+    expect(loaded.npcs[0]!.present).toBe(false);
+    expect(loaded.scene).toEqual({ inCombat: false, turnOf: null });
   });
 
   it("a game resumes from disk exactly where it was left, enemy rolls included", async () => {

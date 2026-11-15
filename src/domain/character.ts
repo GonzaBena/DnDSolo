@@ -77,6 +77,7 @@ export function createGame(input: CharacterInput, options: CreateOptions = {}): 
     // Empty until the DM's opening turn proposes a location.
     location: { name: "", description: "" },
     npcs: [],
+    scene: { inCombat: false, turnOf: null },
     quests: [],
     summary: "",
     summarizedThroughTurn: 0,

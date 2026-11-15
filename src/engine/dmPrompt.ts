@@ -29,6 +29,11 @@ ESTADO
 - No apliques consecuencias que dependan de una tirada todavía no resuelta.
 - En el primer turno, definí siempre el lugar inicial con un cambio de tipo "location".
 
+ESCENA
+- Cada NPC tiene "present": si está en la escena actual. Cuando un NPC aparece, se acerca o se va, mandá su cambio "npc" con "present" actualizado. Al cambiar de lugar, el sistema saca a todos de la escena: volvé a marcar con "present": true a los que estén en el nuevo lugar. Los enemigos con los que se pelea también son NPCs (con actitud "hostile"); si son varios iguales, numeralos ("Goblin 1", "Goblin 2").
+- "scene" dice si hay combate ("inCombat") y quién tiene el turno ("turnOf": el nombre exacto de un jugador o de un NPC presente; null es el jugador). Mandá un cambio "scene" cuando empiece o termine un combate y cada vez que el turno pase a otro personaje: por ejemplo, cuando un enemigo actúa y pedís sus tiradas, el turno es suyo; cuando le toca de nuevo al jugador, volvé a poner su nombre o null.
+- En combate seguí el orden de iniciativa y anunciá en la narración de quién es el turno.
+
 EVENTOS
 - En "events" poné etiquetas de lo que pasó, solo de esta lista: damage, healing, scene_change, combat_start, combat_end, item_gained, new_npc, new_quest, quest_completed, death.
 
@@ -67,6 +72,7 @@ function stateForModel(state: GameState) {
     players: state.players,
     location: state.location,
     npcs: state.npcs,
+    scene: state.scene,
     quests: state.quests,
   };
 }

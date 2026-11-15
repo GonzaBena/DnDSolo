@@ -1,9 +1,16 @@
 import type { GameState } from "../domain/types";
 
-export function CharacterPanel({ state }: { state: GameState }) {
+interface Props {
+  state: GameState;
+  onOpenScene: () => void;
+}
+
+export function CharacterPanel({ state, onOpenScene }: Props) {
   const player = state.players[0];
   if (!player) return null;
   const activeQuests = state.quests.filter((q) => q.status === "active");
+  const inScene = state.players.length + state.npcs.filter((n) => n.present).length;
+  const { inCombat } = state.scene;
 
   return (
     <aside className="sheet" aria-label="Tu personaje">
@@ -13,6 +20,18 @@ export function CharacterPanel({ state }: { state: GameState }) {
           {player.race} · {player.characterClass} · Nivel {player.level}
         </span>
       </div>
+      <button
+        type="button"
+        className="button scene-toggle"
+        data-mode={inCombat ? "combat" : "calm"}
+        onClick={onOpenScene}
+        aria-haspopup="dialog"
+      >
+        {inCombat ? "Combate" : "Escena"}
+        <span className="scene-toggle__count" aria-label={`${inScene} personajes`}>
+          {inScene}
+        </span>
+      </button>
       <dl className="sheet__details">
         <div>
           <dt>Lugar</dt>

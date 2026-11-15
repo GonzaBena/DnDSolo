@@ -39,6 +39,12 @@ const stateChange = z.discriminatedUnion("type", [
     name: z.string().min(1),
     description: z.string(),
     attitude,
+    present: z.boolean(),
+  }),
+  z.object({
+    type: z.literal("scene"),
+    inCombat: z.boolean(),
+    turnOf: z.string().nullable(),
   }),
   z.object({
     type: z.literal("quest"),
@@ -131,7 +137,10 @@ export const gameStateSchema = z.object({
     )
     .min(1),
   location: z.object({ name: z.string(), description: z.string() }),
-  npcs: z.array(z.object({ name: z.string(), description: z.string(), attitude })),
+  npcs: z.array(
+    z.object({ name: z.string(), description: z.string(), attitude, present: z.boolean() }),
+  ),
+  scene: z.object({ inCombat: z.boolean(), turnOf: z.string().nullable() }),
   quests: z.array(z.object({ title: z.string(), description: z.string(), status: questStatus })),
   summary: z.string(),
   summarizedThroughTurn: z.number().int().min(0),

@@ -1,12 +1,12 @@
 # Partida Mock: Las Brumas de Puerto Ceniza
 
-Partida de ejemplo compatible con el modelo `GameState` (`version: 2`) definido en [`src/domain/types.ts`](../src/domain/types.ts).  
+Partida de ejemplo compatible con el modelo `GameState` (`version: 3`) definido en [`src/domain/types.ts`](../src/domain/types.ts).  
 El archivo estructurado equivalente se encuentra en [`docs/partida-mock.json`](./partida-mock.json).
 
 - **Cantidad de turnos:** 24 turnos (**48 mensajes** en total: 24 entradas del jugador/sistema + 24 narraciones del DM).
 - **Tiradas:** las del jugador son mensajes de chat (él tira sus dados y escribe el total); la app solo tira por los enemigos, y en esta partida lo hace dos veces, durante el combate con el Vigía Ahogado (turnos 18 y 21).
 - **Personaje:** Mateo Valen (Semielfo, Explorador, Nivel 2).
-- **Memoria en tres capas:** incluye `summary` acumulado hasta el turno 10 (`summarizedThroughTurn: 10`), estado estructurado (`players`, `location`, `npcs`, `quests`) y log completo de turnos.
+- **Memoria en tres capas:** incluye `summary` acumulado hasta el turno 10 (`summarizedThroughTurn: 10`), estado estructurado (`players`, `location`, `npcs`, `scene`, `quests`) y log completo de turnos.
 
 ---
 

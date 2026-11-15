@@ -31,6 +31,15 @@ function fromV1(raw: Raw): Raw {
   };
 }
 
+/** v2 -> v3. v3 knows who is in the current scene and whose turn it is.
+    Old saves never recorded presence, so the scene starts empty and calm. */
+function fromV2(raw: Raw): Raw {
+  const npcs = (Array.isArray(raw.npcs) ? raw.npcs : []).map((npc) =>
+    isObject(npc) ? { ...npc, present: false } : npc,
+  );
+  return { ...raw, version: 3, npcs, scene: { inCombat: false, turnOf: null } };
+}
+
 /** Turns whatever was stored into a GameState of the current version, or
     null if it can't be trusted (unknown version or wrong shape). Loading
     code must go through here so the screens never see a malformed save. */
@@ -38,6 +47,7 @@ export function migrateSave(raw: unknown): GameState | null {
   if (!isObject(raw)) return null;
   let current = raw;
   if (current.version === 1) current = fromV1(current);
+  if (current.version === 2) current = fromV2(current);
   if (current.version !== GAME_STATE_VERSION) return null;
   const parsed = gameStateSchema.safeParse(current);
   return parsed.success ? parsed.data : null;
