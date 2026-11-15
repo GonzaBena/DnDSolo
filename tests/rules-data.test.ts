@@ -18,6 +18,7 @@ import { SKILLS } from "../src/rules/types";
 import type { ChoiceSpec } from "../src/rules/types";
 
 const sorted = (xs: string[]) => [...xs].sort();
+const CLASS_LEVELS = [1, 2, 3, 4];
 
 function allChoices(): ChoiceSpec[] {
   return [...SPECIES.flatMap((s) => s.choices), ...BACKGROUNDS.flatMap((b) => b.choices), ...FEATS.flatMap((f) => f.choices)];
@@ -305,5 +306,63 @@ describe("classes (levels 1-4)", () => {
     expect(choiceIds("ranger", 2)).toEqual(
       expect.arrayContaining(["class.ranger.fighting_style", "class.ranger.expertise"]),
     );
+  });
+
+  const masteryTotal = (id: string) =>
+    cls(id).levels.flatMap((l) => l.choices).filter((c) => c.id.startsWith(`class.${id}.weapon_mastery`)).reduce((n, c) => n + c.count, 0);
+
+  it.each([["barbarian", 3], ["fighter", 4], ["paladin", 2], ["ranger", 2], ["rogue", 2], ["monk", 0]])(
+    "%s has %i weapon mastery picks by level 4", (id, total) => {
+      expect(masteryTotal(id)).toBe(total);
+    },
+  );
+
+  it.each([
+    ["barbarian", 2, ["animal_handling", "athletics", "intimidation", "nature", "perception", "survival"]],
+    ["fighter", 2, ["acrobatics", "animal_handling", "athletics", "history", "insight", "intimidation", "perception", "persuasion", "survival"]],
+    ["monk", 2, ["acrobatics", "athletics", "history", "insight", "religion", "stealth"]],
+    ["paladin", 2, ["athletics", "insight", "intimidation", "medicine", "persuasion", "religion"]],
+    ["ranger", 3, ["animal_handling", "athletics", "insight", "investigation", "nature", "perception", "stealth", "survival"]],
+    ["rogue", 4, ["acrobatics", "athletics", "deception", "insight", "intimidation", "investigation", "perception", "persuasion", "sleight_of_hand", "stealth"]],
+  ])("%s skill choice: %i of the SRD list", (id, count, options) => {
+    expect(cls(id).skillChoice.count).toBe(count);
+    expect(sorted(cls(id).skillChoice.options)).toEqual(options);
+  });
+
+  it.each([
+    ["barbarian", ["Armaduras ligeras", "Armaduras medias", "Escudos"], ["Armas sencillas", "Armas marciales"], []],
+    ["fighter", ["Armaduras ligeras", "Armaduras medias", "Armaduras pesadas", "Escudos"], ["Armas sencillas", "Armas marciales"], []],
+    ["monk", [], ["Armas sencillas", "Armas marciales con la propiedad ligera"], ["Un tipo de herramientas de artesano o instrumento musical a elección"]],
+    ["paladin", ["Armaduras ligeras", "Armaduras medias", "Armaduras pesadas", "Escudos"], ["Armas sencillas", "Armas marciales"], []],
+    ["ranger", ["Armaduras ligeras", "Armaduras medias", "Escudos"], ["Armas sencillas", "Armas marciales"], []],
+    ["rogue", ["Armaduras ligeras"], ["Armas sencillas", "Armas marciales con las propiedades ligera o sutil"], ["Herramientas de ladrón"]],
+  ])("%s armor, weapon and tool proficiencies", (id, armor, weapons, tools) => {
+    expect(cls(id)).toMatchObject({ armor, weapons, tools });
+  });
+
+  it("monk tool choice offers 17 artisan tools and 10 instruments", () => {
+    const tool = row("monk", 1).choices.find((c) => c.id === "class.monk.tool");
+    expect(tool?.count).toBe(1);
+    expect(tool?.options).toHaveLength(27);
+  });
+
+  it("tracks class resources by level", () => {
+    expect(CLASS_LEVELS.map((n) => row("paladin", n).resources["Imponer las manos"])).toEqual([5, 10, 15, 20]);
+    expect(CLASS_LEVELS.map((n) => row("paladin", n).resources["Canalizar divinidad"])).toEqual([undefined, undefined, 2, 2]);
+    expect(CLASS_LEVELS.map((n) => row("rogue", n).resources["Ataque furtivo (d6)"])).toEqual([1, 1, 2, 2]);
+    expect(CLASS_LEVELS.map((n) => row("barbarian", n).resources.Furias)).toEqual([2, 2, 3, 3]);
+    expect(CLASS_LEVELS.map((n) => row("fighter", n).resources["Tomar aliento"])).toEqual([2, 2, 2, 3]);
+    expect(CLASS_LEVELS.map((n) => row("ranger", n).resources["Enemigo predilecto"])).toEqual([2, 2, 2, 2]);
+  });
+
+  it("models Hunter's Prey, languages and expertise counts", () => {
+    const prey = cls("ranger").subclass.features.flatMap((f) => f.choices ?? []).find((c) => c.id === "subclass.hunter.hunters_prey");
+    expect(prey?.options.map((o) => o.id)).toEqual(["colossus_slayer", "horde_breaker"]);
+    const find = (id: string, level: number, cid: string) => row(id, level).choices.find((c) => c.id === cid);
+    expect(find("ranger", 2, "class.ranger.expertise")?.count).toBe(1);
+    expect(find("ranger", 2, "class.ranger.languages")?.count).toBe(2);
+    expect(find("rogue", 1, "class.rogue.expertise")?.count).toBe(2);
+    expect(find("rogue", 1, "class.rogue.language")?.count).toBe(1);
+    expect(find("rogue", 1, "class.rogue.language")?.options.some((o) => o.id === "thieves_cant")).toBe(false);
   });
 });

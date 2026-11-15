@@ -1,25 +1,6 @@
-import type { ChoiceSpec, ClassData, LevelRow, Option } from "../../types";
-import { ASI_TRAIT, SOURCE, level4FeatChoice, subclassTrait } from "./common";
+import type { ChoiceSpec, ClassData, LevelRow } from "../../types";
+import { ARTISAN_TOOLS, ASI_TRAIT, INSTRUMENTS, SOURCE, level4FeatChoice, subclassTrait } from "./common";
 
-const tool = (id: string, name: string): Option => ({ id, name, summary: `Competencia con ${name.toLowerCase()}.` });
-
-// Artisan's tools and musical instruments from the SRD "Herramientas" section.
-const ARTISAN_TOOLS: Option[] = [
-  ["masons_tools", "Herramientas de albañil"], ["potters_tools", "Herramientas de alfarero"],
-  ["carpenters_tools", "Herramientas de carpintero"], ["cartographers_tools", "Herramientas de cartógrafo"],
-  ["leatherworkers_tools", "Herramientas de curtidor"], ["woodcarvers_tools", "Herramientas de ebanista"],
-  ["smiths_tools", "Herramientas de herrero"], ["jewelers_tools", "Herramientas de joyero"],
-  ["tinkers_tools", "Herramientas de manitas"], ["glassblowers_tools", "Herramientas de soplador de vidrio"],
-  ["weavers_tools", "Herramientas de tejedor"], ["cobblers_tools", "Herramientas de zapatero"],
-  ["alchemists_supplies", "Suministros de alquimista"], ["brewers_supplies", "Suministros de cervecero"],
-  ["calligraphers_supplies", "Suministros de calígrafo"], ["painters_supplies", "Suministros de pintor"],
-  ["cooks_utensils", "Útiles de cocinero"],
-].map(([id, name]) => tool(id, name));
-
-const INSTRUMENTS: Option[] = [
-  ["shawm", "Chirimía"], ["horn", "Cuerno"], ["dulcimer", "Dulcémele"], ["flute", "Flauta"], ["pan_flute", "Flauta de pan"],
-  ["bagpipes", "Gaita"], ["lute", "Laúd"], ["lyre", "Lira"], ["drum", "Tambor"], ["viol", "Viola"],
-].map(([id, name]) => tool(id, name));
 
 const toolChoice: ChoiceSpec = {
   id: "class.monk.tool", label: "Herramienta de artesano o instrumento musical", count: 1,

@@ -67,7 +67,7 @@ export const level4FeatChoice = (classId: string): ChoiceSpec => ({
   options: FEATS_DATA.filter((f) => f.category === "general").map((f) => ({ id: f.id, name: f.name, summary: f.summary })),
 });
 
-/** Expertise: options are every skill; the generator restricts them to the ones the character is proficient in. */
+/** Expertise: options are every skill; Task 5 validation restricts the picks to skills the character is proficient in. */
 export const expertiseChoice = (classId: string, count: number): ChoiceSpec => ({
   id: `class.${classId}.expertise`,
   label: "Pericia",
@@ -87,3 +87,23 @@ export const LANGUAGES: Option[] = [
 export const languageChoice = (id: string, count: number, exclude: string[] = []): ChoiceSpec => ({
   id, label: "Idiomas", count, options: LANGUAGES.filter((l) => !exclude.includes(l.id)),
 });
+
+const tool = (id: string, name: string): Option => ({ id, name, summary: `Competencia con ${name.toLowerCase()}.` });
+
+// Artisan's tools and musical instruments from the SRD "Herramientas" section.
+export const ARTISAN_TOOLS: Option[] = [
+  ["masons_tools", "Herramientas de albañil"], ["potters_tools", "Herramientas de alfarero"],
+  ["carpenters_tools", "Herramientas de carpintero"], ["cartographers_tools", "Herramientas de cartógrafo"],
+  ["leatherworkers_tools", "Herramientas de curtidor"], ["woodcarvers_tools", "Herramientas de ebanista"],
+  ["smiths_tools", "Herramientas de herrero"], ["jewelers_tools", "Herramientas de joyero"],
+  ["tinkers_tools", "Herramientas de manitas"], ["glassblowers_tools", "Herramientas de soplador de vidrio"],
+  ["weavers_tools", "Herramientas de tejedor"], ["cobblers_tools", "Herramientas de zapatero"],
+  ["alchemists_supplies", "Suministros de alquimista"], ["brewers_supplies", "Suministros de cervecero"],
+  ["calligraphers_supplies", "Suministros de calígrafo"], ["painters_supplies", "Suministros de pintor"],
+  ["cooks_utensils", "Útiles de cocinero"],
+].map(([id, name]) => tool(id, name));
+
+export const INSTRUMENTS: Option[] = [
+  ["shawm", "Chirimía"], ["horn", "Cuerno"], ["dulcimer", "Dulcémele"], ["flute", "Flauta"], ["pan_flute", "Flauta de pan"],
+  ["bagpipes", "Gaita"], ["lute", "Laúd"], ["lyre", "Lira"], ["drum", "Tambor"], ["viol", "Viola"],
+].map(([id, name]) => tool(id, name));
