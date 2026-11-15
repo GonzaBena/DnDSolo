@@ -35,10 +35,24 @@ function speakerName(players: Character[], playerId: string | undefined): string
   return speaker?.name ?? "Jugador";
 }
 
-/** The speaker's name beside a message. Deliberately faint: it is there to
-    be found when you look for it, not to compete with the text. */
+/** "Mateo Valen" -> "MV". A single-word name uses its first two letters
+    ("Lira" -> "LI") so the label is always the same width. */
+export function initials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const letters =
+    words.length >= 2 ? words[0]![0]! + words[1]![0]! : (words[0] ?? "").slice(0, 2);
+  return letters.toUpperCase();
+}
+
+/** Who said a message, as two initials beside it. Deliberately faint: it
+    is there to be found when you look for it, not to compete with the
+    text. The full name stays available on hover and to screen readers. */
 function Speaker({ name }: { name: string }) {
-  return <span className="speaker">{name}</span>;
+  return (
+    <abbr className="speaker" title={name}>
+      {initials(name)}
+    </abbr>
+  );
 }
 
 function PlayerEntry({
