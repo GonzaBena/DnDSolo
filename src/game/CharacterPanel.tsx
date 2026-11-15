@@ -9,7 +9,8 @@ export function CharacterPanel({ state, onOpenScene }: Props) {
   const player = state.players[0];
   if (!player) return null;
   const activeQuests = state.quests.filter((q) => q.status === "active");
-  const inScene = state.players.length + state.npcs.filter((n) => n.present).length;
+  // Players, the DM and the NPCs around.
+  const inScene = state.players.length + 1 + state.npcs.filter((n) => n.present).length;
   const { inCombat } = state.scene;
 
   return (

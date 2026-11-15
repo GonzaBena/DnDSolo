@@ -169,7 +169,12 @@ export default function Game() {
   return (
     <section className="game">
       <CharacterPanel state={state} onOpenScene={() => setSceneOpen(true)} />
-      <SceneDrawer state={state} open={sceneOpen} onClose={() => setSceneOpen(false)} />
+      <SceneDrawer
+        state={state}
+        dmActing={busy}
+        open={sceneOpen}
+        onClose={() => setSceneOpen(false)}
+      />
 
       <div className="log" aria-live="polite">
         <TurnLog turns={state.turns} players={state.players} enterCount={screen.loadedTurns} />
