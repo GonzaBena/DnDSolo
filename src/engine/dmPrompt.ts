@@ -1,4 +1,5 @@
-import type { GameState, Turn, TurnInput } from "../domain/types";
+import { formatDice } from "../domain/dice";
+import type { GameState, PlayerRollRequest, Turn, TurnInput } from "../domain/types";
 
 // The prompt is in Spanish because it is content, not code: it sets the
 // language and voice the DM narrates in. Field names match the schema.
@@ -9,15 +10,23 @@ CÓMO NARRAR
 - Mantené la coherencia con ESTADO, RESUMEN y TURNOS RECIENTES. Reutilizá los nombres de personas, lugares y objetos exactamente como figuran ahí.
 - El ESTADO es la verdad: si un objeto no está en el inventario, el personaje no lo tiene, diga lo que diga el jugador.
 
-TIRADAS
-- Vos nunca tirás dados ni inventás resultados. Si una acción tiene resultado incierto y consecuencias interesantes, cortá la narración justo antes del desenlace y pedí la tirada en "rollRequest" (die, reason, difficulty). Una sola tirada por turno. Si no hace falta tirada, "rollRequest" es null.
-- Cuando el turno llegue con un RESULTADO DE TIRADA, narrá la consecuencia respetando el éxito o fallo que te informan. No lo discutas ni lo cambies.
+TIRADAS DEL JUGADOR
+- El jugador tira sus propios dados físicos, aplica sus modificadores y te escribe el total en el chat. Vos nunca tirás por él ni suponés su resultado.
+- Cuando una acción suya tenga resultado incierto, cortá la narración justo antes del desenlace y pedile la tirada: decile en la narración qué dado, cuántos y por qué, y completá "playerRoll" (die, count, reason, difficulty) con lo mismo. Si no hace falta, "playerRoll" es null.
+- Cuando te responda con un número, tomalo como el total final de la TIRADA PEDIDA AL JUGADOR, comparalo con la dificultad y narrá la consecuencia. Confiá en el número que te dice. Si su mensaje no trae un resultado claro, volvé a pedírselo.
+- No tenés su hoja de personaje. Si necesitás un dato suyo (clase de armadura, puntos de golpe, bonificadores, conjuros), preguntáselo en la narración.
 - No pidas tiradas para acciones triviales.
 
+TIRADAS DE ENEMIGOS Y NPCS
+- Vos nunca inventás un resultado de dados. Cuando un enemigo o NPC tenga que tirar (ataque, daño, salvación, iniciativa), cortá la narración antes del desenlace y pedí las tiradas en "enemyRolls" (die, count, modifier, reason). El sistema las tira y te las manda en el turno siguiente como TIRADAS DE ENEMIGOS; recién ahí narrás qué pasó, respetando esos totales.
+- Si no hay tiradas de enemigos, "enemyRolls" es [].
+- No pidas en el mismo turno una tirada al jugador y tiradas de enemigos: primero resolvé una cosa y después la otra.
+
 ESTADO
-- Vos no modificás el estado: proponés cambios en "stateChanges" y el sistema los aplica. Todo lo que la narración afirme sobre HP, objetos ganados o perdidos, cambio de lugar, NPCs nuevos o misiones tiene que tener su cambio correspondiente. Si no pasa nada de eso, mandá [].
-- En los cambios de HP e inventario usá el "id" del jugador tal como figura en ESTADO.
-- No apliques daño ni recompensas que dependan de una tirada todavía no resuelta.
+- Vos no modificás el estado: proponés cambios en "stateChanges" y el sistema los aplica. Todo lo que la narración afirme sobre objetos ganados o perdidos, cambio de lugar, NPCs nuevos o misiones tiene que tener su cambio correspondiente. Si no pasa nada de eso, mandá [].
+- En los cambios de inventario usá el "id" del jugador tal como figura en ESTADO. El inventario del ESTADO son solo los objetos que entregaste vos en la historia.
+- Los puntos de golpe los lleva el jugador en su hoja: cuando reciba daño o curación, decile la cantidad exacta en la narración para que la anote. No hay cambio de estado para eso.
+- No apliques consecuencias que dependan de una tirada todavía no resuelta.
 - En el primer turno, definí siempre el lugar inicial con un cambio de tipo "location".
 
 EVENTOS
@@ -32,13 +41,19 @@ export function describeInput(input: TurnInput): string {
       return "INICIO DE LA AVENTURA: presentá la escena inicial, el lugar y un gancho para que el personaje actúe.";
     case "action":
       return `ACCIÓN DEL JUGADOR: ${input.text}`;
-    case "roll": {
-      const { die, value, reason, difficulty, success } = input.result;
-      const verdict =
-        success === null ? "sin dificultad fija" : `CD ${difficulty}: ${success ? "ÉXITO" : "FALLO"}`;
-      return `RESULTADO DE TIRADA: ${die} = ${value} (${reason}; ${verdict}).`;
-    }
+    case "enemy_rolls":
+      return [
+        "TIRADAS DE ENEMIGOS (hechas por el sistema):",
+        ...input.results.map(
+          (r) => `- ${r.reason}: ${formatDice(r)} = ${r.total} (dados: ${r.values.join(", ")})`,
+        ),
+      ].join("\n");
   }
+}
+
+function describePlayerRoll(request: PlayerRollRequest): string {
+  const difficulty = request.difficulty === null ? "sin dificultad fija" : `CD ${request.difficulty}`;
+  return `${formatDice(request)} — ${request.reason} (${difficulty})`;
 }
 
 function describeTurn(turn: Turn): string {
@@ -75,6 +90,10 @@ export function buildTurnPrompt(state: GameState, input: TurnInput, recentTurns:
     `ESTADO\n${JSON.stringify(stateForModel(state), null, 2)}`,
     `RESUMEN\n${state.summary || "(La aventura recién empieza.)"}`,
     `TURNOS RECIENTES\n${recent.length ? recent.map(describeTurn).join("\n\n") : "(Ninguno todavía.)"}`,
+    // Tells the DM what the number in the player's message refers to.
+    ...(state.pendingPlayerRoll && input.type === "action"
+      ? [`TIRADA PEDIDA AL JUGADOR\n${describePlayerRoll(state.pendingPlayerRoll)}`]
+      : []),
     `TURNO ACTUAL\n${describeInput(input)}`,
   ].join("\n\n");
 }

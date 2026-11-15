@@ -17,19 +17,6 @@
 .sheet__identity { display: grid; }
 .sheet__identity strong { font-family: var(--font-display); font-size: var(--text-lg); line-height: 1.2; }
 .sheet__identity span { font-size: var(--text-sm); color: var(--color-ink-soft); }
-.sheet__hp {
-  display: grid;
-  justify-items: center;
-  align-content: center;
-  padding: var(--space-1) var(--space-3);
-  border: var(--border);
-  border-radius: var(--radius);
-  background: var(--color-primary);
-  color: var(--color-primary-ink);
-  line-height: 1.2;
-}
-.sheet__hp span { font-size: var(--text-sm); font-weight: 700; }
-.sheet__hp strong { font-family: var(--font-display); font-size: var(--text-lg); }
 .sheet__details {
   grid-column: 1 / -1;
   display: grid;
@@ -78,13 +65,19 @@
   line-height: 1;
 }
 .roll-card__meta { font-size: var(--text-sm); color: var(--color-ink-soft); text-align: center; }
-.roll-card[data-success="true"] .roll-card__value { color: var(--color-accent); }
-.roll-card[data-success="false"] .roll-card__value { color: var(--color-primary); }
+.roll-card__label {
+  font-size: var(--text-sm);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-primary);
+}
+.roll-cards { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-3); }
 
 .roll-request {
   display: grid;
   justify-items: start;
-  gap: var(--space-3);
+  gap: var(--space-1);
   padding: var(--space-3);
   border: var(--border);
   border-radius: var(--radius);
@@ -92,5 +85,6 @@
   box-shadow: var(--shadow-flat);
 }
 .roll-request p { margin: 0; }
+.roll-request__hint { font-size: var(--text-sm); }
 
 .action-form .actions { margin-top: var(--space-2); justify-content: flex-end; }

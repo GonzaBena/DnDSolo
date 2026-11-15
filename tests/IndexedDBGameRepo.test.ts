@@ -32,33 +32,69 @@ describe("IndexedDBGameRepo", () => {
     expect((await repo.loadLatest())!.id).not.toBe("future");
   });
 
-  it("a game resumes from disk exactly where it was left, roll included", async () => {
+  it("migrates a save from the version where the app rolled for the player", async () => {
+    const v1 = {
+      ...newGame(),
+      id: "legacy",
+      version: 1,
+      updatedAt: "2031-01-01T00:00:00.000Z",
+      players: [{ ...newGame().players[0]!, hp: 7, maxHp: 10 }],
+      pendingRoll: { die: "d20", reason: "Sigilo", difficulty: 12 },
+      turns: [
+        { number: 1, input: { type: "start" }, narration: "Empieza.", events: [] },
+        {
+          number: 2,
+          input: {
+            type: "roll",
+            result: { die: "d20", reason: "Trepar", difficulty: 10, value: 14, success: true },
+          },
+          narration: "Subís.",
+          events: [],
+        },
+      ],
+    };
+    const { pendingPlayerRoll: _a, pendingEnemyRolls: _b, ...stored } = v1;
+    await new IndexedDBGameRepo().save(stored as never);
+
+    const loaded = (await new IndexedDBGameRepo().load("legacy"))!;
+    expect(loaded.version).toBe(2);
+    expect(loaded.players[0]).not.toHaveProperty("hp");
+    expect(loaded.pendingPlayerRoll).toEqual({ die: "d20", count: 1, reason: "Sigilo", difficulty: 12 });
+    expect(loaded.pendingEnemyRolls).toEqual([]);
+    expect(loaded.turns[1]!.input).toEqual({
+      type: "action",
+      text: 'Tiré d20 por "Trepar": me dio 14 en total.',
+    });
+  });
+
+  it("a game resumes from disk exactly where it was left, enemy rolls included", async () => {
     const llm = new FakeLLMClient();
     const now = () => new Date("2040-01-01T00:00:00Z");
     const first = new TurnEngine({ llm, repo: new IndexedDBGameRepo(), now });
     llm.queueStructured(
       reply({ narration: "Un guardia bloquea el puente." }),
-      reply({ rollRequest: { die: "d20", reason: "Persuasión", difficulty: 10 } }),
-      reply({ narration: "El guardia te deja pasar." }),
+      reply({ enemyRolls: [{ die: "d20", count: 1, modifier: 2, reason: "Ataque del guardia" }] }),
+      reply({ narration: "La alabarda te pasa rozando." }),
     );
     let outcome = await first.playTurn({ ...newGame(), id: "resume" }, { type: "start" });
     if (!outcome.ok) throw new Error("start failed");
-    outcome = await first.playTurn(outcome.state, { type: "action", text: "Lo convenzo" });
+    outcome = await first.playTurn(outcome.state, { type: "action", text: "Lo empujo" });
     if (!outcome.ok) throw new Error("action failed");
 
     // "Reload": new repo and engine instances, nothing kept in memory.
     const repo = new IndexedDBGameRepo();
     const resumed = (await repo.loadLatest())!;
     expect(resumed).toEqual(outcome.state);
-    expect(resumed.pendingRoll).not.toBeNull();
+    expect(resumed.pendingEnemyRolls).toHaveLength(1);
 
     const second = new TurnEngine({ llm, repo, random: () => 0.95, now });
     const after = await second.playTurn(resumed, {
-      type: "roll",
-      result: second.rollPending(resumed),
+      type: "enemy_rolls",
+      results: second.rollEnemyDice(resumed),
     });
     expect(after.ok).toBe(true);
     expect(after.state.turns).toHaveLength(3);
     expect(llm.structuredRequests.at(-1)!.prompt).toContain("Un guardia bloquea el puente.");
+    expect(llm.structuredRequests.at(-1)!.prompt).toContain("1d20+2 = 22");
   });
 });

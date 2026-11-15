@@ -1,4 +1,5 @@
-import { GAME_STATE_VERSION, type GameState } from "../domain/types";
+import type { GameState } from "../domain/types";
+import { migrateSave } from "./migrations";
 import type { GameRepo } from "./GameRepo";
 
 const DB_NAME = "dnsolo";
@@ -13,13 +14,10 @@ function asPromise<T>(request: IDBRequest<T>): Promise<T> {
   });
 }
 
-/** A save written by a different version of the app can't be trusted to
-    have today's shape. There are no migrations yet, so it is ignored
-    rather than loaded into a screen that would crash on it. */
-function readable(value: unknown): GameState | null {
-  const state = value as GameState | undefined;
-  return state && state.version === GAME_STATE_VERSION ? state : null;
-}
+/** Older saves are migrated on read; ones that can't be (unknown version,
+    wrong shape) are ignored rather than loaded into a screen that would
+    crash on them. */
+const readable = migrateSave;
 
 function done(transaction: IDBTransaction): Promise<void> {
   return new Promise((resolve, reject) => {

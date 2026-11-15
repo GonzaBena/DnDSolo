@@ -4,14 +4,23 @@ import { DICE, type DMResponse, type GameState } from "./types";
 const attitude = z.enum(["friendly", "neutral", "hostile"]);
 const questStatus = z.enum(["active", "completed", "failed"]);
 
-const rollRequest = z.object({
+const diceCount = z.number().int().min(1).max(20);
+
+const playerRollRequest = z.object({
   die: z.enum(DICE),
+  count: diceCount,
   reason: z.string().min(1),
   difficulty: z.number().int().nullable(),
 });
 
+const enemyRollRequest = z.object({
+  die: z.enum(DICE),
+  count: diceCount,
+  modifier: z.number().int(),
+  reason: z.string().min(1),
+});
+
 const stateChange = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("hp"), playerId: z.string(), delta: z.number().int() }),
   z.object({
     type: z.literal("inventory_add"),
     playerId: z.string(),
@@ -43,7 +52,8 @@ export const dmResponseSchema = z.object({
   // First on purpose: the UI streams this field while the rest is still
   // being generated, so it has to come before everything else.
   narration: z.string().min(1),
-  rollRequest: rollRequest.nullable(),
+  playerRoll: playerRollRequest.nullable(),
+  enemyRolls: z.array(enemyRollRequest),
   stateChanges: z.array(stateChange),
   events: z.array(z.string()),
 });
@@ -93,8 +103,10 @@ const turnInput = z.discriminatedUnion("type", [
   z.object({ type: z.literal("start") }),
   z.object({ type: z.literal("action"), text: z.string() }),
   z.object({
-    type: z.literal("roll"),
-    result: rollRequest.extend({ value: z.number().int(), success: z.boolean().nullable() }),
+    type: z.literal("enemy_rolls"),
+    results: z.array(
+      enemyRollRequest.extend({ values: z.array(z.number().int()), total: z.number().int() }),
+    ),
   }),
 ]);
 
@@ -114,8 +126,6 @@ export const gameStateSchema = z.object({
         characterClass: z.string(),
         level: z.number().int(),
         background: z.string().nullable(),
-        hp: z.number().int(),
-        maxHp: z.number().int(),
         inventory: z.array(z.object({ name: z.string(), quantity: z.number().int() })),
       }),
     )
@@ -133,7 +143,8 @@ export const gameStateSchema = z.object({
       events: z.array(z.string()),
     }),
   ),
-  pendingRoll: rollRequest.nullable(),
+  pendingPlayerRoll: playerRollRequest.nullable(),
+  pendingEnemyRolls: z.array(enemyRollRequest),
 });
 
 type InferredState = z.infer<typeof gameStateSchema>;

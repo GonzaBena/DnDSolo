@@ -16,23 +16,37 @@ export interface Character {
   characterClass: string;
   level: number;
   background: string | null;
-  hp: number;
-  maxHp: number;
+  /** Story items the DM handed out. The player's real sheet (HP, stats,
+      modifiers) lives with the player, not here. */
   inventory: InventoryItem[];
 }
 
-export interface RollRequest {
+/** A roll the DM asks the *player* for. The app never rolls it: the player
+    rolls their own dice, applies their own modifiers and types the total
+    in the chat. This only exists to show the request clearly. */
+export interface PlayerRollRequest {
   die: Die;
+  count: number;
   /** e.g. "Sigilo para pasar al guardia" */
   reason: string;
   /** Difficulty class, when the roll has one. */
   difficulty: number | null;
 }
 
-export interface RollResult extends RollRequest {
-  value: number;
-  /** Decided by code, never by the model. null when there was no difficulty. */
-  success: boolean | null;
+/** A roll for an enemy or NPC. These are the only dice the app rolls. */
+export interface EnemyRollRequest {
+  die: Die;
+  count: number;
+  /** Flat bonus the DM assigns to the creature, e.g. +4 to hit. */
+  modifier: number;
+  reason: string;
+}
+
+export interface EnemyRollResult extends EnemyRollRequest {
+  /** Each die as rolled by code, never by the model. */
+  values: number[];
+  /** Sum of values plus modifier. */
+  total: number;
 }
 
 export type Attitude = "friendly" | "neutral" | "hostile";
@@ -57,7 +71,6 @@ export interface Quest {
 
 /** What the model may *propose*. applyStateChanges decides what is applied. */
 export type StateChange =
-  | { type: "hp"; playerId: string; delta: number }
   | { type: "inventory_add"; playerId: string; item: string; quantity: number }
   | { type: "inventory_remove"; playerId: string; item: string; quantity: number }
   | { type: "location"; name: string; description: string }
@@ -67,7 +80,8 @@ export type StateChange =
 export interface DMResponse {
   /** Text the player reads. */
   narration: string;
-  rollRequest: RollRequest | null;
+  playerRoll: PlayerRollRequest | null;
+  enemyRolls: EnemyRollRequest[];
   stateChanges: StateChange[];
   /** Tags such as "damage" or "scene_change", kept to hook animations later. */
   events: string[];
@@ -76,7 +90,8 @@ export interface DMResponse {
 export type TurnInput =
   | { type: "start" }
   | { type: "action"; text: string }
-  | { type: "roll"; result: RollResult };
+  /** Sent automatically by the app after rolling what the DM asked for. */
+  | { type: "enemy_rolls"; results: EnemyRollResult[] };
 
 export interface Turn {
   number: number;
@@ -103,7 +118,11 @@ export interface GameState {
   /** Full log, for display and for building summaries. The model only ever
       receives the last few. */
   turns: Turn[];
-  pendingRoll: RollRequest | null;
+  /** What the DM last asked the player to roll; informative only, the
+      player answers in free text. */
+  pendingPlayerRoll: PlayerRollRequest | null;
+  /** Enemy rolls the DM asked for and the app still has to roll and send. */
+  pendingEnemyRolls: EnemyRollRequest[];
 }
 
-export const GAME_STATE_VERSION = 1;
+export const GAME_STATE_VERSION = 2;

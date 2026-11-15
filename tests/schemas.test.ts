@@ -6,7 +6,12 @@ import { reply } from "./helpers";
 describe("parseDMResponse", () => {
   it("accepts a valid response", () => {
     const parsed = parseDMResponse(
-      JSON.stringify(reply({ rollRequest: { die: "d20", reason: "Sigilo", difficulty: 12 } })),
+      JSON.stringify(
+        reply({
+          playerRoll: { die: "d20", count: 1, reason: "Sigilo", difficulty: 12 },
+          enemyRolls: [{ die: "d6", count: 2, modifier: 1, reason: "Daño" }],
+        }),
+      ),
     );
     expect(parsed.ok).toBe(true);
   });
@@ -14,12 +19,25 @@ describe("parseDMResponse", () => {
   it("rejects non-JSON, missing fields and unknown dice", () => {
     expect(parseDMResponse("not json").ok).toBe(false);
     expect(parseDMResponse(JSON.stringify({ narration: "Hola" })).ok).toBe(false);
-    const badDie = { ...reply(), rollRequest: { die: "d7", reason: "x", difficulty: null } };
+    const badDie = {
+      ...reply(),
+      playerRoll: { die: "d7", count: 1, reason: "x", difficulty: null },
+    };
     expect(parseDMResponse(JSON.stringify(badDie)).ok).toBe(false);
   });
 
   it("rejects state changes of an unknown type", () => {
     const bad = { ...reply(), stateChanges: [{ type: "teleport", to: "Luna" }] };
+    expect(parseDMResponse(JSON.stringify(bad)).ok).toBe(false);
+  });
+
+  it("no longer lets the model change the player's HP", () => {
+    const bad = { ...reply(), stateChanges: [{ type: "hp", playerId: "p", delta: -3 }] };
+    expect(parseDMResponse(JSON.stringify(bad)).ok).toBe(false);
+  });
+
+  it("rejects absurd dice counts", () => {
+    const bad = { ...reply(), enemyRolls: [{ die: "d6", count: 500, modifier: 0, reason: "x" }] };
     expect(parseDMResponse(JSON.stringify(bad)).ok).toBe(false);
   });
 });
@@ -48,7 +66,7 @@ describe("extractPartialNarration", () => {
   });
 
   it("stops at the closing quote and decodes escapes", () => {
-    const raw = '{"narration":"Dice: \\"alto\\".\\nSeguís \\u00e1gil.","rollRequest":null';
+    const raw = '{"narration":"Dice: \\"alto\\".\\nSeguís \\u00e1gil.","playerRoll":null';
     expect(extractPartialNarration(raw)).toBe('Dice: "alto".\nSeguís ágil.');
   });
 

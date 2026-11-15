@@ -3,22 +3,10 @@ import { applyStateChanges } from "../src/domain/applyChanges";
 import { newGame, PLAYER_ID } from "./helpers";
 
 describe("applyStateChanges", () => {
-  it("clamps HP between 0 and the maximum", () => {
-    const game = newGame();
-    const maxHp = game.players[0]!.maxHp;
-    const hurt = applyStateChanges(game, [{ type: "hp", playerId: PLAYER_ID, delta: -5 }]).state;
-    expect(hurt.players[0]!.hp).toBe(maxHp - 5);
-    const healed = applyStateChanges(hurt, [{ type: "hp", playerId: PLAYER_ID, delta: 999 }]).state;
-    expect(healed.players[0]!.hp).toBe(maxHp);
-    const dead = applyStateChanges(hurt, [{ type: "hp", playerId: PLAYER_ID, delta: -999 }]).state;
-    expect(dead.players[0]!.hp).toBe(0);
-  });
-
   it("does not mutate the input state", () => {
     const game = newGame();
     const snapshot = structuredClone(game);
     applyStateChanges(game, [
-      { type: "hp", playerId: PLAYER_ID, delta: -3 },
       { type: "inventory_add", playerId: PLAYER_ID, item: "Daga", quantity: 1 },
       { type: "location", name: "Bosque", description: "Oscuro" },
     ]);
@@ -49,15 +37,19 @@ describe("applyStateChanges", () => {
   });
 
   it("falls back to the only player when the id is wrong", () => {
-    const result = applyStateChanges(newGame(), [{ type: "hp", playerId: "nope", delta: -1 }]);
+    const result = applyStateChanges(newGame(), [
+      { type: "inventory_add", playerId: "nope", item: "Daga", quantity: 1 },
+    ]);
     expect(result.rejected).toEqual([]);
-    expect(result.state.players[0]!.hp).toBe(result.state.players[0]!.maxHp - 1);
+    expect(result.state.players[0]!.inventory).toEqual([{ name: "Daga", quantity: 1 }]);
   });
 
   it("rejects an unknown id when there are several players", () => {
     const game = newGame();
     const two = { ...game, players: [...game.players, { ...game.players[0]!, id: "other" }] };
-    const result = applyStateChanges(two, [{ type: "hp", playerId: "nope", delta: -1 }]);
+    const result = applyStateChanges(two, [
+      { type: "inventory_add", playerId: "nope", item: "Daga", quantity: 1 },
+    ]);
     expect(result.rejected).toHaveLength(1);
   });
 

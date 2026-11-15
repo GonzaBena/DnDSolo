@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveRoll, rollDie } from "../src/domain/dice";
+import { formatDice, rollDie, rollForEnemy } from "../src/domain/dice";
 import { DICE } from "../src/domain/types";
 
 describe("rollDie", () => {
@@ -25,15 +25,30 @@ describe("rollDie", () => {
   });
 });
 
-describe("resolveRoll", () => {
-  const request = { die: "d20", reason: "Sigilo", difficulty: 12 } as const;
-
-  it("succeeds when the value meets the difficulty", () => {
-    expect(resolveRoll(request, 12).success).toBe(true);
-    expect(resolveRoll(request, 11).success).toBe(false);
+describe("rollForEnemy", () => {
+  it("rolls every die separately and adds the modifier to the total", () => {
+    const sequence = [0, 0.5, 0.999];
+    let i = 0;
+    const result = rollForEnemy(
+      { die: "d6", count: 3, modifier: 2, reason: "Daño de la garra" },
+      () => sequence[i++]!,
+    );
+    expect(result.values).toEqual([1, 4, 6]);
+    expect(result.total).toBe(13);
+    expect(result.reason).toBe("Daño de la garra");
   });
 
-  it("has no verdict without a difficulty", () => {
-    expect(resolveRoll({ ...request, difficulty: null }, 3).success).toBeNull();
+  it("handles negative modifiers", () => {
+    const result = rollForEnemy({ die: "d20", count: 1, modifier: -1, reason: "x" }, () => 0.5);
+    expect(result.total).toBe(10);
+  });
+});
+
+describe("formatDice", () => {
+  it("writes standard dice notation", () => {
+    expect(formatDice({ die: "d20", count: 1 })).toBe("1d20");
+    expect(formatDice({ die: "d6", count: 2, modifier: 3 })).toBe("2d6+3");
+    expect(formatDice({ die: "d8", count: 1, modifier: -1 })).toBe("1d8-1");
+    expect(formatDice({ die: "d8", count: 1, modifier: 0 })).toBe("1d8");
   });
 });

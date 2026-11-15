@@ -63,36 +63,71 @@ describe("TurnEngine.playTurn", () => {
     expect(seen.length).toBeGreaterThan(1);
   });
 
-  it("runs a roll end to end: request, code rolls, result goes back to the DM", async () => {
-    const ctx = setup(() => 0.5); // d20 -> 11
+  it("never rolls for the player: the request is shown and answered in the chat", async () => {
+    const ctx = setup();
     const game = await started(ctx);
-    ctx.llm.queueStructured(
-      reply({ rollRequest: { die: "d20", reason: "Sigilo", difficulty: 12 } }),
-      reply({ narration: "El guardia te escucha." }),
-    );
+    const request = { die: "d20", count: 1, reason: "Sigilo", difficulty: 12 } as const;
+    ctx.llm.queueStructured(reply({ playerRoll: request }), reply({ narration: "Pasás sin ruido." }));
 
     const asked = await ctx.engine.playTurn(game, { type: "action", text: "Me escabullo" });
     if (!asked.ok) throw new Error("expected ok");
-    expect(asked.state.pendingRoll).toEqual({ die: "d20", reason: "Sigilo", difficulty: 12 });
+    expect(asked.state.pendingPlayerRoll).toEqual(request);
+    expect(asked.state.pendingEnemyRolls).toEqual([]);
+    expect(ctx.engine.rollEnemyDice(asked.state)).toEqual([]);
 
-    const result = ctx.engine.rollPending(asked.state);
-    expect(result).toMatchObject({ value: 11, success: false });
-
-    const resolved = await ctx.engine.playTurn(asked.state, { type: "roll", result });
-    if (!resolved.ok) throw new Error("expected ok");
-    expect(resolved.state.pendingRoll).toBeNull();
-    expect(ctx.llm.structuredRequests.at(-1)!.prompt).toContain("d20 = 11");
-    expect(ctx.llm.structuredRequests.at(-1)!.prompt).toContain("FALLO");
+    // The player answers with their own total, as free text.
+    const answered = await ctx.engine.playTurn(asked.state, {
+      type: "action",
+      text: "El lanzamiento me dio 17 en total",
+    });
+    if (!answered.ok) throw new Error("expected ok");
+    const prompt = ctx.llm.structuredRequests.at(-1)!.prompt;
+    expect(prompt).toContain("TIRADA PEDIDA AL JUGADOR");
+    expect(prompt).toContain("1d20 — Sigilo (CD 12)");
+    expect(prompt).toContain("El lanzamiento me dio 17 en total");
+    expect(answered.state.pendingPlayerRoll).toBeNull();
   });
 
-  it("refuses a free-text action while a roll is pending", async () => {
+  it("rolls enemy dice in code and sends the totals back to the DM", async () => {
+    const ctx = setup(() => 0.5); // d20 -> 11, d6 -> 4
+    const game = await started(ctx);
+    ctx.llm.queueStructured(
+      reply({
+        narration: "El goblin te lanza un tajo.",
+        enemyRolls: [
+          { die: "d20", count: 1, modifier: 4, reason: "Ataque del goblin" },
+          { die: "d6", count: 2, modifier: 1, reason: "Daño de la cimitarra" },
+        ],
+      }),
+      reply({ narration: "La cimitarra te alcanza: recibís 9 de daño." }),
+    );
+
+    const asked = await ctx.engine.playTurn(game, { type: "action", text: "Avanzo" });
+    if (!asked.ok) throw new Error("expected ok");
+    expect(asked.state.pendingEnemyRolls).toHaveLength(2);
+
+    const results = ctx.engine.rollEnemyDice(asked.state);
+    expect(results.map((r) => r.total)).toEqual([15, 9]);
+    expect(results[1]!.values).toEqual([4, 4]);
+
+    const resolved = await ctx.engine.playTurn(asked.state, { type: "enemy_rolls", results });
+    if (!resolved.ok) throw new Error("expected ok");
+    expect(resolved.state.pendingEnemyRolls).toEqual([]);
+    const prompt = ctx.llm.structuredRequests.at(-1)!.prompt;
+    expect(prompt).toContain("Ataque del goblin: 1d20+4 = 15");
+    expect(prompt).toContain("Daño de la cimitarra: 2d6+1 = 9 (dados: 4, 4)");
+  });
+
+  it("refuses a player action while enemy rolls are waiting to be sent", async () => {
     const ctx = setup();
     const game = await started(ctx);
-    ctx.llm.queueStructured(reply({ rollRequest: { die: "d20", reason: "Sigilo", difficulty: 12 } }));
-    const asked = await ctx.engine.playTurn(game, { type: "action", text: "Me escabullo" });
+    ctx.llm.queueStructured(
+      reply({ enemyRolls: [{ die: "d20", count: 1, modifier: 0, reason: "Ataque" }] }),
+    );
+    const asked = await ctx.engine.playTurn(game, { type: "action", text: "Avanzo" });
     const calls = ctx.llm.structuredRequests.length;
 
-    const outcome = await ctx.engine.playTurn(asked.state, { type: "action", text: "Mejor corro" });
+    const outcome = await ctx.engine.playTurn(asked.state, { type: "action", text: "Corro" });
 
     expect(outcome.ok).toBe(false);
     if (outcome.ok) return;
@@ -100,16 +135,42 @@ describe("TurnEngine.playTurn", () => {
     expect(ctx.llm.structuredRequests).toHaveLength(calls);
   });
 
-  it("refuses a roll result that doesn't match the pending request", async () => {
+  it("refuses enemy roll results that don't match what was requested", async () => {
     const ctx = setup();
     const game = await started(ctx);
-    ctx.llm.queueStructured(reply({ rollRequest: { die: "d20", reason: "Sigilo", difficulty: 12 } }));
-    const asked = await ctx.engine.playTurn(game, { type: "action", text: "Me escabullo" });
+    ctx.llm.queueStructured(
+      reply({ enemyRolls: [{ die: "d20", count: 1, modifier: 0, reason: "Ataque" }] }),
+    );
+    const asked = await ctx.engine.playTurn(game, { type: "action", text: "Avanzo" });
 
-    const forged = { die: "d20", reason: "Sigilo", difficulty: 5, value: 20, success: true } as const;
-    const outcome = await ctx.engine.playTurn(asked.state, { type: "roll", result: forged });
+    const outcome = await ctx.engine.playTurn(asked.state, {
+      type: "enemy_rolls",
+      results: [{ die: "d20", count: 1, modifier: 10, reason: "Ataque", values: [20], total: 30 }],
+    });
 
     expect(outcome.ok).toBe(false);
+  });
+
+  it("stops a DM that keeps chaining enemy rolls and hands the turn back", async () => {
+    const ctx = setup();
+    let state = await started(ctx);
+    const more = reply({ enemyRolls: [{ die: "d20", count: 1, modifier: 0, reason: "Otro" }] });
+    ctx.llm.queueStructured(more, more, more, more);
+
+    const first = await ctx.engine.playTurn(state, { type: "action", text: "Avanzo" });
+    state = first.state;
+    let automatic = 0;
+    while (state.pendingEnemyRolls.length > 0) {
+      const next = await ctx.engine.playTurn(state, {
+        type: "enemy_rolls",
+        results: ctx.engine.rollEnemyDice(state),
+      });
+      if (!next.ok) throw new Error("expected ok");
+      state = next.state;
+      automatic += 1;
+    }
+
+    expect(automatic).toBe(3);
   });
 
   it("retries once when the response is invalid", async () => {

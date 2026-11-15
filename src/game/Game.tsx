@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { formatDice } from "../domain/dice";
 import type { GameState, TurnInput } from "../domain/types";
 import { TurnEngine, type TurnFailure } from "../engine/TurnEngine";
 import { GeminiClient } from "../llm/GeminiClient";
@@ -75,7 +76,7 @@ export default function Game() {
       setBusy(false);
       if (!outcome.ok) {
         // Keep the input on screen so "Reintentar" resends exactly this:
-        // a failed roll must not be rolled again.
+        // enemy dice that were already rolled must not be rolled again.
         setInFlight({ input, narration: "" });
         setError(describeFailure(outcome.failure));
         return;
@@ -89,14 +90,23 @@ export default function Game() {
     [],
   );
 
-  // A brand-new game has no turns: ask the DM for the opening scene.
+  // Turns the app takes on its own, with no player input:
+  // - a brand-new game has no turns, so ask the DM for the opening scene;
+  // - when the DM asked for enemy rolls, roll them (code, never the model)
+  //   and send the results straight back so the DM can narrate the outcome.
+  // `inFlight` being set also blocks this after a failure, so a failed
+  // send waits for "Reintentar" instead of re-rolling in a loop.
   useEffect(() => {
-    if (screen.status !== "playing" || startedRef.current) return;
-    startedRef.current = true;
-    if (screen.state.turns.length === 0) {
-      void send(screen.engine, screen.state, { type: "start" });
+    if (screen.status !== "playing" || busy || inFlight) return;
+    const { engine, state } = screen;
+    if (state.turns.length === 0) {
+      if (startedRef.current) return;
+      startedRef.current = true;
+      void send(engine, state, { type: "start" });
+    } else if (state.pendingEnemyRolls.length > 0) {
+      void send(engine, state, { type: "enemy_rolls", results: engine.rollEnemyDice(state) });
     }
-  }, [screen, send]);
+  }, [screen, busy, inFlight, send]);
 
   const turnCount = screen.status === "playing" ? screen.state.turns.length : 0;
   const streamed = inFlight?.narration ?? "";
@@ -104,10 +114,12 @@ export default function Game() {
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [turnCount, streamed, error]);
 
-  const pendingRoll = screen.status === "playing" ? screen.state.pendingRoll : null;
+  const playerRoll = screen.status === "playing" ? screen.state.pendingPlayerRoll : null;
+  const enemyRollsPending =
+    screen.status === "playing" && screen.state.pendingEnemyRolls.length > 0;
   const canAct = useMemo(
-    () => screen.status === "playing" && !busy && !inFlight && !pendingRoll,
-    [screen.status, busy, inFlight, pendingRoll],
+    () => screen.status === "playing" && !busy && !inFlight && !enemyRollsPending,
+    [screen.status, busy, inFlight, enemyRollsPending],
   );
 
   if (screen.status === "loading") return <p>Cargando partida…</p>;
@@ -138,12 +150,6 @@ export default function Game() {
     if (!canAct || text === "") return;
     setDraft("");
     void send(engine, state, { type: "action", text });
-  };
-
-  const roll = () => {
-    if (busy || inFlight || !state.pendingRoll) return;
-    // The number comes from the engine (code), never from the model.
-    void send(engine, state, { type: "roll", result: engine.rollPending(state) });
   };
 
   return (
@@ -183,15 +189,16 @@ export default function Game() {
       )}
       {warning && <p className="notice">{warning}</p>}
 
-      {pendingRoll && !inFlight && (
+      {playerRoll && !inFlight && (
         <div className="roll-request">
           <p>
-            <strong>El DM pide una tirada:</strong> {pendingRoll.reason}
-            {pendingRoll.difficulty !== null && ` (CD ${pendingRoll.difficulty})`}
+            <strong>El DM te pide una tirada: {formatDice(playerRoll)}</strong>
+            {playerRoll.difficulty !== null && ` (CD ${playerRoll.difficulty})`}
           </p>
-          <button type="button" className="button button--primary" onClick={roll}>
-            Tirar {pendingRoll.die}
-          </button>
+          <p>{playerRoll.reason}</p>
+          <p className="roll-request__hint">
+            Tirá tus dados, sumá tus modificadores y escribí el total en el chat.
+          </p>
         </div>
       )}
 
@@ -207,7 +214,9 @@ export default function Game() {
               // Enter sends, Shift+Enter makes a new line.
               if (event.key === "Enter" && !event.shiftKey) submitAction(event);
             }}
-            placeholder={pendingRoll ? "Primero resolvé la tirada." : "Describí la acción de tu personaje…"}
+            placeholder={
+              playerRoll ? "Escribí el total de tu tirada…" : "Describí la acción de tu personaje…"
+            }
           />
         </label>
         <div className="actions">

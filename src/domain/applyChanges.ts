@@ -40,18 +40,6 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
 
   for (const change of changes) {
     switch (change.type) {
-      case "hp": {
-        const index = findPlayerIndex(next.players, change.playerId);
-        if (index === -1) {
-          rejected.push({ change, reason: "Unknown player." });
-          break;
-        }
-        updatePlayer(index, (p) => ({
-          ...p,
-          hp: Math.min(p.maxHp, Math.max(0, p.hp + change.delta)),
-        }));
-        break;
-      }
       case "inventory_add": {
         const index = findPlayerIndex(next.players, change.playerId);
         if (index === -1) {

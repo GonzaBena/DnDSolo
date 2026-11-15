@@ -13,22 +13,16 @@ export function CharacterPanel({ state }: { state: GameState }) {
           {player.race} · {player.characterClass} · Nivel {player.level}
         </span>
       </div>
-      <div className="sheet__hp" aria-label={`Puntos de golpe: ${player.hp} de ${player.maxHp}`}>
-        <span>PG</span>
-        <strong>
-          {player.hp}/{player.maxHp}
-        </strong>
-      </div>
       <dl className="sheet__details">
         <div>
           <dt>Lugar</dt>
           <dd>{state.location.name || "—"}</dd>
         </div>
         <div>
-          <dt>Inventario</dt>
+          <dt>Objetos de la historia</dt>
           <dd>
             {player.inventory.length === 0
-              ? "Vacío"
+              ? "Ninguno todavía"
               : player.inventory
                   .map((i) => (i.quantity > 1 ? `${i.name} ×${i.quantity}` : i.name))
                   .join(", ")}

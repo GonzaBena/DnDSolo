@@ -15,7 +15,9 @@ describe("docs/partida-mock.json", () => {
     expect(game.updatedAt).toBe(now.toISOString());
     expect(game.turns.map((t) => t.number)).toEqual(game.turns.map((_, i) => i + 1));
     expect(game.summarizedThroughTurn).toBeLessThanOrEqual(game.turns.length);
-    for (const player of game.players) expect(player.hp).toBeLessThanOrEqual(player.maxHp);
+    // The player's rolls are chat messages; the app never rolled them.
+    expect(game.turns.every((t) => t.input.type !== "enemy_rolls")).toBe(true);
+    expect(game.turns[3]!.input).toMatchObject({ type: "action" });
   });
 
   it("can be continued by the engine, with its memory intact", async () => {

@@ -1,5 +1,6 @@
 import { enterFromRight, enterNarration, popIn } from "../animations/motion";
-import type { RollResult, Turn, TurnInput } from "../domain/types";
+import { formatDice } from "../domain/dice";
+import type { EnemyRollResult, Turn, TurnInput } from "../domain/types";
 import { useEnter } from "./useEnter";
 
 // `animated` is only set for the turn being played right now. Turns that
@@ -7,16 +8,19 @@ import { useEnter } from "./useEnter";
 // a turn doesn't animate a second time when it moves from "in flight" to
 // the log.
 
-export function RollCard({ result, animated }: { result: RollResult; animated?: boolean }) {
+/** A roll the app made for an enemy. The player's own rolls never get a
+    card: they are plain chat messages. */
+function EnemyRollCard({ result, animated }: { result: EnemyRollResult; animated?: boolean }) {
   const ref = useEnter<HTMLDivElement>(animated ? popIn : null);
-  const verdict = result.success === null ? null : result.success ? "Éxito" : "Fallo";
+  // Only worth spelling out when the total isn't just the single die.
+  const showDice = result.values.length > 1 || result.modifier !== 0;
   return (
-    <div ref={ref} className="roll-card" data-success={result.success ?? undefined}>
-      <span className="roll-card__value">{result.value}</span>
+    <div ref={ref} className="roll-card">
+      <span className="roll-card__label">Tirada del enemigo</span>
+      <span className="roll-card__value">{result.total}</span>
       <span className="roll-card__meta">
-        {result.die} · {result.reason}
-        {result.difficulty !== null && ` · CD ${result.difficulty}`}
-        {verdict && <strong> · {verdict}</strong>}
+        {result.reason} · {formatDice(result)}
+        {showDice && ` · dados: ${result.values.join(", ")}`}
       </span>
     </div>
   );
@@ -37,8 +41,14 @@ export function InputEntry({ input, animated }: { input: TurnInput; animated?: b
       return null;
     case "action":
       return <PlayerEntry text={input.text} animated={animated} />;
-    case "roll":
-      return <RollCard result={input.result} animated={animated} />;
+    case "enemy_rolls":
+      return (
+        <div className="roll-cards">
+          {input.results.map((result, index) => (
+            <EnemyRollCard key={index} result={result} animated={animated} />
+          ))}
+        </div>
+      );
   }
 }
 

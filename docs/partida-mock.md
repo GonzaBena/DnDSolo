@@ -1,10 +1,11 @@
 # Partida Mock: Las Brumas de Puerto Ceniza
 
-Partida de ejemplo compatible con el modelo `GameState` (`version: 1`) definido en [`src/domain/types.ts`](../src/domain/types.ts).  
+Partida de ejemplo compatible con el modelo `GameState` (`version: 2`) definido en [`src/domain/types.ts`](../src/domain/types.ts).  
 El archivo estructurado equivalente se encuentra en [`docs/partida-mock.json`](./partida-mock.json).
 
 - **Cantidad de turnos:** 22 turnos (**44 mensajes** en total: 22 entradas del jugador/sistema + 22 narraciones del DM).
-- **Personaje:** Mateo Valen (Semielfo, Explorador, Nivel 2) — HP final: `12/16`.
+- **Tiradas:** las del jugador son mensajes de chat (él tira sus dados y escribe el total); la app solo tira por los enemigos, y en esta partida no hay ninguna tirada de enemigo.
+- **Personaje:** Mateo Valen (Semielfo, Explorador, Nivel 2).
 - **Memoria en tres capas:** incluye `summary` acumulado hasta el turno 10 (`summarizedThroughTurn: 10`), estado estructurado (`players`, `location`, `npcs`, `quests`) y log completo de turnos.
 
 ---
@@ -27,7 +28,7 @@ El archivo estructurado equivalente se encuentra en [`docs/partida-mock.json`](.
   - *Eventos:* `scene_change`
 
 ### Turno 4
-- **Tirada (`d20`) — Mensaje 7:** Supervivencia para rastrear las huellas en el barro (CD 12) → **16 (ÉXITO)**.
+- **Jugador — Mensaje 7:** Tiré d20 por "Supervivencia para rastrear las huellas en el barro": me dio 16 en total.
 - **DM — Mensaje 8:** Te agachás junto a una bita oxidada y seguís sin dificultad el rastro de dos pares de botas claveteadas que arrastraron algo pesado hacia el galpón del fondo. Además, notás un detalle clave: hay gotas de cera roja junto a la puerta lateral, la misma que usa el faro para sus sellos. Desde adentro llega el crujido de madera y una voz ronca que maldice por lo bajo. ¿Espiás por la rendija o entrás de frente?
 
 ### Turno 5
@@ -40,7 +41,7 @@ El archivo estructurado equivalente se encuentra en [`docs/partida-mock.json`](.
 - **DM — Mensaje 12:** La puerta cede con un estruendo seco. Braulio pega un respingo, suelta la soga y lleva la mano hacia la cachiporra del cinto mientras te mide con ojos nerviosos. —¡Pará, pará! —escupe, retrocediendo un paso contra el cajón—. Yo no maté a nadie, ¿eh? Solo hago mandados. Tenés la flecha tensa, así que todo depende de qué tan convincente suene tu advertencia.
 
 ### Turno 7
-- **Tirada (`d20`) — Mensaje 13:** Intimidación para que Braulio suelte el arma y hable (CD 13) → **15 (ÉXITO)**.
+- **Jugador — Mensaje 13:** Tiré d20 por "Intimidación para que Braulio suelte el arma y hable": me dio 15 en total.
 - **DM — Mensaje 14:** El silbido leve de la cuerda al tensarse basta para que Braulio levante las palmas y deje caer la cachiporra al suelo. —¡Está bien, bajá eso! —dice rápido—. Unos tipos de la Cofradía Salada me pagaron por mantener el faro apagado esta semana. Al viejo Anselmo lo encerraron en el sótano del faro, pero se llevaron la lente principal arriba. —Saca una llave pesada de su bolsillo y la tira a tus pies—. Tomá, es la copia del portón. Yo me borro de acá. ¿Lo dejás ir o lo atás antes de partir hacia el faro?
   - *Eventos:* `item_gained`, `new_quest`
 
@@ -54,7 +55,7 @@ El archivo estructurado equivalente se encuentra en [`docs/partida-mock.json`](.
 - **DM — Mensaje 18:** Asegurás un extremo de la cuerda alrededor de un saliente firme y das el primer paso sobre la laja resbaladiza. Las ráfagas sacuden tu capa y el agua corre por la piedra como aceite. A mitad del tramo, una piedra suelta cede bajo tu bota derecha.
 
 ### Turno 10
-- **Tirada (`d20`) — Mensaje 19:** Atletismo para mantener el equilibrio en la cornisa mojada (CD 12) → **8 (FALLO)**.
+- **Jugador — Mensaje 19:** Tiré d20 por "Atletismo para mantener el equilibrio en la cornisa mojada": me dio 8 en total.
 - **DM — Mensaje 20:** Tu pie resbala de golpe y caés de costado contra la pared de roca antes de que la cuerda te frene el tirón. Te raspás el hombro y el brazo contra el granito filoso, perdiendo el aliento por un segundo, aunque la soga resiste y lográs trepar de vuelta al tramo firme del camino. Con el hombro dolorido, recuperás la cuerda y divisás por fin la silueta oscura del faro al final de la cuesta. ¿Seguís hasta el portón?
   - *Eventos:* `damage`
 
@@ -79,7 +80,7 @@ El archivo estructurado equivalente se encuentra en [`docs/partida-mock.json`](.
   - *Eventos:* `combat_start`
 
 ### Turno 15
-- **Tirada (`d20`) — Mensaje 29:** Ataque con arco corto contra el Vigía Ahogado (CD 13) → **18 (ÉXITO)**.
+- **Jugador — Mensaje 29:** Tiré d20 por "Ataque con arco corto contra el Vigía Ahogado": me dio 18 en total.
 - **DM — Mensaje 30:** La flecha cruza la sala como un rayo y atraviesa el pecho brumoso del Vigía Ahogado, haciéndolo girar con un alarido que suena a agua hirviendo. Aunque el hierro no lo destruye del todo, la sacudida lo obliga a retroceder un paso y casi se le resbala la esfera de ámbar. Furioso, extiende una garra helada hacia vos y se lanza por el aire entre los escombros. ¿Intentás esquivar su embestida o lo recibís con la daga?
 
 ### Turno 16
@@ -87,7 +88,7 @@ El archivo estructurado equivalente se encuentra en [`docs/partida-mock.json`](.
 - **DM — Mensaje 32:** El espectro se abalanza sobre vos dejando una estela de escarcha en el aire; intentás arrojarte detrás de la base de la lámpara justo cuando su brazo espectral barre el espacio donde estabas.
 
 ### Turno 17
-- **Tirada (`d20`) — Mensaje 33:** Destreza para esquivar la garra helada del espectro (CD 14) → **9 (FALLO)**.
+- **Jugador — Mensaje 33:** Tiré d20 por "Destreza para esquivar la garra helada del espectro": me dio 9 en total.
 - **DM — Mensaje 34:** No llegás a cubrirte del todo: la garra te roza el costado izquierdo y un frío punzante te entumece las costillas. Caés contra el pedestal, pero notás que el espectro quedó muy cerca del ventanal roto, con el Corazón de Ámbar apenas sostenido entre sus dedos translúcidos. ¿Aprovechás la distancia corta para atacar o arrebatás la esfera?
   - *Eventos:* `damage`
 
@@ -96,7 +97,7 @@ El archivo estructurado equivalente se encuentra en [`docs/partida-mock.json`](.
 - **DM — Mensaje 36:** Te incorporás de un salto apretando los dientes por el frío en el costado y lanzás un tajo ascendente con tu daga hacia las manos del Vigía Ahogado.
 
 ### Turno 19
-- **Tirada (`d20`) — Mensaje 37:** Ataque cuerpo a cuerpo para cortar el agarre del espectro (CD 13) → **17 (ÉXITO)**.
+- **Jugador — Mensaje 37:** Tiré d20 por "Ataque cuerpo a cuerpo para cortar el agarre del espectro": me dio 17 en total.
 - **DM — Mensaje 38:** El filo de hierro frío corta la niebla de su brazo con un chispazo azulado. El Vigía Ahogado suelta un gemido ahogado y la esfera de ámbar rueda por el suelo de piedra hasta chocar contra tu bota. Sin su foco, el espectro se deshilacha en jirones de bruma salada que el viento arrastra afuera por el ventanal roto. El silencio vuelve a la torre, roto solo por la lluvia. ¿Recogés el Corazón de Ámbar?
   - *Eventos:* `combat_end`
 

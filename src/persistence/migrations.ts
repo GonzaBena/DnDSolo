@@ -1,0 +1,44 @@
+import { gameStateSchema } from "../domain/schemas";
+import { GAME_STATE_VERSION, type GameState } from "../domain/types";
+
+type Raw = Record<string, unknown>;
+const isObject = (value: unknown): value is Raw => typeof value === "object" && value !== null;
+
+/** v1 -> v2. In v1 the app rolled the player's dice and tracked HP. In v2
+    the player rolls and keeps their own sheet, so: HP is dropped, a pending
+    roll becomes a request the player answers in the chat, and past roll
+    turns are rewritten as the chat message the player would have sent. */
+function fromV1(raw: Raw): Raw {
+  const players = (Array.isArray(raw.players) ? raw.players : []).map((player) => {
+    if (!isObject(player)) return player;
+    const { hp: _hp, maxHp: _maxHp, ...rest } = player;
+    return rest;
+  });
+  const turns = (Array.isArray(raw.turns) ? raw.turns : []).map((turn) => {
+    if (!isObject(turn) || !isObject(turn.input) || turn.input.type !== "roll") return turn;
+    const result = isObject(turn.input.result) ? turn.input.result : {};
+    const text = `Tiré ${String(result.die)} por "${String(result.reason)}": me dio ${String(result.value)} en total.`;
+    return { ...turn, input: { type: "action", text } };
+  });
+  const { pendingRoll, ...rest } = raw;
+  return {
+    ...rest,
+    version: 2,
+    players,
+    turns,
+    pendingPlayerRoll: isObject(pendingRoll) ? { ...pendingRoll, count: 1 } : null,
+    pendingEnemyRolls: [],
+  };
+}
+
+/** Turns whatever was stored into a GameState of the current version, or
+    null if it can't be trusted (unknown version or wrong shape). Loading
+    code must go through here so the screens never see a malformed save. */
+export function migrateSave(raw: unknown): GameState | null {
+  if (!isObject(raw)) return null;
+  let current = raw;
+  if (current.version === 1) current = fromV1(current);
+  if (current.version !== GAME_STATE_VERSION) return null;
+  const parsed = gameStateSchema.safeParse(current);
+  return parsed.success ? parsed.data : null;
+}

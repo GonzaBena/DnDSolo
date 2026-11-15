@@ -1,7 +1,13 @@
 import { applyStateChanges, type RejectedChange } from "../domain/applyChanges";
-import { resolveRoll, rollDie } from "../domain/dice";
+import { rollForEnemy } from "../domain/dice";
 import { dmResponseJsonSchema, parseDMResponse } from "../domain/schemas";
-import type { DMResponse, GameState, RollResult, Turn, TurnInput } from "../domain/types";
+import type {
+  DMResponse,
+  EnemyRollResult,
+  GameState,
+  Turn,
+  TurnInput,
+} from "../domain/types";
 import type { LLMClient } from "../llm/LLMClient";
 import type { GameRepo } from "../persistence/GameRepo";
 import {
@@ -20,6 +26,11 @@ export interface EngineConfig {
 }
 
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = { recentTurns: 6, summaryEveryTurns: 10 };
+
+/** Enemy-roll turns are sent without the player doing anything, so a DM
+    that kept asking for more would loop forever. After this many in a row
+    further requests are dropped and the turn goes back to the player. */
+export const MAX_CHAINED_ENEMY_ROLLS = 3;
 
 export interface EngineDeps {
   llm: LLMClient;
@@ -68,11 +79,12 @@ export class TurnEngine {
     this.config = { ...DEFAULT_ENGINE_CONFIG, ...deps.config };
   }
 
-  /** Rolls the die the DM asked for. Doesn't touch the state: the result
-      becomes the input of the next turn via playTurn. */
-  rollPending(state: GameState): RollResult {
-    if (!state.pendingRoll) throw new Error("There is no pending roll.");
-    return resolveRoll(state.pendingRoll, rollDie(state.pendingRoll.die, this.random));
+  /** Rolls the dice the DM asked for on behalf of enemies. Doesn't touch
+      the state: the results become the input of the next turn via
+      playTurn. Player rolls never go through here; the player reports
+      those in the chat. */
+  rollEnemyDice(state: GameState): EnemyRollResult[] {
+    return state.pendingEnemyRolls.map((request) => rollForEnemy(request, this.random));
   }
 
   /**
@@ -128,15 +140,24 @@ export class TurnEngine {
         return state.turns.length === 0 ? null : "The game has already started.";
       case "action":
         if (state.turns.length === 0) return "The game hasn't started yet.";
-        if (state.pendingRoll) return "There is a pending roll to resolve first.";
+        if (state.pendingEnemyRolls.length > 0) return "Enemy rolls must be resolved first.";
         return input.text.trim() === "" ? "The action is empty." : null;
-      case "roll": {
-        const pending = state.pendingRoll;
-        if (!pending) return "There is no pending roll.";
-        const { die, reason, difficulty } = input.result;
+      case "enemy_rolls": {
+        const pending = state.pendingEnemyRolls;
+        if (pending.length === 0) return "There are no pending enemy rolls.";
         const matches =
-          die === pending.die && reason === pending.reason && difficulty === pending.difficulty;
-        return matches ? null : "The roll doesn't match the one that was requested.";
+          input.results.length === pending.length &&
+          pending.every((request, i) => {
+            const result = input.results[i]!;
+            return (
+              result.die === request.die &&
+              result.count === request.count &&
+              result.modifier === request.modifier &&
+              result.reason === request.reason &&
+              result.values.length === request.count
+            );
+          });
+        return matches ? null : "The rolls don't match the ones that were requested.";
       }
     }
   }
@@ -156,7 +177,10 @@ export class TurnEngine {
     const next = await this.refreshSummary({
       ...applied.state,
       turns: [...state.turns, turn],
-      pendingRoll: response.rollRequest,
+      pendingPlayerRoll: response.playerRoll,
+      pendingEnemyRolls: this.chainedEnemyRolls(state, input) >= MAX_CHAINED_ENEMY_ROLLS
+        ? []
+        : response.enemyRolls,
       updatedAt: this.now().toISOString(),
     });
 
@@ -167,6 +191,17 @@ export class TurnEngine {
       saveError = error;
     }
     return { ok: true, state: next, response, rejectedChanges: applied.rejected, saveError };
+  }
+
+  /** How many enemy-roll turns in a row end with `input`. */
+  private chainedEnemyRolls(state: GameState, input: TurnInput): number {
+    if (input.type !== "enemy_rolls") return 0;
+    let chained = 1;
+    for (let i = state.turns.length - 1; i >= 0; i -= 1) {
+      if (state.turns[i]!.input.type !== "enemy_rolls") break;
+      chained += 1;
+    }
+    return chained;
   }
 
   /** Memory layer 2: every `summaryEveryTurns` turns, folds the turns the

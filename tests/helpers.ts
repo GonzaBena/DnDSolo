@@ -14,7 +14,8 @@ export const PLAYER_ID = "id-2"; // id-1 is the game itself
 export function reply(overrides: Partial<DMResponse> = {}): DMResponse {
   return {
     narration: "Llegás a la posada del Ciervo Blanco.",
-    rollRequest: null,
+    playerRoll: null,
+    enemyRolls: [],
     stateChanges: [],
     events: [],
     ...overrides,
