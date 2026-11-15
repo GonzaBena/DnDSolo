@@ -144,6 +144,7 @@ export const WARLOCK: ClassData = {
         feature: {
           name: "Conjuros del infernal",
           summary: "Siempre tenés preparados manos ardientes, orden imperiosa, rayo abrasador y sugestión (nivel 3); bola de fuego y nube apestosa (nivel 5).",
+          spells: ["burning_hands", "command", "scorching_ray", "suggestion"],
         },
       },
     ],

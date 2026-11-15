@@ -17,6 +17,7 @@ const levels: LevelRow[] = [
       {
         name: "Enemigo predilecto",
         summary: "Siempre tenés preparado el conjuro marca del cazador y podés lanzarlo dos veces sin gastar espacio de conjuro. Recuperás los usos en descanso largo.",
+        spells: ["hunters_mark"],
       },
       weaponMasteryTrait(2, "armas con las que tengas competencia"),
     ],

@@ -2,6 +2,9 @@ import type { ClassData, LevelRow } from "../../types";
 import { spellOptions } from "../spells";
 import { ASI_TRAIT, SOURCE, level4FeatChoice, subclassTrait } from "./common";
 
+/** Circle of the Land spells prepared from druid level 3 (SRD "Conjuros del círculo de la tierra"). */
+const level3 = (...spellIds: string[]) => spellIds.map((spellId) => ({ fromLevel: 3, spellId }));
+
 // Cantrips, prepared spells, slots and Wild Shape uses from the SRD table "Rasgos de druida".
 // The extra cantrip of the Magician order is a conditional choice.
 const levels: LevelRow[] = [
@@ -15,6 +18,7 @@ const levels: LevelRow[] = [
       {
         name: "Druídico",
         summary: "Conocés el idioma druídico y siempre tenés preparado el conjuro hablar con los animales. Podés dejar mensajes ocultos que solo quienes conozcan el druídico detectan automáticamente.",
+        spells: ["speak_with_animals"],
       },
       {
         name: "Orden primigenia",
@@ -116,10 +120,10 @@ export const DRUID: ClassData = {
           {
             id: "subclass.land.land_type", label: "Tipo de terreno", count: 1,
             options: [
-              { id: "arid", name: "Árido", summary: "Nivel 3: contorno borroso, descarga de fuego, manos ardientes." },
-              { id: "polar", name: "Polar", summary: "Nivel 3: inmovilizar persona, nube de oscurecimiento, rayo de escarcha." },
-              { id: "temperate", name: "Templado", summary: "Nivel 3: agarre electrizante, dormir, paso brumoso." },
-              { id: "tropical", name: "Tropical", summary: "Nivel 3: rayo nauseabundo, salpicadura ácida, telaraña." },
+              { id: "arid", name: "Árido", summary: "Nivel 3: contorno borroso, descarga de fuego, manos ardientes.", spells: level3("blur", "burning_hands", "fire_bolt") },
+              { id: "polar", name: "Polar", summary: "Nivel 3: inmovilizar persona, nube de oscurecimiento, rayo de escarcha.", spells: level3("fog_cloud", "hold_person", "ray_of_frost") },
+              { id: "temperate", name: "Templado", summary: "Nivel 3: agarre electrizante, dormir, paso brumoso.", spells: level3("misty_step", "shocking_grasp", "sleep") },
+              { id: "tropical", name: "Tropical", summary: "Nivel 3: rayo nauseabundo, salpicadura ácida, telaraña.", spells: level3("acid_splash", "ray_of_sickness", "web") },
             ],
           },
         ],

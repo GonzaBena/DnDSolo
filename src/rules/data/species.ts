@@ -61,7 +61,7 @@ const elfLineage: ChoiceSpec = {
       ],
     },
     {
-      id: "wood_elf", name: "Elfo de los bosques",
+      id: "wood_elf", name: "Elfo de los bosques", speed: 35,
       summary: "Velocidad de 10,5 m y truco saber druídico; zancada prodigiosa a nivel 3 y pasar sin rastro a nivel 5.",
       spells: [
         { fromLevel: 1, spellId: "druidcraft" },
@@ -273,5 +273,6 @@ export const SPECIES_DATA: SpeciesData[] = [
       { name: "Presencia sobrenatural", summary: "Conocés el truco taumaturgia, con la misma aptitud mágica que tu legado." },
     ],
     choices: [tieflingLegacy, spellAbility("tiefling")],
+    spells: [{ fromLevel: 1, spellId: "thaumaturgy" }],
   },
 ];

@@ -18,7 +18,17 @@ export const ABILITY_INCREASE_CHOICES = new Set(["feat.asi.abilities", "feat.gra
 /** Choices that point at cantrips the character already knows (e.g. the cantrip Agonizing Blast improves). */
 export const isInvocationCantripChoice = (id: string) => /^invocation\.\w+\.cantrip$/.test(id);
 
-const isInvocationChoice = (id: string) => /^class\.warlock\.invocation/.test(id);
+export const isInvocationChoice = (id: string) => /^class\.warlock\.invocation/.test(id);
+
+/** Expertise-like choices: their picks must be skills the character is already proficient in. */
+export const isExpertise = (id: string) => id.endsWith(".expertise") || id === "class.wizard.scholar";
+
+/** Choices whose picks are spells the character learns or prepares (not the wizard's spellbook, which
+    holds the prepared spells by design, nor the invocation choices that point at known cantrips). */
+export const isSpellChoice = (id: string) => /(\.cantrips|_cantrips|_cantrip|\.spell|\.prepared|\.rituals)$/.test(id);
+
+/** Choices whose picks each grant a weapon's mastery property. */
+export const isWeaponMasteryChoice = (id: string) => /^class\.\w+\.weapon_mastery/.test(id);
 
 const ORIGIN_LANGUAGES: ChoiceSpec = {
   id: "origin.languages", label: "Idiomas de origen (además del común)", count: 2, options: STANDARD_LANGUAGES,

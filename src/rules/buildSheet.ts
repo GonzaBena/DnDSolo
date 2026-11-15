@@ -1,8 +1,12 @@
-import { ABILITY_INCREASE_CHOICES, activeChoices, isFeatChoice, isInvocationCantripChoice, requiredChoices } from "./choices";
+import {
+  ABILITY_INCREASE_CHOICES, activeChoices, isExpertise, isFeatChoice, isInvocationCantripChoice, isInvocationChoice,
+  isSpellChoice, isWeaponMasteryChoice, requiredChoices,
+} from "./choices";
 import type { Concept } from "./choices";
 import { CLASSES_DATA, LOADED_MAX_LEVEL, SPECIES, STANDARD_ARRAY, findBackground, findFeat } from "./index";
 import { ABILITIES, ABILITY_NAMES, SKILLS } from "./types";
-import type { Ability, BackgroundData, ChoiceSpec, Option, SkillId } from "./types";
+import type { Ability, BackgroundData, CharacterSheet, ChoiceSpec, Option, SkillId } from "./types";
+import { computeSheet } from "./sheet";
 
 export interface CharacterChoices extends Concept {
   baseScores: Record<Ability, number>;
@@ -20,13 +24,10 @@ type Picks = Record<string, string[]>;
 const skillName = (id: SkillId) => SKILLS.find((s) => s.id === id)!.name;
 const field = (spec: ChoiceSpec) => `picks.${spec.id}`;
 
-/** Expertise-like choices: their picks must be skills the character is already proficient in. */
-const isExpertise = (id: string) => id.endsWith(".expertise") || id === "class.wizard.scholar";
-
 /** Choices of the same kind whose picks cannot repeat across choices (unless the option is repeatable). */
 function relatedGroup(id: string): string | null {
-  if (/^class\.\w+\.weapon_mastery/.test(id)) return "weapon_mastery";
-  if (/^class\.warlock\.invocation/.test(id)) return "invocation";
+  if (isWeaponMasteryChoice(id)) return "weapon_mastery";
+  if (isInvocationChoice(id)) return "invocation";
   if (/\.languages?$/.test(id)) return "language";
   if (isExpertise(id)) return "expertise";
   return null;
@@ -177,14 +178,14 @@ function scoresBeforeFeats(c: CharacterChoices): Record<Ability, number> {
   return Object.fromEntries(ABILITIES.map((a) => [a, c.baseScores[a] + (c.backgroundBonus[a] ?? 0)])) as Record<Ability, number>;
 }
 
-/** Choices whose picks are spells the character learns or prepares (not the wizard's spellbook, which
-    holds the prepared spells by design, nor the invocation choices that point at known cantrips). */
-const isSpellChoice = (id: string) => /(\.cantrips|_cantrips|_cantrip|\.spell|\.prepared|\.rituals)$/.test(id);
-
 /** A spell is learned or prepared from one source only: species spells, feats, invocations and class choices. */
 function validateSpells(c: CharacterChoices, specs: ChoiceSpec[]): ChoiceError[] {
   const errors: ChoiceError[] = [];
   const known = new Map<string, string>(); // spell id → source
+  const species = SPECIES.find((s) => s.id === c.speciesId)!;
+  for (const g of species.spells ?? []) {
+    if (g.fromLevel <= c.level) known.set(g.spellId, `tu especie (${species.name})`);
+  }
   for (const spec of specs.filter((s) => s.id.startsWith("species."))) {
     for (const option of pickedOptions(spec, c.picks)) {
       for (const g of option.spells ?? []) {
@@ -290,4 +291,12 @@ export function validateChoices(choices: CharacterChoices): ChoiceError[] {
     ...validateAbilityCap(choices, specs),
     ...validateSpellbook(specs, choices.picks),
   ];
+}
+
+export type BuildResult = { ok: true; sheet: CharacterSheet } | { ok: false; errors: ChoiceError[] };
+
+/** Validates the choices and, when they are legal, computes the whole sheet in code. */
+export function buildSheet(choices: CharacterChoices): BuildResult {
+  const errors = validateChoices(choices);
+  return errors.length > 0 ? { ok: false, errors } : { ok: true, sheet: computeSheet(choices) };
 }

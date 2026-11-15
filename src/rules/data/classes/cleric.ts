@@ -88,6 +88,7 @@ export const CLERIC: ClassData = {
         feature: {
           name: "Conjuros del dominio de la vida",
           summary: "Siempre tenés preparados auxilio, bendición, curar heridas y restablecimiento menor (nivel 3); palabra de curación en masa y revivir (nivel 5).",
+          spells: ["aid", "bless", "cure_wounds", "lesser_restoration"],
         },
       },
       {

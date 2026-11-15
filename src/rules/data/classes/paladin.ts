@@ -29,6 +29,7 @@ const levels: LevelRow[] = [
       {
         name: "Castigo de paladín",
         summary: "Siempre tenés preparado el conjuro castigo divino y podés lanzarlo una vez sin gastar espacio de conjuro por descanso largo.",
+        spells: ["divine_smite"],
       },
       {
         name: "Estilo de combate",

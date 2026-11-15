@@ -110,7 +110,7 @@ export const SORCERER: ClassData = {
   unarmoredDefense: null,
   levels,
   subclass: {
-    id: "draconic", name: "Hechicería dracónica", level: 3, unarmoredDefense: "draconic",
+    id: "draconic", name: "Hechicería dracónica", level: 3, unarmoredDefense: "draconic", hpBonusPerLevel: 1,
     features: [
       {
         level: 3,
@@ -124,6 +124,7 @@ export const SORCERER: ClassData = {
         feature: {
           name: "Conjuros dracónicos",
           summary: "Siempre tenés preparados aliento de dragón, alterar el propio aspecto, orbe cromático y orden imperiosa (nivel 3); terror y volar (nivel 5).",
+          spells: ["dragons_breath", "alter_self", "chromatic_orb", "command"],
         },
       },
     ],

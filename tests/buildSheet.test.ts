@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { validateChoices } from "../src/rules/buildSheet";
+import { buildSheet, validateChoices } from "../src/rules/buildSheet";
 import type { CharacterChoices, ChoiceError } from "../src/rules/buildSheet";
-import { spellsFor } from "../src/rules";
-import { fighterChoices } from "./helpers";
+import { WEAPONS, findClass, findSpell, spellsFor } from "../src/rules";
+import type { CharacterSheet, SkillId } from "../src/rules";
+import { isWeaponProficient } from "../src/rules/sheet";
+import { fighterChoices, greedyChoices } from "./helpers";
 
 const fields = (errors: ChoiceError[]) => errors.map((e) => e.field);
 const errorFor = (errors: ChoiceError[], field: string) => errors.find((e) => e.field === field);
@@ -502,5 +504,370 @@ describe("validateChoices: spells from several sources", () => {
   it("rejects preparing the Magic Initiate spell again", () => {
     const choices = withPicks({ "class.cleric.prepared": spellIds("cleric", 1).slice(0, 4) }, clericChoices());
     expect(fields(validateChoices(choices))).toEqual(["picks.class.cleric.prepared"]);
+  });
+});
+
+function sheetOf(choices: CharacterChoices): CharacterSheet {
+  const result = buildSheet(choices);
+  if (!result.ok) throw new Error(JSON.stringify(result.errors));
+  return result.sheet;
+}
+
+const spellName = (id: string) => findSpell(id)!.name;
+const skillOf = (sheet: CharacterSheet, id: SkillId) => sheet.skills.find((s) => s.id === id)!;
+const attackOf = (sheet: CharacterSheet, name: string) => sheet.attacks.find((a) => a.name === name);
+const featureNames = (sheet: CharacterSheet) => sheet.features.map((f) => f.name);
+
+function withoutHuman(choices: CharacterChoices): CharacterChoices {
+  return { ...choices, picks: Object.fromEntries(Object.entries(choices.picks).filter(([k]) => !k.startsWith("species.human"))) };
+}
+
+/** Level 1 human paladin, soldier: Str 17 (+3), longsword from equipment A. */
+function paladinChoices(mastery = ["longsword", "javelin"]): CharacterChoices {
+  return {
+    speciesId: "human", classId: "paladin", backgroundId: "soldier", level: 1,
+    baseScores: { str: 15, dex: 10, con: 13, int: 8, wis: 12, cha: 14 },
+    backgroundBonus: { str: 2, con: 1 },
+    classEquipment: "A", backgroundEquipment: "A",
+    picks: {
+      "origin.languages": ["elvish", "dwarvish"],
+      "species.human.skillful": ["perception"],
+      "species.human.versatile": ["alert"],
+      "background.soldier.tool": ["dice"],
+      "class.paladin.skills": ["insight", "religion"],
+      "class.paladin.weapon_mastery": mastery,
+      "class.paladin.prepared": spellIds("paladin", 1).slice(0, 2),
+    },
+  };
+}
+
+/** Level 1 wizard with Int 16 (+3): 15 base + 1 from the sage background. */
+function level1Wizard(): CharacterChoices {
+  const base = wizardChoices();
+  const book = spellIds("wizard", 1).slice(0, 6);
+  const picks: Record<string, string[]> = { ...base.picks, "class.wizard.spellbook": book, "class.wizard.prepared": book.slice(0, 4) };
+  delete picks["class.wizard.scholar"];
+  return { ...base, level: 1, backgroundBonus: { con: 2, int: 1 }, picks };
+}
+
+describe("buildSheet: fighter (human soldier, Defense)", () => {
+  const sheet = sheetOf(fighterChoices());
+
+  it("names the concept in Spanish", () => {
+    expect(sheet).toMatchObject({ species: "Humano", className: "Guerrero", subclass: null, level: 1, background: "Soldado" });
+  });
+
+  it("adds the background bonus to the scores", () => {
+    expect(sheet.abilities.str).toEqual({ score: 17, modifier: 3, save: 5, proficientSave: true });
+    expect(sheet.abilities.con).toMatchObject({ score: 14, modifier: 2, proficientSave: true });
+    expect(sheet.abilities.dex).toEqual({ score: 14, modifier: 2, save: 2, proficientSave: false });
+  });
+
+  it("computes hit points with the fixed value per level", () => {
+    expect(sheet.hitPoints).toBe(12);
+    expect(sheet.hitDice).toBe("1d10");
+    expect(sheetOf(fighterChoices({ level: 3 })).hitPoints).toBe(28);
+    expect(sheetOf(fighterChoices({ level: 3 })).hitDice).toBe("3d10");
+  });
+
+  it("uses proficiency on proficient skills", () => {
+    expect(sheet.proficiencyBonus).toBe(2);
+    expect(skillOf(sheet, "athletics")).toMatchObject({ name: "Atletismo", bonus: 5, proficient: true, expertise: false });
+    expect(skillOf(sheet, "history")).toMatchObject({ bonus: -1, proficient: false });
+    expect(sheet.skills).toHaveLength(18);
+  });
+
+  it("adds the proficiency bonus to initiative with Alert only", () => {
+    expect(sheet.initiative).toBe(4);
+    const skilled = withPicks({ "species.human.versatile": ["skilled"], "feat.skilled.skills": ["history", "insight", "medicine"] });
+    expect(sheetOf(skilled).initiative).toBe(2);
+  });
+
+  it("wears the first armor of option A and adds Defense", () => {
+    expect(sheet.armorClass).toBe(17); // chain mail 16 + 1
+    expect(sheetOf(withPicks({ "class.fighter.fighting_style": ["great_weapon_fighting"] })).armorClass).toBe(16);
+  });
+
+  it("computes passive Perception from the Perception bonus", () => {
+    expect(skillOf(sheet, "perception").bonus).toBe(3);
+    expect(sheet.passivePerception).toBe(13);
+  });
+
+  it("keeps the speed in feet", () => {
+    expect(sheet.speed).toBe(30);
+  });
+
+  it("lists weapon attacks once per weapon, with mastery only for the picked weapons", () => {
+    expect(attackOf(sheet, "Espadón")).toEqual({ name: "Espadón", attackBonus: 5, damage: "2d6+3", mastery: "Rozar" });
+    expect(attackOf(sheet, "Mangual")).toEqual({ name: "Mangual", attackBonus: 5, damage: "1d8+3", mastery: null });
+    expect(attackOf(sheet, "Arco corto")).toEqual({ name: "Arco corto", attackBonus: 4, damage: "1d6+2", mastery: null });
+    expect(sheet.attacks.filter((a) => a.name === "Jabalina")).toHaveLength(1);
+  });
+
+  it("lists the class and background equipment and gold", () => {
+    expect(sheet.equipment).toEqual(expect.arrayContaining([
+      "Cota de malla", "Espadón", "Jabalina (8)", "Paquete de explorador de mazmorras", "Lanza", "Arco corto", "20 flechas",
+    ]));
+    expect(sheet.gold).toBe(18);
+    const gold = sheetOf(fighterChoices({ classEquipment: "C", backgroundEquipment: "B" }));
+    expect(gold.equipment).toEqual([]);
+    expect(gold.gold).toBe(205);
+    expect(gold.attacks).toEqual([]);
+    expect(gold.armorClass).toBe(12); // unarmored: Defense does not apply
+  });
+
+  it("lists proficiencies, with the picked gaming set", () => {
+    expect(sheet.proficiencies.armor).toContain("Armaduras pesadas");
+    expect(sheet.proficiencies.weapons).toEqual(["Armas sencillas", "Armas marciales"]);
+    expect(sheet.proficiencies.tools).toEqual(["Dados"]);
+  });
+
+  it("lists features with their source", () => {
+    expect(sheet.features).toEqual(expect.arrayContaining([
+      expect.objectContaining({ source: "Humano", name: "Ingenioso" }),
+      expect.objectContaining({ source: "Guerrero 1", name: "Tomar aliento" }),
+      expect.objectContaining({ source: "Estilo de combate", name: "Defensa" }),
+      expect.objectContaining({ source: "Versátil", name: "Alerta" }),
+      expect.objectContaining({ source: "Trasfondo Soldado", name: "Atacante salvaje" }),
+    ]));
+    expect(featureNames(sheet)).not.toContain("Acción súbita");
+  });
+
+  it("has no spellcasting", () => {
+    expect(sheet.spellcasting).toBeNull();
+  });
+
+  it("assigns the subclass at its level", () => {
+    const l3 = sheetOf(fighterChoices({ level: 3 }));
+    expect(l3.subclass).toBe("Campeón");
+    expect(l3.features).toEqual(expect.arrayContaining([expect.objectContaining({ source: "Campeón", name: "Crítico mejorado" })]));
+    expect(featureNames(l3)).toContain("Acción súbita");
+  });
+});
+
+describe("buildSheet: ability increases", () => {
+  it("applies an ASI of +1/+1 or +2", () => {
+    const split = sheetOf(asiFighter(["str", "con"]));
+    expect(split.abilities.str.score).toBe(18);
+    expect(split.abilities.con.score).toBe(15);
+    expect(sheetOf(asiFighter(["dex", "dex"])).abilities.dex.score).toBe(16);
+  });
+
+  it("applies the Grappler increase", () => {
+    expect(sheetOf(grapplerFighter({ str: 13, dex: 10, con: 15, int: 12, wis: 14, cha: 8 })).abilities.str.score).toBe(14);
+  });
+});
+
+describe("buildSheet: hit points", () => {
+  it("gives the dwarf 1 extra hit point per level", () => {
+    const human = sheetOf(fighterChoices({ level: 2 }));
+    const dwarf = sheetOf(withoutHuman(fighterChoices({ level: 2, speciesId: "dwarf" })));
+    expect(human.hitPoints).toBe(20);
+    expect(dwarf.hitPoints).toBe(22);
+  });
+
+  it("raises a Draconic Sorcerer's hit points and unarmored AC from level 3", () => {
+    // Cha 15 (+2), Dex 13 (+1), Con 12 + 2 = 14 (+2).
+    const l2 = sheetOf(greedyChoices("human", "sorcerer", "sage", 2));
+    const l3 = sheetOf(greedyChoices("human", "sorcerer", "sage", 3));
+    expect(l2.hitPoints).toBe(14);
+    expect(l3.hitPoints).toBe(23); // 8 + 6 + 6 + 3
+    expect(l2.armorClass).toBe(11);
+    expect(l3.armorClass).toBe(13);
+    expect(l3.subclass).toBe("Hechicería dracónica");
+  });
+
+  it("subtracts a negative Constitution modifier, never below 1 per level", () => {
+    const frail = {
+      ...greedyChoices("human", "wizard", "sage", 2),
+      baseScores: { str: 10, dex: 14, con: 8, int: 15, wis: 13, cha: 12 },
+      backgroundBonus: { int: 2, wis: 1 },
+    };
+    expect(sheetOf(frail).hitPoints).toBe(8); // (6 - 1) + (4 - 1)
+  });
+});
+
+describe("buildSheet: skills", () => {
+  it("doubles proficiency with expertise", () => {
+    const sheet = sheetOf(rogueChoices(["stealth", "perception"]));
+    expect(skillOf(sheet, "stealth")).toMatchObject({ bonus: 7, proficient: true, expertise: true }); // Dex 17 (+3) + 4
+  });
+
+  it("adds Jack of All Trades to a level 2 bard's non-proficient skills, not to initiative", () => {
+    const l1 = sheetOf(greedyChoices("human", "bard", "sage", 1));
+    const l2 = sheetOf(greedyChoices("human", "bard", "sage", 2));
+    const skill = l2.skills.find((s) => !s.proficient)!;
+    expect(skill.bonus).toBe(l1.skills.find((s) => s.id === skill.id)!.bonus + 1);
+    expect(l2.initiative).toBe(l1.initiative);
+  });
+
+  it("adds the Thaumaturge bonus to Arcana and Religion", () => {
+    const thaumaturge = withPicks(
+      { "class.cleric.divine_order": ["thaumaturge"], "class.cleric.thaumaturge_cantrip": ["thaumaturgy"] },
+      clericChoices(),
+    );
+    const sheet = sheetOf(thaumaturge);
+    // Int 8 (-1), Wis 17 (+3); Religion is proficient from the acolyte background.
+    expect(skillOf(sheet, "arcana").bonus).toBe(2);
+    expect(skillOf(sheet, "religion").bonus).toBe(4);
+    expect(skillOf(sheetOf(clericChoices()), "arcana").bonus).toBe(-1);
+  });
+});
+
+describe("buildSheet: speed", () => {
+  it("gives the wood elf 35 feet", () => {
+    expect(sheetOf(rogueChoices(["stealth", "perception"])).speed).toBe(35);
+  });
+
+  it("gives an unarmored level 2 monk 40 feet", () => {
+    expect(sheetOf(greedyChoices("human", "monk", "soldier", 1)).speed).toBe(30);
+    expect(sheetOf(greedyChoices("human", "monk", "soldier", 2)).speed).toBe(40);
+  });
+});
+
+describe("buildSheet: attacks", () => {
+  it("uses Strength and proficiency for a longsword, with mastery only when picked", () => {
+    const sheet = sheetOf(paladinChoices());
+    expect(attackOf(sheet, "Espada larga")).toEqual({ name: "Espada larga", attackBonus: 5, damage: "1d8+3", mastery: "Debilitar" });
+    expect(attackOf(sheetOf(paladinChoices(["javelin", "spear"])), "Espada larga")!.mastery).toBeNull();
+  });
+
+  it("omits +0, writes negative modifiers and uses the better of Str and Dex for finesse", () => {
+    const sheet = sheetOf(wizardChoices()); // Str 8 (-1), Dex 14 (+2)
+    expect(attackOf(sheet, "Bastón")).toMatchObject({ attackBonus: 1, damage: "1d6-1" });
+    expect(attackOf(sheet, "Daga")).toMatchObject({ attackBonus: 4, damage: "1d4+2" });
+    const even = sheetOf({ ...wizardChoices(), baseScores: { str: 10, dex: 14, con: 13, int: 15, wis: 12, cha: 8 } });
+    expect(attackOf(even, "Bastón")!.damage).toBe("1d6");
+  });
+
+  it("adds proficiency only for weapons the class is proficient with", () => {
+    const rogue = sheetOf(rogueChoices(["stealth", "perception"]));
+    expect(attackOf(rogue, "Espada corta")).toMatchObject({ attackBonus: 5, damage: "1d6+3", mastery: "Molestar" });
+    // A sorcerer is proficient with simple weapons only; the soldier background brings a spear and a shortbow (simple).
+    const sorcerer = sheetOf(greedyChoices("human", "sorcerer", "soldier", 1));
+    expect(attackOf(sorcerer, "Lanza")!.attackBonus).toBe(sorcerer.abilities.str.modifier + 2);
+  });
+
+  it("knows which weapons each class proficiency covers", () => {
+    const weapon = (id: string) => WEAPONS.find((w) => w.id === id)!;
+    const proficient = (id: string, classId: string) => isWeaponProficient(weapon(id), findClass(classId)!.weapons);
+    expect(proficient("longsword", "wizard")).toBe(false);
+    expect(proficient("spear", "wizard")).toBe(true);
+    expect(proficient("shortsword", "monk")).toBe(true);
+    expect(proficient("longsword", "monk")).toBe(false);
+    expect(proficient("rapier", "rogue")).toBe(true);
+    expect(proficient("hand_crossbow", "rogue")).toBe(true);
+    expect(proficient("longsword", "rogue")).toBe(false);
+    expect(() => isWeaponProficient(weapon("dagger"), ["Armas raras"])).toThrow();
+  });
+
+  it("lets a monk use Dexterity and the Martial Arts die with monk weapons and unarmed strikes", () => {
+    const monk = sheetOf({
+      ...greedyChoices("human", "monk", "soldier", 1),
+      baseScores: { str: 8, dex: 15, con: 13, int: 10, wis: 14, cha: 12 },
+      backgroundBonus: { dex: 2, con: 1 },
+    });
+    expect(attackOf(monk, "Daga")).toMatchObject({ attackBonus: 5, damage: "1d6+3" });
+    expect(attackOf(monk, "Ataque sin armas")).toMatchObject({ attackBonus: 5, damage: "1d6+3", mastery: null });
+    expect(monk.armorClass).toBe(15); // 10 + 3 + 2
+  });
+
+  it("adds Archery to ranged attacks", () => {
+    const archer = sheetOf(withPicks({ "class.fighter.fighting_style": ["archery"] }));
+    expect(attackOf(archer, "Arco corto")!.attackBonus).toBe(6);
+    expect(attackOf(archer, "Espadón")!.attackBonus).toBe(5);
+  });
+});
+
+describe("buildSheet: spellcasting", () => {
+  it("computes a level 1 wizard with Int 16", () => {
+    const choices = level1Wizard();
+    const sc = sheetOf(choices).spellcasting!;
+    expect(sc).toMatchObject({ ability: "int", saveDc: 13, attackBonus: 5, slots: [2], pactSlots: null });
+    expect(sc.cantrips).toHaveLength(3);
+    expect(sc.prepared).toHaveLength(4);
+    expect(sc.spellbook).toHaveLength(6);
+    expect(sc.cantrips).toContain(spellName(choices.picks["class.wizard.cantrips"]![0]!));
+    const initiate = [...choices.picks["feat.magic_initiate_wizard.cantrips"]!, ...choices.picks["feat.magic_initiate_wizard.spell"]!];
+    expect(sc.other).toEqual(initiate.map(spellName));
+  });
+
+  it("gives the warlock pact slots", () => {
+    const sc = sheetOf(warlockChoices()).spellcasting!;
+    expect(sc).toMatchObject({ ability: "cha", slots: [], pactSlots: { count: 2, slotLevel: 1 }, spellbook: null });
+    expect(sc.cantrips).toEqual(["eldritch_blast", "minor_illusion"].map(spellName));
+  });
+
+  it("lists Magic Initiate spells as other spells of a cleric", () => {
+    const sc = sheetOf(clericChoices()).spellcasting!;
+    expect(sc.other).toEqual(expect.arrayContaining([spellName("guidance"), spellName("resistance")]));
+    expect(sc.saveDc).toBe(13); // Wis 17 (+3)
+  });
+
+  it("gives a non-caster with species spells a block using the chosen spellcasting ability", () => {
+    const sc = sheetOf(rogueChoices(["stealth", "perception"])).spellcasting!;
+    // Wood elf with Wisdom 13 (+1).
+    expect(sc).toEqual({
+      ability: "wis", saveDc: 11, attackBonus: 3, slots: [], pactSlots: null,
+      cantrips: [], prepared: [], spellbook: null, other: [spellName("druidcraft")],
+    });
+  });
+
+  it("adds lineage spells only from their level, and the tiefling's Thaumaturgy", () => {
+    const tiefling = (level: number) => sheetOf(greedyChoices("tiefling", "fighter", "soldier", level)).spellcasting!.other;
+    expect(greedyChoices("tiefling", "fighter", "soldier", 1).picks["species.tiefling.legacy"]).toEqual(["abyssal"]);
+    expect(tiefling(1)).toEqual(expect.arrayContaining([spellName("thaumaturgy"), spellName("poison_spray")]));
+    expect(tiefling(1)).not.toContain(spellName("ray_of_sickness"));
+    expect(tiefling(3)).toContain(spellName("ray_of_sickness"));
+  });
+
+  it("lists always-prepared class and subclass spells", () => {
+    expect(sheetOf(greedyChoices("human", "druid", "sage", 1)).spellcasting!.other).toContain(spellName("speak_with_animals"));
+    expect(sheetOf(greedyChoices("human", "ranger", "sage", 1)).spellcasting!.other).toContain(spellName("hunters_mark"));
+    expect(sheetOf(greedyChoices("human", "sorcerer", "sage", 3)).spellcasting!.other).toEqual(
+      expect.arrayContaining(["alter_self", "chromatic_orb", "command", "dragons_breath"].map(spellName)),
+    );
+    expect(sheetOf(greedyChoices("human", "sorcerer", "sage", 2)).spellcasting!.other).not.toContain(spellName("command"));
+    const land = greedyChoices("human", "druid", "sage", 3);
+    expect(land.picks["subclass.land.land_type"]).toEqual(["arid"]);
+    expect(sheetOf(land).spellcasting!.other).toEqual(expect.arrayContaining(["blur", "burning_hands"].map(spellName)));
+  });
+
+  it("lists the invocation and Pact of the Tome spells", () => {
+    const tome = withPicks(
+      {
+        "class.warlock.invocation": ["pact_of_the_tome"],
+        "class.warlock.invocation_2": ["armor_of_shadows", "devils_sight"],
+        "invocation.pact_of_the_tome.cantrips": ["guidance", "light", "thaumaturgy"],
+        "invocation.pact_of_the_tome.rituals": ["alarm", "find_familiar"],
+      },
+      warlockChoices(),
+    );
+    delete tome.picks["invocation.agonizing_blast.cantrip"];
+    expect(validateChoices(tome)).toEqual([]);
+    const sc = sheetOf(tome).spellcasting!;
+    expect(sc.other).toEqual(expect.arrayContaining(
+      ["mage_armor", "guidance", "light", "thaumaturgy", "alarm", "find_familiar"].map(spellName),
+    ));
+  });
+});
+
+describe("buildSheet: features from picked options", () => {
+  it("lists invocations and metamagic with their choice as source", () => {
+    const warlock = sheetOf(warlockChoices());
+    expect(warlock.features).toEqual(expect.arrayContaining([
+      expect.objectContaining({ source: "Invocación sobrenatural", name: "Mente sobrenatural" }),
+      expect.objectContaining({ source: "Invocaciones sobrenaturales (nivel 2)", name: "Descarga agónica" }),
+    ]));
+    const sorcerer = sheetOf(greedyChoices("human", "sorcerer", "sage", 2));
+    expect(sorcerer.features.filter((f) => f.source === "Metamagia")).toHaveLength(2);
+  });
+});
+
+describe("buildSheet: invalid choices", () => {
+  it("returns the validation errors", () => {
+    const bad = withPicks({ "class.fighter.fighting_style": ["nope"] });
+    expect(buildSheet(bad)).toEqual({ ok: false, errors: validateChoices(bad) });
+    expect(buildSheet({ ...fighterChoices(), classId: "bogus" })).toMatchObject({ ok: false });
   });
 });

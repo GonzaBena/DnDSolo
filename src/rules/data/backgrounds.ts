@@ -21,7 +21,7 @@ export const BACKGROUNDS_DATA: BackgroundData[] = [
     skills: ["insight", "religion"],
     tool: "Suministros de calígrafo",
     equipment: {
-      A: ["Suministros de calígrafo", "Libro (de oraciones)", "Símbolo sagrado", "Pergamino (10 hojas)", "Túnica"],
+      A: ["text:Suministros de calígrafo", "text:Libro (de oraciones)", "text:Símbolo sagrado", "text:Pergamino (10 hojas)", "text:Túnica"],
       B: [],
     },
     gold: { A: 8, B: 50 },
@@ -34,7 +34,7 @@ export const BACKGROUNDS_DATA: BackgroundData[] = [
     skills: ["sleight_of_hand", "stealth"],
     tool: "Herramientas de ladrón",
     equipment: {
-      A: ["2 dagas", "Herramientas de ladrón", "Palanqueta", "2 bolsas", "Ropas de viaje"],
+      A: ["dagger", "dagger", "text:Herramientas de ladrón", "text:Palanqueta", "text:2 bolsas", "text:Ropas de viaje"],
       B: [],
     },
     gold: { A: 16, B: 50 },
@@ -47,7 +47,7 @@ export const BACKGROUNDS_DATA: BackgroundData[] = [
     skills: ["arcana", "history"],
     tool: "Suministros de calígrafo",
     equipment: {
-      A: ["Bastón", "Suministros de calígrafo", "Libro (de historia)", "Pergamino (8 hojas)", "Túnica"],
+      A: ["quarterstaff", "text:Suministros de calígrafo", "text:Libro (de historia)", "text:Pergamino (8 hojas)", "text:Túnica"],
       B: [],
     },
     gold: { A: 8, B: 50 },
@@ -60,7 +60,10 @@ export const BACKGROUNDS_DATA: BackgroundData[] = [
     skills: ["athletics", "intimidation"],
     tool: "Un tipo de juego a elección",
     equipment: {
-      A: ["Lanza", "Arco corto", "20 flechas", "Juego (el mismo de la competencia)", "Útiles de sanador", "Aljaba", "Ropas de viaje"],
+      A: [
+        "spear", "shortbow", "text:20 flechas", "text:Juego (el mismo de la competencia)", "text:Útiles de sanador",
+        "text:Aljaba", "text:Ropas de viaje",
+      ],
       B: [],
     },
     gold: { A: 14, B: 50 },

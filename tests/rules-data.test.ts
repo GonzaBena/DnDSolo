@@ -17,6 +17,7 @@ import {
   findSpell,
   spellsFor,
 } from "../src/rules";
+import { isWeaponProficient } from "../src/rules/sheet";
 import { SKILLS, requirementsOf } from "../src/rules/types";
 import type { ChoiceSpec } from "../src/rules/types";
 
@@ -251,6 +252,15 @@ describe("classes (levels 1-4)", () => {
         }
       }
     }
+    for (const b of BACKGROUNDS) {
+      for (const item of [...b.equipment.A, ...b.equipment.B]) {
+        expect(item.startsWith("text:") || findItem(item) !== undefined, `${b.id}: ${item}`).toBe(true);
+      }
+    }
+  });
+
+  it("only uses weapon proficiencies the sheet knows how to apply", () => {
+    for (const c of CLASSES_DATA) expect(() => isWeaponProficient(WEAPONS[0]!, c.weapons), c.id).not.toThrow();
   });
 
   it("weapon mastery choices use real weapons and match the class count", () => {
@@ -543,6 +553,16 @@ describe("spells (cantrips to level 2)", () => {
       .flatMap((o) => o.spells ?? []);
     expect(granted.length).toBeGreaterThan(0);
     for (const g of granted) expect(findSpell(g.spellId), g.spellId).toBeDefined();
+  });
+
+  it("every always-prepared spell of species and class features exists", () => {
+    const ids = [
+      ...SPECIES.flatMap((s) => s.spells ?? []).map((g) => g.spellId),
+      ...CLASSES_DATA.flatMap((c) => c.levels.flatMap((l) => l.features)).flatMap((t) => t.spells ?? []),
+      ...CLASSES_DATA.flatMap((c) => c.subclass.features).flatMap((f) => f.feature.spells ?? []),
+    ];
+    expect(ids).toEqual(expect.arrayContaining(["thaumaturgy", "speak_with_animals", "hunters_mark", "divine_smite", "command"]));
+    for (const id of ids) expect(findSpell(id), id).toBeDefined();
   });
 
   it("has unique ids, valid levels, known lists and a non-empty summary", () => {

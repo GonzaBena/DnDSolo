@@ -33,7 +33,11 @@ export const SKILLS: { id: SkillId; name: string; ability: Ability }[] = [
   { id: "survival", name: "Supervivencia", ability: "wis" },
 ];
 
-export interface Trait { name: string; summary: string }
+export interface Trait {
+  name: string; summary: string;
+  /** Spell ids always prepared from when the feature is gained (e.g. Druidic: Speak with Animals). */
+  spells?: string[];
+}
 
 export interface Option {
   id: string; name: string; summary: string;
@@ -41,6 +45,8 @@ export interface Option {
   spells?: { fromLevel: number; spellId: string }[];
   /** Skill proficiency it grants (e.g. Keen Senses). */
   skill?: SkillId;
+  /** Walking speed in feet it sets (e.g. Wood Elf: 35). */
+  speed?: number;
   /** Can be picked more than once, even across choices (SRD "Repetible", e.g. Agonizing Blast). */
   repeatable?: boolean;
 }
@@ -64,6 +70,8 @@ export interface SpeciesData {
   speed: number; size: string; traits: Trait[];
   hpBonusPerLevel: number;          // 1 for dwarf, 0 otherwise
   fixedSkills: SkillId[];
+  /** Spells every member of the species knows, whatever the lineage (e.g. the tiefling's Thaumaturgy). */
+  spells?: { fromLevel: number; spellId: string }[];
   choices: ChoiceSpec[];            // lineage/legacy/ancestry, human skill & origin feat
 }
 
@@ -71,7 +79,8 @@ export interface BackgroundData {
   id: string; name: string; source: "SRD 5.2";
   abilities: [Ability, Ability, Ability];
   featId: string; skills: [SkillId, SkillId]; tool: string;
-  equipment: { A: string[]; B: string[] };  // B is the gold option
+  /** Items are ids known to findItem, or free text prefixed with "text:" (as in ClassData). B is the gold option. */
+  equipment: { A: string[]; B: string[] };
   gold: { A: number; B: number };
   choices: ChoiceSpec[];            // e.g. the soldier's gaming set
 }
@@ -112,5 +121,25 @@ export interface ClassData {
     id: string; name: string; level: number;
     features: { level: number; feature: Trait; choices?: ChoiceSpec[] }[];
     unarmoredDefense?: "draconic";
+    /** Hit points per character level once the subclass is gained (Draconic Resilience: 3 at level 3, +1 per level). */
+    hpBonusPerLevel?: number;
   };
+}
+
+/** The computed character sheet. Every number comes from code; names are in Spanish; speed is in feet. */
+export interface CharacterSheet {
+  species: string; className: string; subclass: string | null; level: number; background: string;
+  abilities: Record<Ability, { score: number; modifier: number; save: number; proficientSave: boolean }>;
+  proficiencyBonus: number; hitPoints: number; hitDice: string; armorClass: number;
+  initiative: number; speed: number; passivePerception: number;
+  skills: { id: SkillId; name: string; bonus: number; proficient: boolean; expertise: boolean }[];
+  proficiencies: { armor: string[]; weapons: string[]; tools: string[] };
+  attacks: { name: string; attackBonus: number; damage: string; mastery: string | null }[];
+  features: { source: string; name: string; summary: string }[];
+  spellcasting: null | {
+    ability: Ability; saveDc: number; attackBonus: number; slots: number[];
+    pactSlots: { count: number; slotLevel: number } | null;
+    cantrips: string[]; prepared: string[]; spellbook: string[] | null; other: string[];
+  };
+  equipment: string[]; gold: number;
 }
