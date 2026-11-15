@@ -7,6 +7,28 @@ import Base from "../layouts/Base.astro";
   <p>Una IA narra la campaña. Vos decidís qué hace tu personaje.</p>
   <div class="actions">
     <a class="button button--primary" href="/character">Nueva campaña</a>
-    <a class="button" href="/play">Continuar</a>
+    <a id="continue" class="button" href="/play" hidden>Continuar</a>
   </div>
+  <p id="save-info" class="status"></p>
 </Base>
+
+<script>
+  import { IndexedDBGameRepo } from "../persistence/IndexedDBGameRepo";
+
+  // "Continuar" only appears when there is something to continue.
+  const link = document.querySelector<HTMLAnchorElement>("#continue")!;
+  const info = document.querySelector<HTMLParagraphElement>("#save-info")!;
+
+  new IndexedDBGameRepo().loadLatest().then(
+    (game) => {
+      const player = game?.players[0];
+      if (!game || !player) return;
+      link.hidden = false;
+      const turns = game.turns.length === 1 ? "1 turno" : `${game.turns.length} turnos`;
+      info.textContent = `Última partida: ${player.name}, ${player.characterClass} nivel ${player.level} · ${turns} jugados.`;
+    },
+    () => {
+      info.textContent = "No se pudo leer las partidas guardadas en este navegador.";
+    },
+  );
+</script>

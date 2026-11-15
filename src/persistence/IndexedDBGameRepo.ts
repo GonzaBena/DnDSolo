@@ -1,4 +1,4 @@
-import type { GameState } from "../domain/types";
+import { GAME_STATE_VERSION, type GameState } from "../domain/types";
 import type { GameRepo } from "./GameRepo";
 
 const DB_NAME = "dnsolo";
@@ -11,6 +11,14 @@ function asPromise<T>(request: IDBRequest<T>): Promise<T> {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
+}
+
+/** A save written by a different version of the app can't be trusted to
+    have today's shape. There are no migrations yet, so it is ignored
+    rather than loaded into a screen that would crash on it. */
+function readable(value: unknown): GameState | null {
+  const state = value as GameState | undefined;
+  return state && state.version === GAME_STATE_VERSION ? state : null;
 }
 
 function done(transaction: IDBTransaction): Promise<void> {
@@ -49,13 +57,22 @@ export class IndexedDBGameRepo implements GameRepo {
 
   async load(id: string): Promise<GameState | null> {
     const store = (await this.open()).transaction(STORE).objectStore(STORE);
-    return ((await asPromise(store.get(id))) as GameState | undefined) ?? null;
+    return readable(await asPromise(store.get(id)));
   }
 
   async loadLatest(): Promise<GameState | null> {
     const index = (await this.open()).transaction(STORE).objectStore(STORE).index(BY_UPDATED);
-    const cursor = await asPromise(index.openCursor(null, "prev"));
-    return cursor ? (cursor.value as GameState) : null;
+    return new Promise((resolve, reject) => {
+      const request = index.openCursor(null, "prev");
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (!cursor) return resolve(null);
+        const state = readable(cursor.value);
+        if (state) resolve(state);
+        else cursor.continue();
+      };
+    });
   }
 
   async delete(id: string): Promise<void> {
