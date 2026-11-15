@@ -1,4 +1,4 @@
-import { ABILITY_INCREASE_CHOICES, activeChoices, isFeatChoice, requiredChoices } from "./choices";
+import { ABILITY_INCREASE_CHOICES, activeChoices, isFeatChoice, isInvocationCantripChoice, requiredChoices } from "./choices";
 import type { Concept } from "./choices";
 import { CLASSES_DATA, LOADED_MAX_LEVEL, SPECIES, STANDARD_ARRAY, findBackground, findFeat } from "./index";
 import { ABILITIES, ABILITY_NAMES, SKILLS } from "./types";
@@ -27,7 +27,6 @@ const isExpertise = (id: string) => id.endsWith(".expertise") || id === "class.w
 function relatedGroup(id: string): string | null {
   if (/^class\.\w+\.weapon_mastery/.test(id)) return "weapon_mastery";
   if (/^class\.warlock\.invocation/.test(id)) return "invocation";
-  if (/(cantrips|_cantrip)$/.test(id)) return "cantrip";
   if (/\.languages?$/.test(id)) return "language";
   if (isExpertise(id)) return "expertise";
   return null;
@@ -178,7 +177,46 @@ function scoresBeforeFeats(c: CharacterChoices): Record<Ability, number> {
   return Object.fromEntries(ABILITIES.map((a) => [a, c.baseScores[a] + (c.backgroundBonus[a] ?? 0)])) as Record<Ability, number>;
 }
 
-/** Feats are taken once (none of the loaded ones is repeatable at levels 1-4) and must meet their prerequisites. */
+/** Choices whose picks are spells the character learns or prepares (not the wizard's spellbook, which
+    holds the prepared spells by design, nor the invocation choices that point at known cantrips). */
+const isSpellChoice = (id: string) => /(\.cantrips|_cantrips|_cantrip|\.spell|\.prepared|\.rituals)$/.test(id);
+
+/** A spell is learned or prepared from one source only: species spells, feats, invocations and class choices. */
+function validateSpells(c: CharacterChoices, specs: ChoiceSpec[]): ChoiceError[] {
+  const errors: ChoiceError[] = [];
+  const known = new Map<string, string>(); // spell id → source
+  for (const spec of specs.filter((s) => s.id.startsWith("species."))) {
+    for (const option of pickedOptions(spec, c.picks)) {
+      for (const g of option.spells ?? []) {
+        if (g.fromLevel <= c.level && !known.has(g.spellId)) known.set(g.spellId, `tu especie (${option.name})`);
+      }
+    }
+  }
+  for (const spec of specs.filter((s) => isSpellChoice(s.id))) {
+    const options = pickedOptions(spec, c.picks);
+    const repeats = options.filter((o) => known.has(o.id));
+    if (repeats.length > 0) {
+      const detail = repeats.map((o) => `${o.name} ya lo tenés por ${known.get(o.id)}`).join("; ");
+      errors.push({ field: field(spec), message: `"${spec.label}": ${detail}. Elegí otro conjuro.` });
+    }
+    for (const o of options) if (!known.has(o.id)) known.set(o.id, `"${spec.label}"`);
+  }
+  return errors;
+}
+
+/** Agonizing Blast and co. improve cantrips the character knows as warlock spells (class or Book of Shadows). */
+function validateInvocationCantrips(specs: ChoiceSpec[], picks: Picks): ChoiceError[] {
+  const own = new Set([...(picks["class.warlock.cantrips"] ?? []), ...(picks["invocation.pact_of_the_tome.cantrips"] ?? [])]);
+  return specs.filter((s) => isInvocationCantripChoice(s.id)).flatMap((spec) => {
+    const missing = pickedOptions(spec, picks).filter((o) => !own.has(o.id));
+    return missing.length === 0 ? [] : [{
+      field: field(spec),
+      message: `"${spec.label}": ${missing.map((o) => o.name).join(", ")} no está entre tus trucos de brujo; elegí uno que conozcas y que cumpla el requisito.`,
+    }];
+  });
+}
+
+/** Feats are taken once unless repeatable, and must meet their prerequisites. */
 function validateFeats(c: CharacterChoices, specs: ChoiceSpec[]): ChoiceError[] {
   const errors: ChoiceError[] = [];
   const background = findBackground(c.backgroundId)!;
@@ -190,7 +228,7 @@ function validateFeats(c: CharacterChoices, specs: ChoiceSpec[]): ChoiceError[] 
       const feat = findFeat(option.id);
       if (!feat) continue; // non-feat fighting style options (Blessed Warrior, Druidic Warrior)
       const source = owned.get(feat.id);
-      if (source) problems.push(`ya tenés la dote ${feat.name} por ${source} y solo se obtiene una vez`);
+      if (source && !feat.repeatable) problems.push(`ya tenés la dote ${feat.name} por ${source} y solo se obtiene una vez`);
       else owned.set(feat.id, `"${spec.label}"`);
       const pre = feat.prerequisite;
       if (pre?.minLevel && c.level < pre.minLevel) problems.push(`${feat.name} requiere nivel ${pre.minLevel}`);
@@ -246,6 +284,8 @@ export function validateChoices(choices: CharacterChoices): ChoiceError[] {
     ...validatePickShape(specs, choices.picks),
     ...validateSkills(choices, specs),
     ...validateRelated(specs, choices.picks),
+    ...validateSpells(choices, specs),
+    ...validateInvocationCantrips(specs, choices.picks),
     ...validateFeats(choices, specs),
     ...validateAbilityCap(choices, specs),
     ...validateSpellbook(specs, choices.picks),

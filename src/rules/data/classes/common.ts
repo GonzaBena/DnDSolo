@@ -60,11 +60,15 @@ export const fightingStyleChoice = (classId: string, extra: Option[] = []): Choi
   ],
 });
 
-export const level4FeatChoice = (classId: string): ChoiceSpec => ({
+/** Level 4: Ability Score Improvement or another feat the character qualifies for (general and origin feats;
+    fighting style feats only for classes with the Fighting Style feature). Prerequisites are checked on validation. */
+export const level4FeatChoice = (classId: string, hasFightingStyle = false): ChoiceSpec => ({
   id: `class.${classId}.level4_feat`,
   label: "Mejora de característica (nivel 4)",
   count: 1,
-  options: FEATS_DATA.filter((f) => f.category === "general").map((f) => ({ id: f.id, name: f.name, summary: f.summary })),
+  options: FEATS_DATA
+    .filter((f) => f.category === "general" || f.category === "origin" || (hasFightingStyle && f.category === "fighting_style"))
+    .map((f) => ({ id: f.id, name: f.name, summary: f.summary })),
 });
 
 /** Expertise: options are every skill; Task 5 validation restricts the picks to skills the character is proficient in. */
@@ -84,7 +88,10 @@ export const LANGUAGES: Option[] = [
   ["primordial", "Primordial"], ["sylvan", "Silvano"],
 ].map(([id, name]) => ({ id, name, summary: `Idioma: ${name}.` }));
 
-export const languageChoice = (id: string, count: number, exclude: string[] = []): ChoiceSpec => ({
+/** The Standard Languages table without Common, which every character knows. */
+export const STANDARD_LANGUAGES: Option[] = LANGUAGES.slice(0, 9);
+
+export const languageChoice =(id: string, count: number, exclude: string[] = []): ChoiceSpec => ({
   id, label: "Idiomas", count, options: LANGUAGES.filter((l) => !exclude.includes(l.id)),
 });
 

@@ -35,6 +35,7 @@ export function fighterChoices(overrides: Partial<CharacterChoices> = {}): Chara
     classEquipment: "A",
     backgroundEquipment: "A",
     picks: {
+      "origin.languages": ["elvish", "dwarvish"],
       "species.human.skillful": ["perception"],
       "species.human.versatile": ["alert"],
       "background.soldier.tool": ["dice"],

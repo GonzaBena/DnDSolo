@@ -46,7 +46,7 @@ const levels: LevelRow[] = [
     level: 4, proficiencyBonus: 2, resources: { "Tomar aliento": 3, "Acción súbita": 1 },
     features: [ASI_TRAIT, { name: "Maestría con armas (4 tipos)", summary: "Ahora podés usar la maestría de 4 tipos de armas." }],
     choices: [
-      level4FeatChoice("fighter"),
+      level4FeatChoice("fighter", true),
       weaponMasteryChoice("fighter", 1, masteryWeapons.any(), "_level4"),
     ],
   },

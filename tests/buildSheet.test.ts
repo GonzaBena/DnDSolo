@@ -42,6 +42,7 @@ function clericChoices(): CharacterChoices {
     backgroundBonus: { wis: 2, cha: 1 },
     classEquipment: "A", backgroundEquipment: "B",
     picks: {
+      "origin.languages": ["elvish", "dwarvish"],
       "species.human.skillful": ["perception"],
       "species.human.versatile": ["alert"],
       "feat.magic_initiate_cleric.ability": ["wis"],
@@ -50,7 +51,7 @@ function clericChoices(): CharacterChoices {
       "class.cleric.skills": ["history", "medicine"],
       "class.cleric.divine_order": ["protector"],
       "class.cleric.cantrips": ["sacred_flame", "light", "mending"],
-      "class.cleric.prepared": spellIds("cleric", 1).slice(0, 4),
+      "class.cleric.prepared": spellIds("cleric", 1).slice(1, 5),
     },
   };
 }
@@ -64,6 +65,7 @@ function wizardChoices(): CharacterChoices {
     backgroundBonus: { int: 2, con: 1 },
     classEquipment: "A", backgroundEquipment: "A",
     picks: {
+      "origin.languages": ["elvish", "dwarvish"],
       "species.human.skillful": ["perception"],
       "species.human.versatile": ["alert"],
       "feat.magic_initiate_wizard.ability": ["int"],
@@ -85,6 +87,7 @@ function warlockChoices(): CharacterChoices {
     backgroundBonus: { dex: 1, con: 2 },
     classEquipment: "A", backgroundEquipment: "A",
     picks: {
+      "origin.languages": ["elvish", "dwarvish"],
       "species.human.skillful": ["perception"],
       "species.human.versatile": ["alert"],
       "background.soldier.tool": ["dice"],
@@ -93,6 +96,7 @@ function warlockChoices(): CharacterChoices {
       "class.warlock.invocation_2": ["agonizing_blast", "devils_sight"],
       "class.warlock.cantrips": ["eldritch_blast", "minor_illusion"],
       "class.warlock.prepared": spellIds("warlock", 1).slice(0, 3),
+      "invocation.agonizing_blast.cantrip": ["eldritch_blast"],
     },
   };
 }
@@ -104,6 +108,7 @@ function rogueChoices(expertise: string[]): CharacterChoices {
     backgroundBonus: { dex: 2, con: 1 },
     classEquipment: "A", backgroundEquipment: "A",
     picks: {
+      "origin.languages": ["dwarvish", "giant"],
       "species.elf.lineage": ["wood_elf"],
       "species.elf.spell_ability": ["wis"],
       "species.elf.keen_senses": ["perception"],
@@ -284,10 +289,14 @@ describe("validateChoices: duplicates across related choices", () => {
 
   it("rejects an invocation taken twice unless it is repeatable", () => {
     const warlock = warlockChoices();
-    const repeated = withPicks({ "class.warlock.invocation_2": ["eldritch_mind", "devils_sight"] }, warlock);
+    const repeated = withPicks({ "class.warlock.invocation_2": ["eldritch_mind", "devils_sight"] }, without(warlock, "invocation.agonizing_blast.cantrip"));
     expect(fields(validateChoices(repeated))).toEqual(["picks.class.warlock.invocation_2"]);
-    const repeatable = withPicks({ "class.warlock.invocation_2": ["agonizing_blast", "agonizing_blast"] }, warlock);
-    expect(validateChoices(repeatable)).toEqual([]);
+    const twoEligible = withPicks({
+      "class.warlock.invocation_2": ["agonizing_blast", "agonizing_blast"],
+      "class.warlock.cantrips": ["eldritch_blast", "chill_touch"],
+      "invocation.agonizing_blast.cantrip": ["eldritch_blast", "chill_touch"],
+    }, warlock);
+    expect(validateChoices(twoEligible)).toEqual([]);
   });
 
   it("requires one distinct origin feat per Lessons of the First Ones", () => {
@@ -298,7 +307,7 @@ describe("validateChoices: duplicates across related choices", () => {
       "feat.magic_initiate_wizard.ability": ["cha"],
       "feat.magic_initiate_wizard.cantrips": ["fire_bolt", "light"],
       "feat.magic_initiate_wizard.spell": [spellIds("wizard", 1)[0]!],
-    }, warlock);
+    }, without(warlock, "invocation.agonizing_blast.cantrip"));
     expect(validateChoices(lessons)).toEqual([]);
     const sameAsVersatile = withPicks({ "class.warlock.lessons_feat": ["alert"] }, lessons);
     const errors = validateChoices(sameAsVersatile);
@@ -325,6 +334,7 @@ describe("validateChoices: duplicates across related choices", () => {
       backgroundBonus: { dex: 2, con: 1 },
       classEquipment: "A", backgroundEquipment: "A",
       picks: {
+        "origin.languages": ["dwarvish", "orc"],
         "background.soldier.tool": ["dice"],
         "class.ranger.skills": ["perception", "stealth", "survival"],
         "class.ranger.weapon_mastery": ["longbow", "shortsword"],
@@ -346,5 +356,151 @@ describe("validateChoices: wizard spellbook", () => {
     const outside = spellIds("wizard", 1)[9]!;
     const choices = withPicks({ "class.wizard.prepared": [...wizard.picks["class.wizard.prepared"]!.slice(0, 4), outside] }, wizard);
     expect(fields(validateChoices(choices))).toEqual(["picks.class.wizard.prepared"]);
+  });
+});
+
+/** Same picks without one key. */
+function without(choices: CharacterChoices, key: string): CharacterChoices {
+  const picks = Object.fromEntries(Object.entries(choices.picks).filter(([k]) => k !== key));
+  return { ...choices, picks };
+}
+
+describe("validateChoices: origin languages", () => {
+  it("requires two standard languages besides Common", () => {
+    expect(fields(validateChoices(without(fighterChoices(), "origin.languages")))).toEqual(["picks.origin.languages"]);
+    const rare = withPicks({ "origin.languages": ["elvish", "infernal"] });
+    expect(fields(validateChoices(rare))).toEqual(["picks.origin.languages"]);
+  });
+
+  it("rejects a class language already known from the origin", () => {
+    const errors = validateChoices(withPicks({ "class.rogue.language": ["giant"] }, rogueChoices(["stealth", "perception"])));
+    expect(fields(errors)).toEqual(["picks.class.rogue.language"]);
+    expect(errors[0]!.message).toContain("Gigante");
+  });
+});
+
+describe("validateChoices: invocations that improve a cantrip", () => {
+  const warlock = warlockChoices();
+
+  it("rejects Agonizing Blast taken twice with only one eligible cantrip", () => {
+    const one = withPicks({
+      "class.warlock.invocation_2": ["agonizing_blast", "agonizing_blast"],
+      "invocation.agonizing_blast.cantrip": ["eldritch_blast", "eldritch_blast"],
+    }, warlock);
+    expect(fields(validateChoices(one))).toEqual(["picks.invocation.agonizing_blast.cantrip"]);
+    const nonDamaging = withPicks({ "invocation.agonizing_blast.cantrip": ["eldritch_blast", "minor_illusion"] }, one);
+    expect(fields(validateChoices(nonDamaging))).toEqual(["picks.invocation.agonizing_blast.cantrip"]);
+  });
+
+  it("requires a cantrip the warlock knows", () => {
+    const errors = validateChoices(withPicks({ "invocation.agonizing_blast.cantrip": ["chill_touch"] }, warlock));
+    expect(fields(errors)).toEqual(["picks.invocation.agonizing_blast.cantrip"]);
+    expect(errors[0]!.message).toContain("Toque helado");
+  });
+
+  it("follows each invocation's prerequisite", () => {
+    const spear = withPicks({
+      "class.warlock.invocation_2": ["eldritch_spear", "devils_sight"],
+      "class.warlock.cantrips": ["chill_touch", "eldritch_blast"],
+    }, without(warlock, "invocation.agonizing_blast.cantrip"));
+    const touch = withPicks({ "invocation.eldritch_spear.cantrip": ["chill_touch"] }, spear); // range Touch
+    expect(fields(validateChoices(touch))).toEqual(["picks.invocation.eldritch_spear.cantrip"]);
+    expect(validateChoices(withPicks({ "invocation.eldritch_spear.cantrip": ["eldritch_blast"] }, spear))).toEqual([]);
+  });
+});
+
+describe("validateChoices: Pact of the Tome", () => {
+  const tome = withPicks({
+    "class.warlock.invocation": ["pact_of_the_tome"],
+    "invocation.pact_of_the_tome.cantrips": ["guidance", "fire_bolt", "light"],
+    "invocation.pact_of_the_tome.rituals": ["alarm", "identify"],
+  }, warlockChoices());
+
+  it("accepts three cantrips and two level 1 rituals from any list", () => {
+    expect(validateChoices(tome)).toEqual([]);
+  });
+
+  it("asks for them when the pact is taken at level 2 too", () => {
+    const atLevel2 = withPicks({
+      "class.warlock.invocation": ["eldritch_mind"],
+      "class.warlock.invocation_2": ["pact_of_the_tome", "agonizing_blast"],
+    }, tome);
+    expect(validateChoices(atLevel2)).toEqual([]);
+    expect(fields(validateChoices(without(atLevel2, "invocation.pact_of_the_tome.rituals"))))
+      .toEqual(["picks.invocation.pact_of_the_tome.rituals"]);
+  });
+
+  it("rejects non-ritual spells and cantrips the warlock already knows", () => {
+    const shield = withPicks({ "invocation.pact_of_the_tome.rituals": ["alarm", "shield"] }, tome);
+    expect(fields(validateChoices(shield))).toEqual(["picks.invocation.pact_of_the_tome.rituals"]);
+    const known = withPicks({ "invocation.pact_of_the_tome.cantrips": ["guidance", "fire_bolt", "eldritch_blast"] }, tome);
+    expect(fields(validateChoices(known))).toEqual(["picks.invocation.pact_of_the_tome.cantrips"]);
+  });
+
+  it("lets a Book of Shadows cantrip be improved by Agonizing Blast", () => {
+    expect(validateChoices(withPicks({ "invocation.agonizing_blast.cantrip": ["fire_bolt"] }, tome))).toEqual([]);
+  });
+});
+
+describe("validateChoices: repeatable feats and level 4 feats", () => {
+  it("allows Skilled twice, asking for three skills each time", () => {
+    const three = withPicks({
+      "species.human.versatile": ["skilled"],
+      "class.warlock.invocation_2": ["lessons_of_the_first_ones", "devils_sight"],
+      "class.warlock.lessons_feat": ["skilled"],
+      "feat.skilled.skills": ["history", "stealth", "medicine"],
+    }, without(warlockChoices(), "invocation.agonizing_blast.cantrip"));
+    expect(fields(validateChoices(three))).toEqual(["picks.feat.skilled.skills"]);
+    const six = withPicks({ "feat.skilled.skills": ["history", "stealth", "medicine", "nature", "religion", "insight"] }, three);
+    expect(validateChoices(six)).toEqual([]);
+  });
+
+  it("offers origin feats at level 4", () => {
+    const skilled = withPicks({
+      "class.fighter.level4_feat": ["skilled"],
+      "feat.skilled.skills": ["history", "stealth", "medicine"],
+      "class.fighter.weapon_mastery_level4": ["dagger"],
+    }, fighterChoices({ level: 4 }));
+    expect(validateChoices(skilled)).toEqual([]);
+  });
+
+  it("offers fighting style feats at level 4 only to classes with Fighting Style, once each", () => {
+    const fighter = withPicks({
+      "class.fighter.level4_feat": ["archery"],
+      "class.fighter.weapon_mastery_level4": ["dagger"],
+    }, fighterChoices({ level: 4 }));
+    expect(validateChoices(fighter)).toEqual([]);
+    const again = withPicks({ "class.fighter.level4_feat": ["defense"] }, fighter);
+    expect(fields(validateChoices(again))).toEqual(["picks.class.fighter.level4_feat"]);
+
+    const wizard = { ...wizardChoices(), level: 4 };
+    const errors = validateChoices(withPicks({ "class.wizard.level4_feat": ["archery"] }, wizard));
+    expect(errorFor(errors, "picks.class.wizard.level4_feat")?.message).toContain("archery");
+  });
+});
+
+describe("validateChoices: spells from several sources", () => {
+  it("rejects a class cantrip the species already grants", () => {
+    const wizard = wizardChoices();
+    const picks = Object.fromEntries(Object.entries(wizard.picks).filter(([k]) => !k.startsWith("species.human")));
+    const highElf: CharacterChoices = {
+      ...wizard, speciesId: "elf",
+      picks: {
+        ...picks,
+        "species.elf.lineage": ["high_elf"],
+        "species.elf.spell_ability": ["int"],
+        "species.elf.keen_senses": ["perception"],
+        "class.wizard.cantrips": ["prestidigitation", "fire_bolt", "light"],
+        "feat.magic_initiate_wizard.cantrips": ["mage_hand", "ray_of_frost"],
+      },
+    };
+    const errors = validateChoices(highElf);
+    expect(fields(errors)).toEqual(["picks.class.wizard.cantrips"]);
+    expect(errors[0]!.message).toContain("Prestidigitación");
+  });
+
+  it("rejects preparing the Magic Initiate spell again", () => {
+    const choices = withPicks({ "class.cleric.prepared": spellIds("cleric", 1).slice(0, 4) }, clericChoices());
+    expect(fields(validateChoices(choices))).toEqual(["picks.class.cleric.prepared"]);
   });
 });

@@ -1,7 +1,9 @@
-import { CLASSES_DATA, FEATS, SPECIES, findBackground, findFeat } from "./index";
-import { skillOptions } from "./data/classes/common";
+import { CLASSES_DATA, FEATS, SPECIES, SPELLS, findBackground, findFeat } from "./index";
+import type { SpellData } from "./index";
+import { STANDARD_LANGUAGES, skillOptions } from "./data/classes/common";
 import { spellOptions } from "./data/spells";
-import type { ChoiceSpec, ClassData, LevelRow, Option } from "./types";
+import { requirementsOf } from "./types";
+import type { ChoiceSpec, ClassData, LevelRow, Option, Requirement } from "./types";
 
 export interface Concept { speciesId: string; classId: string; backgroundId: string; level: number }
 
@@ -13,7 +15,41 @@ export function isFeatChoice(id: string): boolean {
 /** Choices whose picks each raise that ability score by 1 (capped at 20). */
 export const ABILITY_INCREASE_CHOICES = new Set(["feat.asi.abilities", "feat.grappler.ability"]);
 
-const LESSONS = { choiceId: "class.warlock.invocation_2", optionId: "lessons_of_the_first_ones" };
+/** Choices that point at cantrips the character already knows (e.g. the cantrip Agonizing Blast improves). */
+export const isInvocationCantripChoice = (id: string) => /^invocation\.\w+\.cantrip$/.test(id);
+
+const isInvocationChoice = (id: string) => /^class\.warlock\.invocation/.test(id);
+
+const ORIGIN_LANGUAGES: ChoiceSpec = {
+  id: "origin.languages", label: "Idiomas de origen (además del común)", count: 2, options: STANDARD_LANGUAGES,
+};
+
+const toOptions = (spells: SpellData[]): Option[] => spells.map((sp) => ({ id: sp.id, name: sp.name, summary: sp.summary }));
+
+const damageCantrips = (eligible: (d: NonNullable<SpellData["damage"]>) => boolean): Option[] =>
+  toOptions(SPELLS.filter((sp) => sp.level === 0 && sp.damage && eligible(sp.damage)));
+
+const cantripTarget = (invocationId: string, name: string, eligible: (d: NonNullable<SpellData["damage"]>) => boolean) => ({
+  id: `invocation.${invocationId}.cantrip`, label: `Truco de brujo para ${name}`, count: 1, options: damageCantrips(eligible),
+});
+
+/** Choices an invocation pick brings, keyed by invocation id. The `requires` is added from the invocation specs. */
+const INVOCATION_GRANTS: Record<string, () => Omit<ChoiceSpec, "requires">[]> = {
+  pact_of_the_tome: () => [
+    { id: "invocation.pact_of_the_tome.cantrips", label: "Trucos del Libro de las sombras", count: 3, options: toOptions(SPELLS.filter((sp) => sp.level === 0)) },
+    {
+      id: "invocation.pact_of_the_tome.rituals", label: "Rituales del Libro de las sombras", count: 2,
+      options: toOptions(SPELLS.filter((sp) => sp.level === 1 && sp.ritual)),
+    },
+  ],
+  agonizing_blast: () => [cantripTarget("agonizing_blast", "Descarga agónica", () => true)],
+  eldritch_spear: () => [cantripTarget("eldritch_spear", "Lanza sobrenatural", (d) => d.rangeFt >= 10)],
+  repelling_blast: () => [cantripTarget("repelling_blast", "Descarga ahuyentadora", (d) => d.attackRoll)],
+  lessons_of_the_first_ones: () => [{
+    id: "class.warlock.lessons_feat", label: "Dote de origen (Lecciones de los primeros)", count: 1,
+    options: FEATS.filter((f) => f.category === "origin").map((f) => ({ id: f.id, name: f.name, summary: f.summary })),
+  }],
+};
 
 /** Highest spell level the class can prepare: its highest slot (pact slot level for the warlock). */
 function highestSpellLevel(row: LevelRow): number {
@@ -41,16 +77,31 @@ function spellChoices(cls: ClassData, row: LevelRow): ChoiceSpec[] {
   return specs;
 }
 
-/** The choices of each feat a feat choice can grant, active only when that feat is picked. */
-function featGrantedChoices(spec: ChoiceSpec): ChoiceSpec[] {
-  return spec.options.flatMap((option) =>
-    (findFeat(option.id)?.choices ?? []).map((c) => ({ ...c, requires: { choiceId: spec.id, optionId: option.id } })),
+/** Specs granted by picking an option of `parents` (invocations or feats), one requirement per parent offering it. */
+function grantedBy(parents: ChoiceSpec[], grants: (optionId: string) => Omit<ChoiceSpec, "requires">[]): ChoiceSpec[] {
+  return parents.flatMap((parent) =>
+    parent.options.flatMap((option) =>
+      grants(option.id).map((spec) => ({ ...spec, requires: { choiceId: parent.id, optionId: option.id } })),
+    ),
   );
 }
 
-/** All specs this concept can need, conditional ones included (with `requires`), parents before children.
-    A feat's choices can appear more than once with different `requires` (one per source that can grant
-    the feat); activeChoices keeps one. Throws on unknown ids or levels without class data. */
+/** One spec per id: an unconditional spec wins; conditional ones merge their requirements (any of them unlocks it). */
+function mergeById(specs: ChoiceSpec[]): ChoiceSpec[] {
+  const out: ChoiceSpec[] = [];
+  for (const spec of specs) {
+    const i = out.findIndex((o) => o.id === spec.id);
+    if (i < 0) out.push(spec);
+    else if (!spec.requires) out[i] = spec;
+    else if (out[i]!.requires) out[i] = { ...out[i]!, requires: [...requirementsOf(out[i]!), ...requirementsOf(spec)] };
+  }
+  return out.map((s) => (Array.isArray(s.requires) && s.requires.length === 1 ? { ...s, requires: s.requires[0] } : s));
+}
+
+/** Every spec this concept can need, with unique ids. Conditional specs carry `requires`: one requirement, or a
+    list when several picks can unlock the same spec (e.g. Skilled from Versatile or from Lessons of the First Ones).
+    Spec order decides which spec reports a duplicate across sources (the later one). Throws on unknown ids or
+    levels without class data. */
 export function requiredChoices(concept: Concept): ChoiceSpec[] {
   const species = SPECIES.find((s) => s.id === concept.speciesId);
   const cls = CLASSES_DATA.find((c) => c.id === concept.classId);
@@ -58,7 +109,8 @@ export function requiredChoices(concept: Concept): ChoiceSpec[] {
   const row = cls?.levels.find((r) => r.level === concept.level);
   if (!species || !cls || !background || !row) throw new Error(`Concepto inválido: ${JSON.stringify(concept)}`);
 
-  const specs: ChoiceSpec[] = [
+  const base: ChoiceSpec[] = [
+    ORIGIN_LANGUAGES,
     ...species.choices,
     ...background.choices,
     ...(findFeat(background.featId)?.choices ?? []),
@@ -70,35 +122,38 @@ export function requiredChoices(concept: Concept): ChoiceSpec[] {
     ...cls.levels.filter((r) => r.level <= concept.level).flatMap((r) => r.choices),
     ...cls.subclass.features.filter((f) => f.level <= concept.level).flatMap((f) => f.choices ?? []),
   ];
-  if (specs.some((s) => s.id === LESSONS.choiceId)) {
-    specs.push({
-      id: "class.warlock.lessons_feat", label: "Dote de origen (Lecciones de los primeros)", count: 1, requires: LESSONS,
-      options: FEATS.filter((f) => f.category === "origin").map((f) => ({ id: f.id, name: f.name, summary: f.summary })),
-    });
-  }
-
-  const unconditional = new Set(specs.filter((s) => !s.requires).map((s) => s.id));
-  const granted = specs.filter((s) => isFeatChoice(s.id)).flatMap(featGrantedChoices);
-  return [...specs, ...granted.filter((s) => !unconditional.has(s.id))];
+  const fromInvocations = grantedBy(base.filter((s) => isInvocationChoice(s.id)), (id) => INVOCATION_GRANTS[id]?.() ?? []);
+  const featParents = [...base, ...fromInvocations].filter((s) => isFeatChoice(s.id));
+  const fromFeats = grantedBy(featParents, (id) => findFeat(id)?.choices ?? []);
+  return mergeById([...base, ...fromInvocations, ...fromFeats]);
 }
 
-/** Drops specs whose `requires` pick was not made (or whose parent is itself inactive), keeps one spec
-    per id, and asks for one set of picks per time a repeatable parent option was taken. */
+function isRepeatablePick(spec: ChoiceSpec | undefined, optionId: string): boolean {
+  if (!spec) return false;
+  if (spec.options.find((o) => o.id === optionId)?.repeatable) return true;
+  return isFeatChoice(spec.id) && (findFeat(optionId)?.repeatable ?? false);
+}
+
+/** Specs whose requirements are met by the picks (an unconditional spec always is; a conditional one needs an
+    active parent spec with that pick). When the unlocking option is repeatable and was taken n times in total,
+    the spec asks for n times its count (e.g. one cantrip per Agonizing Blast, three skills per Skilled). */
 export function activeChoices(specs: ChoiceSpec[], picks: Record<string, string[]>): ChoiceSpec[] {
-  const active: ChoiceSpec[] = [];
-  for (const spec of specs) {
-    if (active.some((a) => a.id === spec.id)) continue;
-    if (!spec.requires) {
-      active.push(spec);
-      continue;
+  const active = new Set<string>();
+  const metBy = (spec: ChoiceSpec): Requirement[] =>
+    requirementsOf(spec).filter((r) => active.has(r.choiceId) && (picks[r.choiceId] ?? []).includes(r.optionId));
+  let changed = true;
+  while (changed) { // parents usually come first, but do not rely on the order
+    changed = false;
+    for (const spec of specs) {
+      if (active.has(spec.id) || (spec.requires && metBy(spec).length === 0)) continue;
+      active.add(spec.id);
+      changed = true;
     }
-    const { choiceId, optionId } = spec.requires;
-    const parent = active.find((a) => a.id === choiceId);
-    if (!parent) continue;
-    const times = (picks[choiceId] ?? []).filter((p) => p === optionId).length;
-    if (times === 0) continue;
-    const repeatable = parent.options.find((o) => o.id === optionId)?.repeatable ?? false;
-    active.push(repeatable && times > 1 ? { ...spec, count: spec.count * times } : spec);
   }
-  return active;
+  return specs.filter((s) => active.has(s.id)).map((spec) => {
+    const met = metBy(spec);
+    const times = met.reduce((n, r) => n + picks[r.choiceId]!.filter((p) => p === r.optionId).length, 0);
+    const repeatable = met.some((r) => isRepeatablePick(specs.find((s) => s.id === r.choiceId), r.optionId));
+    return repeatable && times > 1 ? { ...spec, count: spec.count * times } : spec;
+  });
 }

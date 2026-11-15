@@ -45,12 +45,18 @@ export interface Option {
   repeatable?: boolean;
 }
 
+/** A pick that unlocks a choice. A list of them means any one is enough (several sources can grant it). */
+export interface Requirement { choiceId: string; optionId: string }
+
+export const requirementsOf = (spec: ChoiceSpec): Requirement[] =>
+  spec.requires === undefined ? [] : Array.isArray(spec.requires) ? spec.requires : [spec.requires];
+
 export interface ChoiceSpec {
   /** Namespaced: "species.elf.lineage", "class.fighter.fighting_style", "feat.skilled.skills" */
   id: string; label: string; count: number; options: Option[];
   allowRepeat?: boolean;
   /** Only active when that pick was made. */
-  requires?: { choiceId: string; optionId: string };
+  requires?: Requirement | Requirement[];
 }
 
 export interface SpeciesData {
@@ -77,6 +83,8 @@ export interface FeatData {
   prerequisite?: { minLevel?: number; anyAbility?: { abilities: Ability[]; min: number } };
   choices: ChoiceSpec[];            // e.g. Skilled: 3 skills; Magic Initiate: cantrips + spell; ASI: 2 abilities allowRepeat
   initiativeAddsProficiency?: boolean; // Alert
+  /** SRD "Repetible": can be taken more than once (feats are taken once otherwise). */
+  repeatable?: boolean;
 }
 
 export interface LevelRow {

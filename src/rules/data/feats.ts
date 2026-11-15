@@ -52,11 +52,13 @@ export const FEATS_DATA: FeatData[] = [
     id: "skilled", name: "Habilidoso", source: SOURCE, category: "origin",
     summary: "Ganás competencia en tres habilidades a elección.",
     choices: [skilledSkills],
+    repeatable: true,
   },
   {
     id: "ability_score_improvement", name: "Mejora de característica", source: SOURCE, category: "general",
     summary: "Aumentás una puntuación de característica en 2 o dos en 1 cada una, sin pasar de 20.",
     prerequisite: { minLevel: 4 },
+    repeatable: true,
     choices: [
       { id: "feat.asi.abilities", label: "Características", count: 2, allowRepeat: true, options: abilityOptions() },
     ],

@@ -11,10 +11,40 @@ export interface SpellData {
   lists: string[];
   summary: string;
   source: "SRD 5.2";
+  /** Has the Ritual tag ("R" in the SRD spell list tables). */
+  ritual: boolean;
+  /** Cantrips that deal damage on their own: whether via an attack roll, and their range in feet
+      (0 for Touch or Self). Used by warlock invocations such as Agonizing Blast. */
+  damage?: { attackRoll: boolean; rangeFt: number };
 }
 
+// Ritual spells of levels 1-2, from the "R" column of the SRD class spell list tables.
+const RITUALS = new Set([
+  "alarm", "comprehend_languages", "detect_magic", "detect_poison_and_disease", "find_familiar", "floating_disk",
+  "identify", "illusory_script", "purify_food_and_drink", "speak_with_animals", "unseen_servant",
+  "animal_messenger", "augury", "gentle_repose", "locate_animals_or_plants", "magic_mouth", "silence",
+]);
+
+// Damaging cantrips, from each spell's Range line and description in the SRD. True Strike and
+// Shillelagh are left out: the damage comes from the weapon, not from the spell.
+const DAMAGE_CANTRIPS: Record<string, { attackRoll: boolean; rangeFt: number }> = {
+  acid_splash: { attackRoll: false, rangeFt: 60 },
+  chill_touch: { attackRoll: true, rangeFt: 0 },
+  eldritch_blast: { attackRoll: true, rangeFt: 120 },
+  fire_bolt: { attackRoll: true, rangeFt: 120 },
+  poison_spray: { attackRoll: true, rangeFt: 30 },
+  produce_flame: { attackRoll: true, rangeFt: 0 },
+  ray_of_frost: { attackRoll: true, rangeFt: 60 },
+  sacred_flame: { attackRoll: false, rangeFt: 60 },
+  shocking_grasp: { attackRoll: true, rangeFt: 0 },
+  sorcerous_burst: { attackRoll: true, rangeFt: 120 },
+  starry_wisp: { attackRoll: true, rangeFt: 60 },
+  vicious_mockery: { attackRoll: false, rangeFt: 60 },
+};
+
 const s = (id: string, name: string, level: 0 | 1 | 2, school: string, lists: string[], summary: string): SpellData => ({
-  id, name, level, school, lists, summary, source: "SRD 5.2",
+  id, name, level, school, lists, summary, source: "SRD 5.2", ritual: RITUALS.has(id),
+  ...(DAMAGE_CANTRIPS[id] ? { damage: DAMAGE_CANTRIPS[id] } : {}),
 });
 
 export const SPELLS: SpellData[] = [

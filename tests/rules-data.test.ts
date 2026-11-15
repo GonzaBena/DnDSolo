@@ -17,7 +17,7 @@ import {
   findSpell,
   spellsFor,
 } from "../src/rules";
-import { SKILLS } from "../src/rules/types";
+import { SKILLS, requirementsOf } from "../src/rules/types";
 import type { ChoiceSpec } from "../src/rules/types";
 
 const sorted = (xs: string[]) => [...xs].sort();
@@ -155,7 +155,7 @@ describe("integrity", () => {
 
   it("points every requires at an existing choice", () => {
     const ids = new Set(allChoices().map((c) => c.id));
-    for (const c of allChoices()) if (c.requires) expect(ids.has(c.requires.choiceId)).toBe(true);
+    for (const c of allChoices()) for (const r of requirementsOf(c)) expect(ids.has(r.choiceId)).toBe(true);
   });
 
   it("marks every entry as SRD 5.2", () => {
@@ -200,7 +200,8 @@ describe("classes (levels 1-4)", () => {
   const cls = (id: string) => findClass(id)!;
   const row = (id: string, level: number) => cls(id).levels[level - 1];
   const choiceIds = (id: string, level: number) => row(id, level).choices.map((c) => c.id);
-  const generalFeats = FEATS.filter((f) => f.category === "general").map((f) => f.id);
+  const level4Feats = (withStyles: boolean) =>
+    FEATS.filter((f) => f.category !== "fighting_style" || withStyles).map((f) => f.id);
   const classChoices = () =>
     CLASSES_DATA.flatMap((c) => [...c.levels.flatMap((l) => l.choices), ...c.subclass.features.flatMap((f) => f.choices ?? [])]);
 
@@ -232,7 +233,8 @@ describe("classes (levels 1-4)", () => {
     expect(cls(id).subclass.level).toBe(3);
     expect(cls(id).subclass.features.length).toBeGreaterThan(0);
     const feat = row(id, 4).choices.find((c) => c.id === `class.${id}.level4_feat`);
-    expect(feat?.options.map((o) => o.id).sort()).toEqual([...generalFeats].sort());
+    const withStyles = ["fighter", "paladin", "ranger"].includes(id);
+    expect(feat?.options.map((o) => o.id).sort()).toEqual(level4Feats(withStyles).sort());
     expect(feat?.options.map((o) => o.id)).toContain("ability_score_improvement");
   });
 
@@ -500,6 +502,22 @@ describe("classes (levels 1-4)", () => {
 });
 
 describe("spells (cantrips to level 2)", () => {
+  it("flags the SRD rituals", () => {
+    for (const id of ["detect_magic", "find_familiar", "identify", "alarm", "unseen_servant", "augury", "silence"]) {
+      expect(findSpell(id)?.ritual, id).toBe(true);
+    }
+    for (const id of ["magic_missile", "cure_wounds", "shield", "misty_step", "fire_bolt"]) expect(findSpell(id)?.ritual, id).toBe(false);
+  });
+
+  it("flags damaging cantrips with attack roll and range", () => {
+    expect(findSpell("eldritch_blast")?.damage).toEqual({ attackRoll: true, rangeFt: 120 });
+    expect(findSpell("chill_touch")?.damage).toEqual({ attackRoll: true, rangeFt: 0 });
+    expect(findSpell("vicious_mockery")?.damage).toEqual({ attackRoll: false, rangeFt: 60 });
+    expect(findSpell("minor_illusion")?.damage).toBeUndefined();
+    expect(findSpell("true_strike")?.damage).toBeUndefined();
+    for (const sp of SPELLS) if (sp.damage) expect(sp.level, sp.id).toBe(0);
+  });
+
   const LISTS = ["bard", "cleric", "druid", "paladin", "ranger", "sorcerer", "warlock", "wizard"];
 
   /** Every ChoiceSpec reachable from the rules data, including class levels and subclass features. */

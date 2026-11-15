@@ -63,7 +63,7 @@ const levels: LevelRow[] = [
   {
     level: 4, proficiencyBonus: 2, resources: { "Imponer las manos": 20, "Canalizar divinidad": 2 }, preparedSpells: 5, slots: [3],
     features: [ASI_TRAIT],
-    choices: [level4FeatChoice("paladin")],
+    choices: [level4FeatChoice("paladin", true)],
   },
 ];
 

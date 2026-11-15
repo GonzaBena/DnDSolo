@@ -58,7 +58,7 @@ const levels: LevelRow[] = [
   {
     level: 4, proficiencyBonus: 2, resources: { "Enemigo predilecto": 2 }, preparedSpells: 5, slots: [3],
     features: [ASI_TRAIT],
-    choices: [level4FeatChoice("ranger")],
+    choices: [level4FeatChoice("ranger", true)],
   },
 ];
 

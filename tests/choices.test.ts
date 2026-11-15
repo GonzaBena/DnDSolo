@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { activeChoices, requiredChoices } from "../src/rules/choices";
 import type { Concept } from "../src/rules/choices";
-import { findSpell, spellsFor } from "../src/rules";
+import { BACKGROUNDS, CLASSES_DATA, SPECIES, SPELLS, findSpell, spellsFor } from "../src/rules";
+import { requirementsOf } from "../src/rules/types";
 import type { ChoiceSpec } from "../src/rules/types";
 
 const human = (classId: string, level: number, backgroundId = "soldier"): Concept => ({
@@ -83,11 +84,51 @@ describe("requiredChoices", () => {
     expect(ids(requiredChoices(human("ranger", 3)))).toContain("subclass.hunter.hunters_prey");
   });
 
+  it("asks every character for two standard languages besides Common", () => {
+    const languages = spec(requiredChoices(human("fighter", 1)), "origin.languages")!;
+    expect(languages.count).toBe(2);
+    expect(languages.requires).toBeUndefined();
+    expect(languages.options.map((o) => o.id).sort()).toEqual([
+      "common_sign_language", "draconic", "dwarvish", "elvish", "giant", "gnomish", "goblin", "halfling", "orc",
+    ]);
+  });
+
+  it("never returns the same id twice", () => {
+    for (const cls of CLASSES_DATA) for (const sp of SPECIES) for (const bg of BACKGROUNDS) for (const level of [1, 2, 3, 4]) {
+      const all = ids(requiredChoices({ speciesId: sp.id, classId: cls.id, backgroundId: bg.id, level }));
+      expect(new Set(all).size, `${sp.id}/${cls.id}/${bg.id}/${level}`).toBe(all.length);
+    }
+  });
+
+  it("unlocks the Book of Shadows from the invocation picked at level 1 or 2", () => {
+    const specs = requiredChoices(human("warlock", 2));
+    expect(spec(specs, "invocation.pact_of_the_tome.cantrips")?.requires).toEqual([
+      { choiceId: "class.warlock.invocation", optionId: "pact_of_the_tome" },
+      { choiceId: "class.warlock.invocation_2", optionId: "pact_of_the_tome" },
+    ]);
+    const rituals = spec(specs, "invocation.pact_of_the_tome.rituals")!;
+    expect(rituals.count).toBe(2);
+    expect(rituals.options.every((o) => findSpell(o.id)!.ritual && findSpell(o.id)!.level === 1)).toBe(true);
+    expect(spec(specs, "invocation.pact_of_the_tome.cantrips")!.options.length)
+      .toBe(new Set(SPELLS.filter((s) => s.level === 0).map((s) => s.id)).size);
+  });
+
+  it("offers each improving invocation only the warlock cantrips that meet its prerequisite", () => {
+    const specs = requiredChoices(human("warlock", 2));
+    const opts = (id: string) => spec(specs, `invocation.${id}.cantrip`)!.options.map((o) => o.id);
+    const warlockDamage = spellsFor("warlock", 0).filter((s) => s.damage).map((s) => s.id).sort();
+    expect(warlockDamage).toEqual(["chill_touch", "eldritch_blast", "poison_spray"]);
+    expect(opts("agonizing_blast")).toEqual(expect.arrayContaining(warlockDamage));
+    expect(opts("eldritch_spear")).not.toContain("chill_touch");
+    expect(opts("eldritch_spear")).toContain("poison_spray");
+    expect(opts("repelling_blast")).not.toContain("vicious_mockery");
+  });
+
   it("offers an origin feat for Lessons of the First Ones", () => {
     const specs = requiredChoices(human("warlock", 2));
     expect(spec(specs, "class.warlock.lessons_feat")?.requires)
       .toEqual({ choiceId: "class.warlock.invocation_2", optionId: "lessons_of_the_first_ones" });
-    expect(specs.some((s) => s.id === "feat.skilled.skills" && s.requires?.choiceId === "class.warlock.lessons_feat"))
+    expect(specs.some((s) => s.id === "feat.skilled.skills" && requirementsOf(s).some((r) => r.choiceId === "class.warlock.lessons_feat")))
       .toBe(true);
   });
 });
@@ -107,14 +148,24 @@ describe("activeChoices", () => {
     expect(ids(activeChoices(fighter4, { "species.human.versatile": ["skilled"] }))).toContain("feat.skilled.skills");
   });
 
-  it("keeps a spec once even when two sources can grant it", () => {
+  it("sums the count when a repeatable feat comes from two sources", () => {
     const specs = requiredChoices(human("warlock", 2));
     const active = activeChoices(specs, {
       "species.human.versatile": ["skilled"],
       "class.warlock.invocation_2": ["lessons_of_the_first_ones", "devils_sight"],
       "class.warlock.lessons_feat": ["skilled"],
     });
-    expect(ids(active).filter((id) => id === "feat.skilled.skills")).toHaveLength(1);
+    expect(active.filter((s) => s.id === "feat.skilled.skills").map((s) => s.count)).toEqual([6]);
+    const once = activeChoices(specs, { "species.human.versatile": ["skilled"] });
+    expect(spec(once, "feat.skilled.skills")?.count).toBe(3);
+  });
+
+  it("asks for one cantrip per Agonizing Blast taken", () => {
+    const specs = requiredChoices(human("warlock", 2));
+    const once = activeChoices(specs, { "class.warlock.invocation_2": ["agonizing_blast", "devils_sight"] });
+    expect(spec(once, "invocation.agonizing_blast.cantrip")?.count).toBe(1);
+    const twice = activeChoices(specs, { "class.warlock.invocation_2": ["agonizing_blast", "agonizing_blast"] });
+    expect(spec(twice, "invocation.agonizing_blast.cantrip")?.count).toBe(2);
   });
 
   it("activates a chained choice only when its parent is active", () => {
