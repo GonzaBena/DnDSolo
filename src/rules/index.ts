@@ -4,11 +4,13 @@ import { ARMOR as ARMOR_DATA, WEAPONS as WEAPONS_DATA, findItem } from "./data/e
 import type { ArmorData, WeaponData } from "./data/equipment";
 import { FEATS_DATA } from "./data/feats";
 import { SPECIES_DATA } from "./data/species";
+import { SPELLS as SPELLS_DATA, findSpell, spellsFor } from "./data/spells";
+import type { SpellData } from "./data/spells";
 import type { BackgroundData, ClassData, FeatData, SpeciesData } from "./types";
 
 export * from "./types";
-export { findItem };
-export type { ArmorData, WeaponData };
+export { findItem, findSpell, spellsFor };
+export type { ArmorData, SpellData, WeaponData };
 
 export const SPECIES: SpeciesData[] = SPECIES_DATA;
 export const BACKGROUNDS: BackgroundData[] = BACKGROUNDS_DATA;
@@ -16,6 +18,7 @@ export const FEATS: FeatData[] = FEATS_DATA;
 export const CLASSES_DATA: ClassData[] = CLASSES_DATA_LIST;
 export const WEAPONS: WeaponData[] = WEAPONS_DATA;
 export const ARMOR: ArmorData[] = ARMOR_DATA;
+export const SPELLS: SpellData[] = SPELLS_DATA;
 
 /** Class data is only loaded up to this level (see the phase 1 design). */
 export const LOADED_MAX_LEVEL = 4;

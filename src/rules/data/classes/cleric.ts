@@ -1,8 +1,9 @@
 import type { ClassData, LevelRow } from "../../types";
+import { spellOptions } from "../spells";
 import { ASI_TRAIT, SOURCE, level4FeatChoice, subclassTrait } from "./common";
 
 // Cantrips, prepared spells, slots and Channel Divinity from the SRD table "Rasgos de clérigo".
-// The extra cantrip of the Thaumaturge order is picked in the spell task.
+// The extra cantrip of the Thaumaturge order is a conditional choice.
 const levels: LevelRow[] = [
   {
     level: 1, proficiencyBonus: 2, resources: {}, cantrips: 3, preparedSpells: 4, slots: [2],
@@ -26,6 +27,11 @@ const levels: LevelRow[] = [
             summary: "Un truco adicional de la lista de clérigo y un bonificador a Conocimiento arcano y Religión igual a tu modificador de Sabiduría (mín. +1).",
           },
         ],
+      },
+      {
+        id: "class.cleric.thaumaturge_cantrip", label: "Truco adicional (Taumaturgo)", count: 1,
+        options: spellOptions("cleric", 0),
+        requires: { choiceId: "class.cleric.divine_order", optionId: "thaumaturge" },
       },
     ],
   },

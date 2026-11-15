@@ -1,11 +1,12 @@
 import type { ClassData, LevelRow } from "../../types";
+import { spellOptions } from "../spells";
 import {
   ASI_TRAIT, SOURCE, fightingStyleChoice, level4FeatChoice, masteryWeapons, subclassTrait, weaponMasteryChoice,
   weaponMasteryTrait,
 } from "./common";
 
 // Spell slots, prepared spells and Channel Divinity from the SRD table "Rasgos de paladín".
-// The cantrips of Blessed Warrior are chosen in the spell task.
+// The two cleric cantrips of Blessed Warrior are a conditional choice (SRD: "Guerrero bendito").
 const levels: LevelRow[] = [
   {
     level: 1, proficiencyBonus: 2, resources: { "Imponer las manos": 5 }, preparedSpells: 2, slots: [2],
@@ -41,6 +42,11 @@ const levels: LevelRow[] = [
           summary: "Aprendés dos trucos de clérigo de tu elección; cuentan como conjuros de paladín y el Carisma es tu aptitud mágica para ellos. Podés cambiar uno por otro truco de clérigo al subir de nivel.",
         },
       ]),
+      {
+        id: "class.paladin.blessed_warrior_cantrips", label: "Trucos de clérigo (Guerrero bendito)", count: 2,
+        options: spellOptions("cleric", 0),
+        requires: { choiceId: "class.paladin.fighting_style", optionId: "blessed_warrior" },
+      },
     ],
   },
   {

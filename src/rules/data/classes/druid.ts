@@ -1,8 +1,9 @@
 import type { ClassData, LevelRow } from "../../types";
+import { spellOptions } from "../spells";
 import { ASI_TRAIT, SOURCE, level4FeatChoice, subclassTrait } from "./common";
 
 // Cantrips, prepared spells, slots and Wild Shape uses from the SRD table "Rasgos de druida".
-// The extra cantrip of the Magician order is picked in the spell task.
+// The extra cantrip of the Magician order is a conditional choice.
 const levels: LevelRow[] = [
   {
     level: 1, proficiencyBonus: 2, resources: {}, cantrips: 2, preparedSpells: 4, slots: [2],
@@ -30,6 +31,11 @@ const levels: LevelRow[] = [
           },
           { id: "warden", name: "Guardián", summary: "Competencia con armas marciales y entrenamiento con armaduras medias." },
         ],
+      },
+      {
+        id: "class.druid.magician_cantrip", label: "Truco adicional (Naturalista)", count: 1,
+        options: spellOptions("druid", 0),
+        requires: { choiceId: "class.druid.primal_order", optionId: "magician" },
       },
     ],
   },

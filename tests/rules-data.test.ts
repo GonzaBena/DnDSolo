@@ -6,6 +6,7 @@ import {
   FEATS,
   LOADED_MAX_LEVEL,
   SPECIES,
+  SPELLS,
   STANDARD_ARRAY,
   WEAPONS,
   findBackground,
@@ -13,6 +14,8 @@ import {
   findFeat,
   findItem,
   findSpecies,
+  findSpell,
+  spellsFor,
 } from "../src/rules";
 import { SKILLS } from "../src/rules/types";
 import type { ChoiceSpec } from "../src/rules/types";
@@ -494,4 +497,102 @@ describe("classes (levels 1-4)", () => {
       ["bard", "cleric", "druid", "sorcerer", "warlock", "wizard"].map((id) => cls(id).subclass.name),
     ).toEqual(["Colegio del conocimiento", "Dominio de la vida", "Círculo de la tierra", "Hechicería dracónica", "Patrón infernal", "Evocador"]);
   });
+});
+
+describe("spells (cantrips to level 2)", () => {
+  const LISTS = ["bard", "cleric", "druid", "paladin", "ranger", "sorcerer", "warlock", "wizard"];
+
+  /** Every ChoiceSpec reachable from the rules data, including class levels and subclass features. */
+  function everyChoice(): ChoiceSpec[] {
+    return [
+      ...allChoices(),
+      ...CLASSES_DATA.flatMap((c) => [
+        ...c.levels.flatMap((l) => l.choices),
+        ...c.subclass.features.flatMap((f) => f.choices ?? []),
+      ]),
+    ];
+  }
+
+  it("every spellId granted by species, feats and classes exists", () => {
+    const granted = [
+      ...SPECIES.flatMap((s) => s.choices),
+      ...BACKGROUNDS.flatMap((b) => b.choices),
+      ...FEATS.flatMap((f) => f.choices),
+      ...CLASSES_DATA.flatMap((c) => c.levels.flatMap((l) => l.choices)),
+      ...CLASSES_DATA.flatMap((c) => c.subclass.features.flatMap((f) => f.choices ?? [])),
+    ]
+      .flatMap((c) => c.options)
+      .flatMap((o) => o.spells ?? []);
+    expect(granted.length).toBeGreaterThan(0);
+    for (const g of granted) expect(findSpell(g.spellId), g.spellId).toBeDefined();
+  });
+
+  it("has unique ids, valid levels, known lists and a non-empty summary", () => {
+    expect(new Set(SPELLS.map((s) => s.id)).size).toBe(SPELLS.length);
+    for (const s of SPELLS) {
+      expect([0, 1, 2]).toContain(s.level);
+      expect(s.summary.trim(), s.id).not.toBe("");
+      expect(s.name.trim(), s.id).not.toBe("");
+      expect(s.school.trim(), s.id).not.toBe("");
+      expect(s.lists.length, s.id).toBeGreaterThan(0);
+      for (const l of s.lists) expect(LISTS, `${s.id}: ${l}`).toContain(l);
+      expect(s.source).toBe("SRD 5.2");
+    }
+  });
+
+  it("spellsFor filters by list and level", () => {
+    expect(spellsFor("wizard", 0).map((s) => s.id)).toContain("ray_of_frost");
+    expect(spellsFor("cleric", 1).map((s) => s.id)).toContain("cure_wounds");
+    expect(spellsFor("wizard", 0).every((s) => s.level === 0 && s.lists.includes("wizard"))).toBe(true);
+    expect(spellsFor("fighter", 1)).toEqual([]);
+  });
+
+  it("matches known list sizes from the SRD spell list tables", () => {
+    expect(spellsFor("wizard", 0)).toHaveLength(15);
+    expect(spellsFor("cleric", 0)).toHaveLength(7);
+    expect(spellsFor("druid", 0)).toHaveLength(11);
+    expect(spellsFor("bard", 0)).toHaveLength(10);
+    expect(SPELLS.filter((s) => s.level === 0)).toHaveLength(27);
+    expect(SPELLS.filter((s) => s.level === 1)).toHaveLength(57);
+    expect(SPELLS.filter((s) => s.level === 2)).toHaveLength(57);
+  });
+
+  it("cross-checks list membership of a few spells against their own class lines", () => {
+    expect(findSpell("faerie_fire")?.lists.sort()).toEqual(["bard", "druid"]);
+    expect(findSpell("find_familiar")?.lists).toEqual(["wizard"]);
+    expect(findSpell("divine_smite")?.lists).toEqual(["paladin"]);
+    expect(findSpell("hex")?.lists).toEqual(["warlock"]);
+    expect(findSpell("detect_magic")?.lists).toHaveLength(8);
+  });
+
+  for (const list of ["cleric", "druid", "wizard"] as const) {
+    it(`Magic Initiate (${list}) offers exactly the ${list} cantrips and level 1 spells`, () => {
+      const feat = findFeat(`magic_initiate_${list}`)!;
+      const cantrips = feat.choices.find((c) => c.id === `feat.magic_initiate_${list}.cantrips`)!;
+      const spell = feat.choices.find((c) => c.id === `feat.magic_initiate_${list}.spell`)!;
+      expect(cantrips.count).toBe(2);
+      expect(spell.count).toBe(1);
+      expect(cantrips.options.map((o) => o.id)).toEqual(spellsFor(list, 0).map((s) => s.id));
+      expect(spell.options.map((o) => o.id)).toEqual(spellsFor(list, 1).map((s) => s.id));
+    });
+  }
+
+  const extraCantrips = [
+    { id: "class.paladin.blessed_warrior_cantrips", list: "cleric", count: 2, choice: "class.paladin.fighting_style", option: "blessed_warrior" },
+    { id: "class.ranger.druidic_warrior_cantrips", list: "druid", count: 2, choice: "class.ranger.fighting_style", option: "druidic_warrior" },
+    { id: "class.cleric.thaumaturge_cantrip", list: "cleric", count: 1, choice: "class.cleric.divine_order", option: "thaumaturge" },
+    { id: "class.druid.magician_cantrip", list: "druid", count: 1, choice: "class.druid.primal_order", option: "magician" },
+  ];
+  for (const e of extraCantrips) {
+    it(`${e.id} requires an existing pick and offers the ${e.list} cantrips`, () => {
+      const matches = everyChoice().filter((c) => c.id === e.id);
+      expect(matches).toHaveLength(1);
+      const spec = matches[0]!;
+      expect(spec.count).toBe(e.count);
+      expect(spec.requires).toEqual({ choiceId: e.choice, optionId: e.option });
+      const target = everyChoice().find((c) => c.id === e.choice);
+      expect(target?.options.some((o) => o.id === e.option)).toBe(true);
+      expect(spec.options.map((o) => o.id)).toEqual(spellsFor(e.list, 0).map((s) => s.id));
+    });
+  }
 });

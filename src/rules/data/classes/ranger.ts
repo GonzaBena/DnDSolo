@@ -1,4 +1,5 @@
 import type { ClassData, LevelRow } from "../../types";
+import { spellOptions } from "../spells";
 import {
   ASI_TRAIT, SOURCE, expertiseChoice, fightingStyleChoice, languageChoice, level4FeatChoice, masteryWeapons,
   subclassTrait, weaponMasteryChoice, weaponMasteryTrait,
@@ -40,6 +41,11 @@ const levels: LevelRow[] = [
           summary: "Aprendés dos trucos de druida de tu elección; cuentan como conjuros de explorador y la Sabiduría es tu aptitud mágica para ellos. Podés cambiar uno por otro truco de druida al subir de nivel.",
         },
       ]),
+      {
+        id: "class.ranger.druidic_warrior_cantrips", label: "Trucos de druida (Guerrero druídico)", count: 2,
+        options: spellOptions("druid", 0),
+        requires: { choiceId: "class.ranger.fighting_style", optionId: "druidic_warrior" },
+      },
       expertiseChoice("ranger", 1),
       languageChoice("class.ranger.languages", 2),
     ],

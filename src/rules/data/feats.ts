@@ -1,5 +1,6 @@
 import { ABILITIES, SKILLS } from "../types";
 import type { Ability, ChoiceSpec, FeatData, Option } from "../types";
+import { spellOptions } from "./spells";
 
 const SOURCE = "SRD 5.2" as const;
 
@@ -10,8 +11,7 @@ const ABILITY_NAMES: Record<Ability, string> = {
 const abilityOptions = (abilities: Ability[] = ABILITIES): Option[] =>
   abilities.map((a) => ({ id: a, name: ABILITY_NAMES[a], summary: ABILITY_NAMES[a] }));
 
-/** Magic Initiate: the spell options stay empty here; they are filled from the
-    spell list once spells exist, so they are never typed by hand. */
+/** Magic Initiate: the spell options come from the spell list, never typed by hand. */
 function magicInitiate(list: "cleric" | "druid" | "wizard", listName: string): FeatData {
   const id = `magic_initiate_${list}`;
   return {
@@ -19,8 +19,8 @@ function magicInitiate(list: "cleric" | "druid" | "wizard", listName: string): F
     summary: `Aprendés dos trucos y un conjuro de nivel 1 de la lista de ${listName}. Siempre tenés preparado ese conjuro y podés lanzarlo una vez gratis por descanso largo. Tu aptitud mágica es Inteligencia, Sabiduría o Carisma (a elección).`,
     choices: [
       { id: `feat.${id}.ability`, label: "Aptitud mágica", count: 1, options: abilityOptions(["int", "wis", "cha"]) },
-      { id: `feat.${id}.cantrips`, label: "Trucos", count: 2, options: [] },
-      { id: `feat.${id}.spell`, label: "Conjuro de nivel 1", count: 1, options: [] },
+      { id: `feat.${id}.cantrips`, label: "Trucos", count: 2, options: spellOptions(list, 0) },
+      { id: `feat.${id}.spell`, label: "Conjuro de nivel 1", count: 1, options: spellOptions(list, 1) },
     ],
   };
 }

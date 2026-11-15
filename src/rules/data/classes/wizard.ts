@@ -3,7 +3,7 @@ import { ASI_TRAIT, SOURCE, level4FeatChoice, skillOptions, subclassTrait } from
 
 const SCHOLAR_SKILLS: SkillId[] = ["arcana", "history", "investigation", "medicine", "nature", "religion"];
 
-// Cantrips, prepared spells and slots from the SRD table "Rasgos de mago". The spellbook contents are picked in the spell task.
+// Cantrips, prepared spells and slots from the SRD table "Rasgos de mago". The spellbook contents are derived from the spell list.
 const levels: LevelRow[] = [
   {
     level: 1, proficiencyBonus: 2, resources: {}, cantrips: 3, preparedSpells: 4, slots: [2],
