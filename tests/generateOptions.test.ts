@@ -115,6 +115,17 @@ describe("generateOptions", () => {
     expect(result.failures[0]).toContain("Atletismo");
   });
 
+  it("keeps a concept whose class cantrip repeats one its background feat gives", async () => {
+    const ilsa = greedyChoices("dwarf", "cleric", "acolyte", 1);
+    const mi = ilsa.picks["feat.magic_initiate_cleric.cantrips"]!;
+    const repeated = choicesReply({ ...ilsa, picks: { ...ilsa.picks, "class.cleric.cantrips": [mi[0]!, "light", "mending"] } });
+    const llm = scripted({ Ilsa: [repeated] });
+    const result = await generateOptions(llm, STORY, 1);
+    expect(result.failures).toEqual([]);
+    const option = result.options.find((o) => o.name === "Ilsa")!;
+    expect(option.choices.picks["class.cleric.cantrips"]).not.toContain(mi[0]);
+  });
+
   it("reports malformed step-2 JSON in plain Spanish and keeps the Zod detail for the retry prompt", async () => {
     const llm = scripted({ Brann: [{ baseScores: {} }, "no es json"] });
     const result = await generateOptions(llm, STORY, 1);

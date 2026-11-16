@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSheet, validateChoices } from "../src/rules/buildSheet";
+import { buildSheet, replaceRepeatedSpells, validateChoices } from "../src/rules/buildSheet";
 import type { CharacterChoices, ChoiceError } from "../src/rules/buildSheet";
 import { WEAPONS, findClass, findSpell, spellsFor } from "../src/rules";
 import type { CharacterSheet, SkillId } from "../src/rules";
@@ -995,5 +995,49 @@ describe("buildSheet: invalid choices", () => {
     const bad = withPicks({ "class.fighter.fighting_style": ["nope"] });
     expect(buildSheet(bad)).toEqual({ ok: false, errors: validateChoices(bad) });
     expect(buildSheet({ ...fighterChoices(), classId: "bogus" })).toMatchObject({ ok: false });
+  });
+});
+
+describe("replaceRepeatedSpells", () => {
+  const repeat = (c: CharacterChoices, picks: Record<string, string[]>): CharacterChoices => ({ ...c, picks: { ...c.picks, ...picks } });
+
+  it("swaps a class cantrip that a feat already gives for a free one", () => {
+    const c = repeat(greedyChoices("human", "cleric", "acolyte", 1), { "class.cleric.cantrips": ["guidance", "light", "mending"] });
+    expect(buildSheet(c).ok).toBe(false);
+    const fixed = replaceRepeatedSpells(c);
+    const cantrips = fixed.picks["class.cleric.cantrips"]!;
+    expect(cantrips).not.toContain("guidance");
+    expect(cantrips).toEqual(expect.arrayContaining(["light", "mending"]));
+    expect(cantrips).toHaveLength(3);
+    expect(buildSheet(fixed).ok).toBe(true);
+  });
+
+  it("swaps a cantrip that the species lineage already gives", () => {
+    const c = repeat(greedyChoices("elf", "wizard", "sage", 1), {
+      "species.elf.lineage": ["high_elf"], "class.wizard.cantrips": ["prestidigitation", "minor_illusion", "true_strike"],
+    });
+    expect(buildSheet(c).ok).toBe(false);
+    const fixed = replaceRepeatedSpells(c);
+    expect(fixed.picks["class.wizard.cantrips"]).not.toContain("prestidigitation");
+    expect(buildSheet(fixed).ok).toBe(true);
+  });
+
+  it("replaces a wizard's repeated prepared spell with another one from the spellbook", () => {
+    const base = greedyChoices("elf", "wizard", "sage", 1);
+    const c = repeat(base, {
+      "feat.magic_initiate_wizard.spell": ["mage_armor"],
+      "class.wizard.prepared": ["mage_armor", "feather_fall", "ice_knife", "detect_magic"],
+    });
+    expect(buildSheet(c).ok).toBe(false);
+    const fixed = replaceRepeatedSpells(c);
+    const prepared = fixed.picks["class.wizard.prepared"]!;
+    expect(prepared).not.toContain("mage_armor");
+    expect(base.picks["class.wizard.spellbook"]).toEqual(expect.arrayContaining(prepared));
+    expect(buildSheet(fixed).ok).toBe(true);
+  });
+
+  it("leaves legal choices untouched", () => {
+    const c = greedyChoices("elf", "wizard", "sage", 1);
+    expect(replaceRepeatedSpells(c)).toEqual(c);
   });
 });

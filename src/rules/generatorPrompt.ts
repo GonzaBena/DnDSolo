@@ -170,6 +170,7 @@ export function buildChoicesPrompt(concept: ChoicesPromptInput, specs: ChoiceSpe
     "- No repitas opciones dentro de una elección ni entre elecciones (habilidades, idiomas, conjuros, dotes, maestrías, invocaciones), salvo las marcadas como repetibles.",
     `- Ya tenés estas habilidades, no las elijas de nuevo: ${known.join(", ")}.`,
     ...(fixedSpells.length > 0 ? [`- Ya conocés o tenés siempre preparados estos conjuros, no los elijas: ${fixedSpells.join(", ")}.`] : []),
+    "- Un conjuro se aprende de una sola fuente: si tu linaje, legado o una dote (como Iniciado en la magia) ya te da un conjuro, no lo elijas de nuevo en los trucos o conjuros de clase.",
     ...(specs.some((s) => isExpertise(s.id)) ? ["- La pericia solo puede ir en habilidades en las que ya tengas competencia."] : []),
     ...(cls.id === "wizard" ? ["- Los conjuros preparados del mago tienen que estar en su libro de conjuros."] : []),
     ...(cls.id === "warlock" ? ["- Los trucos que mejora una invocación tienen que ser trucos de brujo que ya conozcas."] : []),

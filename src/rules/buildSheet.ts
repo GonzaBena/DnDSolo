@@ -178,9 +178,8 @@ function scoresBeforeFeats(c: CharacterChoices): Record<Ability, number> {
   return Object.fromEntries(ABILITIES.map((a) => [a, c.baseScores[a] + (c.backgroundBonus[a] ?? 0)])) as Record<Ability, number>;
 }
 
-/** A spell is learned or prepared from one source only: species spells, feats, invocations and class choices. */
-function validateSpells(c: CharacterChoices, specs: ChoiceSpec[]): ChoiceError[] {
-  const errors: ChoiceError[] = [];
+/** Spells the species (and its lineage or legacy pick) grants at this level, with their source. */
+function speciesSpells(c: CharacterChoices, specs: ChoiceSpec[]): Map<string, string> {
   const known = new Map<string, string>(); // spell id → source
   const species = SPECIES.find((s) => s.id === c.speciesId)!;
   for (const g of species.spells ?? []) {
@@ -193,6 +192,45 @@ function validateSpells(c: CharacterChoices, specs: ChoiceSpec[]): ChoiceError[]
       }
     }
   }
+  return known;
+}
+
+/** The generator's fix for the model's most common slip: picking again a spell that the species, a feat or an
+    earlier choice already gives. Each repeat becomes the first free option of the same choice (for the wizard's
+    prepared spells, one from the spellbook), in the order validateSpells reads them. A repeat with no free option
+    left stays, and validation reports it. */
+export function replaceRepeatedSpells(c: CharacterChoices): CharacterChoices {
+  const specs = activeChoices(requiredChoices(c), c.picks);
+  const known = new Set(speciesSpells(c, specs).keys());
+  const cls = CLASSES_DATA.find((x) => x.id === c.classId);
+  const always = cls ? alwaysPreparedSpells(cls, c.level) : [];
+  const picks = { ...c.picks };
+  for (const spec of specs.filter((s) => isSpellChoice(s.id))) {
+    const current = picks[spec.id];
+    if (!current) continue;
+    const blocked = new Set(known);
+    if (spec.id === `class.${c.classId}.prepared`) for (const id of always) blocked.add(id);
+    const book = spec.id === "class.wizard.prepared" ? new Set(picks["class.wizard.spellbook"] ?? []) : null;
+    const result: string[] = [];
+    for (const id of current) {
+      if (!optionOf(spec, id) || !blocked.has(id)) {
+        result.push(id);
+        continue;
+      }
+      const free = spec.options.find((o) =>
+        !blocked.has(o.id) && !current.includes(o.id) && !result.includes(o.id) && (!book || book.has(o.id)));
+      result.push(free?.id ?? id);
+    }
+    picks[spec.id] = result;
+    for (const id of result) if (optionOf(spec, id)) known.add(id);
+  }
+  return { ...c, picks };
+}
+
+/** A spell is learned or prepared from one source only: species spells, feats, invocations and class choices. */
+function validateSpells(c: CharacterChoices, specs: ChoiceSpec[]): ChoiceError[] {
+  const errors: ChoiceError[] = [];
+  const known = speciesSpells(c, specs);
   for (const spec of specs.filter((s) => isSpellChoice(s.id))) {
     const options = pickedOptions(spec, c.picks);
     const repeats = options.filter((o) => known.has(o.id));
