@@ -6,8 +6,9 @@ Un Dungeon Master con IA para jugar D&D en solitario desde el navegador. Creás 
 
 - **Narración en streaming** con Gemini, usando tu propia API key (BYOK).
 - **Tiradas arbitradas por código**: el DM pide la tirada, la app genera el número. El modelo nunca inventa resultados.
-- **Memoria en tres capas**: estado estructurado (personaje, HP, inventario, ubicación, NPCs, misiones), un resumen acumulado de la historia y los últimos turnos. Nunca se manda el historial completo.
+- **Memoria en tres capas**: estado estructurado (personaje y nivel, inventario, ubicación, NPCs, misiones; la ficha completa con PG y estadísticas la llevás vos), un resumen acumulado de la historia y los últimos turnos. Nunca se manda el historial completo.
 - **Guardado automático** en IndexedDB después de cada turno, con lista de campañas, importación y exportación.
+- **Generador de personajes SRD**: describís una idea y la IA propone personajes con ficha completa según las reglas del SRD 5.2.1.
 - **Sin servidor**: sitio 100 % estático; tu key y tus partidas quedan en tu navegador.
 
 ## Stack
@@ -45,6 +46,8 @@ Después entrá a **Configuración**, pegá tu API key de Gemini (la podés crea
 ```
 src/
 ├── domain/       # Tipos, esquemas Zod, dados y aplicación de cambios de estado
+├── rules/        # Datos y cálculo de reglas del SRD 5.2.1: generador de personajes y fichas
+├── character/    # Isla de React del generador y el formulario de personaje
 ├── engine/       # TurnEngine: turno → llamada → validación → cambios → guardado
 ├── llm/          # LLMClient (interfaz), GeminiClient y FakeLLMClient para tests
 ├── persistence/  # GameRepo (interfaz), IndexedDB, en memoria y migraciones
@@ -54,5 +57,15 @@ src/
 ```
 
 Cada capa vive detrás de una interfaz (`LLMClient`, `GameRepo`) para poder reemplazarla después, por ejemplo por un proxy o Firestore, sin tocar el motor de turnos.
+
+## Generador de personajes
+
+En la página de personaje podés describir una idea ("una elfa que dejó el templo para cazar no muertos") y pedir opciones. **El modelo elige, el código calcula**: la IA solo elige especie, clase, trasfondo y cada elección de reglas (habilidades, idiomas, conjuros, dotes, maestrías…); `src/rules/` valida esas elecciones y calcula todos los números de la ficha (PG, CA, salvaciones, bonificadores, CD de conjuros). Si una elección no es legal, se le devuelve el error al modelo para que la corrija.
+
+- `src/rules/data/` tiene las especies, clases, trasfondos, dotes, equipo y conjuros del SRD en español.
+- La fase 1 cubre los **niveles 1 a 4**, con la única subclase de cada clase que trae el SRD.
+- La ficha se puede copiar como texto o Markdown, o usar para empezar la partida; el DM recibe los rasgos reales del nivel actual y del siguiente.
+
+Esta obra incluye material procedente del documento de referencia del sistema 5.2.1 (“SRD 5.2.1”) de Wizards of the Coast LLC, disponible en https://www.dndbeyond.com/srd. La licencia sobre el SRD 5.2.1 se concede de acuerdo con la licencia internacional de atribución/reconocimiento 4.0 de Creative Commons, disponible en https://creativecommons.org/licenses/by/4.0/legalcode.
 
 La especificación completa del MVP está en [`Spec.md`](Spec.md).

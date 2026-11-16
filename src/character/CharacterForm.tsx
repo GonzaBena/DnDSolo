@@ -21,8 +21,8 @@ export function CharacterForm({ values, onChange }: Props) {
     event.preventDefault();
     setSaving(true);
     setError(null);
-    const game = createGame({ ...values, subclassId: subclassOption ? values.subclassId : null });
     try {
+      const game = createGame({ ...values, subclassId: subclassOption ? values.subclassId : null });
       // The new game becomes the latest save, which is what /play opens.
       await new IndexedDBGameRepo().save(game);
       location.href = "/play";

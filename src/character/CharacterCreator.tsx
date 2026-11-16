@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { motionAllowed } from "../animations/motion";
 import type { CharacterInput } from "../domain/character";
 import type { GeneratedOption } from "../rules/generateOptions";
 import { CharacterForm } from "./CharacterForm";
@@ -22,7 +23,7 @@ export default function CharacterCreator() {
 
   function use(option: GeneratedOption) {
     setValues(formValuesFromOption(option));
-    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    formRef.current?.scrollIntoView({ behavior: motionAllowed() ? "smooth" : "auto", block: "start" });
   }
 
   return (
