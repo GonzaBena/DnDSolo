@@ -51,6 +51,7 @@
   --border: var(--line) solid var(--color-ink);
   --shadow-flat: 4px 4px 0 var(--color-ink);
   --shadow-pressed: 1px 1px 0 var(--color-ink);
+  --shadow-raised: 6px 6px 0 var(--color-ink);
   --content-width: 44rem;
   --speaker-width: 1.75rem;    /* side column with the initials of who spoke */
   --drawer-width: 22rem;
