@@ -92,6 +92,20 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
         }));
         break;
       }
+      case "level": {
+        const index = findPlayerIndex(next.players, change.playerId);
+        if (index === -1) {
+          rejected.push({ change, reason: "Unknown player." });
+          break;
+        }
+        const player = next.players[index]!;
+        if (change.level !== player.level + 1 || change.level > 20) {
+          rejected.push({ change, reason: "Level changes go one at a time." });
+          break;
+        }
+        updatePlayer(index, (p) => ({ ...p, level: change.level }));
+        break;
+      }
       case "location":
         next = { ...next, location: { name: change.name, description: change.description } };
         break;

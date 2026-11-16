@@ -33,6 +33,11 @@ const stateChange = z.discriminatedUnion("type", [
     item: z.string().min(1),
     quantity: z.number().int().min(1),
   }),
+  z.object({
+    type: z.literal("level"),
+    playerId: z.string(),
+    level: z.number().int().min(1).max(20),
+  }),
   z.object({ type: z.literal("location"), name: z.string().min(1), description: z.string() }),
   z.object({
     type: z.literal("npc"),

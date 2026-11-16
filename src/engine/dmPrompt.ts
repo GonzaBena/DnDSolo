@@ -41,7 +41,7 @@ REGLAS
 - Cuando la historia lo justifique o el jugador lo pida, subí al personaje un nivel con un cambio "level" (de a uno).
 
 EVENTOS
-- En "events" poné etiquetas de lo que pasó, solo de esta lista: damage, healing, scene_change, combat_start, combat_end, item_gained, new_npc, new_quest, quest_completed, death.
+- En "events" poné etiquetas de lo que pasó, solo de esta lista: damage, healing, scene_change, combat_start, combat_end, item_gained, new_npc, new_quest, quest_completed, level_up, death.
 
 FORMATO
 - Respondé únicamente con el JSON del esquema indicado, sin texto afuera. Los textos de "narration", "reason" y las descripciones van en español.`;

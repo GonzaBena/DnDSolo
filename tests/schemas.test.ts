@@ -36,6 +36,15 @@ describe("parseDMResponse", () => {
     expect(parseDMResponse(JSON.stringify(bad)).ok).toBe(false);
   });
 
+  it("accepts level changes from 1 to 20 only", () => {
+    const withLevel = (level: number) =>
+      JSON.stringify({ ...reply(), stateChanges: [{ type: "level", playerId: "p", level }] });
+    expect(parseDMResponse(withLevel(4)).ok).toBe(true);
+    expect(parseDMResponse(withLevel(20)).ok).toBe(true);
+    expect(parseDMResponse(withLevel(21)).ok).toBe(false);
+    expect(parseDMResponse(withLevel(0)).ok).toBe(false);
+  });
+
   it("rejects absurd dice counts", () => {
     const bad = { ...reply(), enemyRolls: [{ die: "d6", count: 500, modifier: 0, reason: "x" }] };
     expect(parseDMResponse(JSON.stringify(bad)).ok).toBe(false);

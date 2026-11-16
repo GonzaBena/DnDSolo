@@ -117,4 +117,24 @@ describe("applyStateChanges", () => {
       expect(after.npcs[0]!.present).toBe(true);
     });
   });
+
+  it("applies a level change of exactly +1", () => {
+    const game = newGame();
+    const result = applyStateChanges(game, [{ type: "level", playerId: PLAYER_ID, level: 4 }]);
+    expect(result.state.players[0]!.level).toBe(4);
+    expect(result.rejected).toEqual([]);
+  });
+
+  it("rejects level jumps, repeats and levels above 20", () => {
+    const game = newGame();
+    const jump = applyStateChanges(game, [{ type: "level", playerId: PLAYER_ID, level: 5 }]);
+    expect(jump.state.players[0]!.level).toBe(3);
+    expect(jump.rejected).toHaveLength(1);
+    expect(jump.rejected[0]!.reason).toBe("Level changes go one at a time.");
+    const same = applyStateChanges(game, [{ type: "level", playerId: PLAYER_ID, level: 3 }]);
+    expect(same.rejected).toHaveLength(1);
+    const maxed = { ...game, players: [{ ...game.players[0]!, level: 20 }] };
+    const over = applyStateChanges(maxed, [{ type: "level", playerId: PLAYER_ID, level: 21 }]);
+    expect(over.rejected).toHaveLength(1);
+  });
 });
