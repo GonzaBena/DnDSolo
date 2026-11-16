@@ -1,10 +1,7 @@
-import { useRef, useState } from "react";
-import { motionAllowed } from "../animations/motion";
+import { useEffect, useState } from "react";
 import type { CharacterInput } from "../domain/character";
-import type { GeneratedOption } from "../rules/generateOptions";
 import { CharacterForm } from "./CharacterForm";
-import { CharacterGenerator } from "./CharacterGenerator";
-import { formValuesFromOption } from "./formValues";
+import { takeCharacter } from "./handoff";
 import "./character.css";
 
 const EMPTY: CharacterInput = {
@@ -19,18 +16,22 @@ const EMPTY: CharacterInput = {
 
 export default function CharacterCreator() {
   const [values, setValues] = useState<CharacterInput>(EMPTY);
-  const formRef = useRef<HTMLElement>(null);
 
-  function use(option: GeneratedOption) {
-    setValues(formValuesFromOption(option));
-    formRef.current?.scrollIntoView({ behavior: motionAllowed() ? "smooth" : "auto", block: "start" });
-  }
+  // A character picked on /generator arrives through sessionStorage.
+  useEffect(() => {
+    const generated = takeCharacter(sessionStorage);
+    if (generated) setValues(generated);
+  }, []);
 
   return (
     <>
       <h1>Creá tu personaje</h1>
-      <CharacterGenerator onUse={use} />
-      <section ref={formRef} className="creator-form" aria-labelledby="form-title">
+      <div className="actions">
+        <a className="button button--primary" href="/generator">
+          Generar con IA a partir de una historia
+        </a>
+      </div>
+      <section className="creator-form" aria-labelledby="form-title">
         <h2 id="form-title">Tu personaje</h2>
         <CharacterForm values={values} onChange={setValues} />
       </section>

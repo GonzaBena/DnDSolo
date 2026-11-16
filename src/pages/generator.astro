@@ -1,0 +1,9 @@
+---
+import Base from "../layouts/Base.astro";
+import GeneratorPage from "../character/GeneratorPage";
+---
+
+<Base title="Generador de personajes">
+  <!-- client:only: the generator reads the API key from localStorage. -->
+  <GeneratorPage client:only="react" />
+</Base>
