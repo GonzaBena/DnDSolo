@@ -12,8 +12,14 @@ export interface InventoryItem {
 export interface Character {
   id: string;
   name: string;
+  /** Labels in Spanish, taken from the rules data. */
   race: string;
   characterClass: string;
+  /** Ids in the SRD rules data; null for saves made before they existed. */
+  speciesId: string | null;
+  classId: string | null;
+  subclassId: string | null;
+  srdBackgroundId: string | null;
   level: number;
   background: string | null;
   /** Story items the DM handed out. The player's real sheet (HP, stats,
@@ -84,6 +90,9 @@ export interface Quest {
 export type StateChange =
   | { type: "inventory_add"; playerId: string; item: string; quantity: number }
   | { type: "inventory_remove"; playerId: string; item: string; quantity: number }
+  | { type: "level"; playerId: string; level: number }
+  /** The SRD subclass of the player's class, once its level is reached. */
+  | { type: "subclass"; playerId: string; subclassId: string }
   | { type: "location"; name: string; description: string }
   | { type: "npc"; name: string; description: string; attitude: Attitude; present: boolean }
   | { type: "scene"; inCombat: boolean; turnOf: string | null }
@@ -140,4 +149,4 @@ export interface GameState {
   pendingEnemyRolls: EnemyRollRequest[];
 }
 
-export const GAME_STATE_VERSION = 3;
+export const GAME_STATE_VERSION = 4;

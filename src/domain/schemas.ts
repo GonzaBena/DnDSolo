@@ -33,6 +33,16 @@ const stateChange = z.discriminatedUnion("type", [
     item: z.string().min(1),
     quantity: z.number().int().min(1),
   }),
+  z.object({
+    type: z.literal("level"),
+    playerId: z.string(),
+    level: z.number().int().min(1).max(20),
+  }),
+  z.object({
+    type: z.literal("subclass"),
+    playerId: z.string(),
+    subclassId: z.string().min(1),
+  }),
   z.object({ type: z.literal("location"), name: z.string().min(1), description: z.string() }),
   z.object({
     type: z.literal("npc"),
@@ -72,8 +82,9 @@ void _typeCheck;
 void _reverseCheck;
 
 /** Rewrites what Zod emits into the JSON Schema subset the model API
-    documents: no `$schema`, and `enum` instead of `const`. */
-function toProviderSchema(node: unknown): unknown {
+    documents: no `$schema`, `enum` instead of `const`, and integer enums
+    typed as "integer". */
+export function toProviderSchema(node: unknown): unknown {
   if (Array.isArray(node)) return node.map(toProviderSchema);
   if (typeof node !== "object" || node === null) return node;
   const out: Record<string, unknown> = {};
@@ -82,6 +93,8 @@ function toProviderSchema(node: unknown): unknown {
     if (key === "const") out.enum = [value];
     else out[key] = toProviderSchema(value);
   }
+  // Zod types integer literals as "number"; tell the provider they are integers.
+  if (out.type === "number" && Array.isArray(out.enum) && out.enum.every(Number.isInteger)) out.type = "integer";
   // Non-standard hint some providers use to fix the generation order.
   if (out.type === "object" && typeof out.properties === "object" && out.properties !== null) {
     out.propertyOrdering = Object.keys(out.properties);
@@ -130,6 +143,10 @@ export const gameStateSchema = z.object({
         name: z.string(),
         race: z.string(),
         characterClass: z.string(),
+        speciesId: z.string().nullable(),
+        classId: z.string().nullable(),
+        subclassId: z.string().nullable(),
+        srdBackgroundId: z.string().nullable(),
         level: z.number().int(),
         background: z.string().nullable(),
         inventory: z.array(z.object({ name: z.string(), quantity: z.number().int() })),

@@ -1,74 +1,9 @@
 ---
 import Base from "../layouts/Base.astro";
-import { CLASSES, MAX_LEVEL, MIN_LEVEL, RACES } from "../domain/character";
+import CharacterCreator from "../character/CharacterCreator";
 ---
 
 <Base title="Crear personaje">
-  <h1>Creá tu personaje</h1>
-
-  <form id="character-form" class="form">
-    <label class="field">
-      <span>Nombre</span>
-      <input name="name" type="text" maxlength="40" required autocomplete="off" />
-    </label>
-
-    <label class="field">
-      <span>Raza</span>
-      <select name="race" required>
-        {RACES.map((race) => <option value={race}>{race}</option>)}
-      </select>
-    </label>
-
-    <label class="field">
-      <span>Clase</span>
-      <select name="classId" required>
-        {CLASSES.map((option) => <option value={option.id}>{option.label}</option>)}
-      </select>
-    </label>
-
-    <label class="field">
-      <span>Nivel</span>
-      <input name="level" type="number" min={MIN_LEVEL} max={MAX_LEVEL} value="1" required />
-    </label>
-
-    <label class="field">
-      <span>Trasfondo <small>(opcional)</small></span>
-      <textarea name="background" rows="3" maxlength="400"
-        placeholder="Ej: ex soldado que busca a su hermana desaparecida."></textarea>
-    </label>
-
-    <p id="status" class="status" role="status" aria-live="polite"></p>
-    <div class="actions">
-      <a class="button" href="/">Volver</a>
-      <button type="submit" class="button button--primary">Empezar la aventura</button>
-    </div>
-  </form>
+  <!-- client:only: the form reads localStorage and saves to IndexedDB. -->
+  <CharacterCreator client:only="react" />
 </Base>
-
-<script>
-  import { createGame } from "../domain/character";
-  import { IndexedDBGameRepo } from "../persistence/IndexedDBGameRepo";
-
-  const form = document.querySelector<HTMLFormElement>("#character-form")!;
-  const status = document.querySelector<HTMLParagraphElement>("#status")!;
-
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const data = new FormData(form);
-    const game = createGame({
-      name: String(data.get("name") ?? ""),
-      race: String(data.get("race") ?? ""),
-      classId: String(data.get("classId") ?? ""),
-      level: Number(data.get("level") ?? 1),
-      background: String(data.get("background") ?? ""),
-    });
-    try {
-      // The new game becomes the latest save, which is what /play opens.
-      await new IndexedDBGameRepo().save(game);
-      location.href = "/play";
-    } catch {
-      status.dataset.tone = "error";
-      status.textContent = "No se pudo guardar la partida en este navegador.";
-    }
-  });
-</script>

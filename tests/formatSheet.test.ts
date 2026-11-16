@@ -1,0 +1,104 @@
+import { describe, expect, it } from "vitest";
+import { buildSheet } from "../src/rules/buildSheet";
+import type { CharacterSheet } from "../src/rules";
+import { formatSheetMarkdown, formatSheetText } from "../src/rules/formatSheet";
+import { fighterChoices, greedyChoices } from "./helpers";
+import type { CharacterChoices } from "../src/rules/buildSheet";
+
+function sheetOf(choices: CharacterChoices = fighterChoices()): CharacterSheet {
+  const r = buildSheet(choices);
+  if (!r.ok) throw new Error(JSON.stringify(r.errors));
+  return r.sheet;
+}
+const fighter = () => sheetOf();
+const story = "Una soldado retirada que busca paz.";
+
+describe("formatSheetText", () => {
+  it("contains the key lines", () => {
+    const t = formatSheetText(fighter(), "Brisa", story);
+    expect(t).toContain("Brisa");
+    expect(t).toContain("CA ");
+    expect(t).toContain("PG 12");
+    expect(t).toContain("Fuerza 17 (+3)");
+    expect(t).toContain("Atletismo +5");
+    expect(t).toContain(story);
+    expect(t.trimEnd().split("\n").at(-1)).toBe("Reglas: SRD 5.2 (CC-BY-4.0)");
+  });
+
+  it("never prints +-N and lists all 18 skills", () => {
+    const t = formatSheetText(fighter(), "Brisa", story);
+    expect(t).not.toMatch(/\+-/);
+    expect(t).toContain("Inteligencia 8 (-1)");
+    expect(t).toMatch(/Juego de manos [+-]\d/);
+    expect(t.match(/^ {2}.+ [+-]\d+/gm)!.length).toBeGreaterThanOrEqual(18);
+  });
+
+  it("lists languages under Competencias and the weapon masteries", () => {
+    const t = formatSheetText(fighter(), "Brisa", story);
+    expect(t).toContain("  Idiomas: Común, Elfo, Enano\n");
+    expect(t).toContain("  Maestrías: Espada larga (Debilitar), Espadón (Rozar), Arco largo (Ralentizar)\n");
+    const competencias = t.slice(t.indexOf("COMPETENCIAS"), t.indexOf("ATAQUES"));
+    expect(competencias).toContain("Idiomas:");
+    expect(competencias).toContain("Maestrías:");
+    expect(formatSheetText(sheetOf(greedyChoices("human", "wizard", "sage", 1)), "Ilan", "")).not.toContain("Maestrías");
+  });
+
+  it("shows speed in metres with decimal comma", () => {
+    const s = fighter();
+    expect(formatSheetText({ ...s, speed: 30 }, "A", "")).toContain("Velocidad 9 m");
+    expect(formatSheetText({ ...s, speed: 35 }, "A", "")).toContain("Velocidad 10,5 m");
+    expect(formatSheetText({ ...s, speed: 25 }, "A", "")).toContain("Velocidad 7,5 m");
+  });
+
+  it("shows caster details for a wizard", () => {
+    const s = sheetOf(greedyChoices("human", "wizard", "sage", 3));
+    const t = formatSheetText(s, "Ilan", "");
+    expect(t).toContain(`CD ${s.spellcasting!.saveDc}`);
+    expect(t).toContain("Espacios");
+    expect(t).toContain("Trucos");
+    expect(t).toContain("Libro de conjuros");
+  });
+
+  it("prints each other spell source with its own ability, DC and attack", () => {
+    const base = greedyChoices("tiefling", "sorcerer", "sage", 3);
+    const s = sheetOf({
+      ...base,
+      baseScores: { str: 8, dex: 14, con: 13, int: 12, wis: 10, cha: 15 },
+      backgroundBonus: { con: 2, int: 1 },
+      picks: { ...base.picks, "species.tiefling.spell_ability": ["int"] },
+    });
+    const t = formatSheetText(s, "Vex", "");
+    expect(t).toContain("  Característica: Carisma · CD 12 · Ataque +4\n");
+    expect(t).toMatch(/^ {2}Otros — Legado infernal \(Inteligencia · CD 11 · ataque \+3\): .*Taumaturgia/m);
+  });
+
+  it("prints a Conjuros section for a non-caster with species spells", () => {
+    const s = sheetOf(greedyChoices("elf", "fighter", "soldier", 1));
+    expect(s.spellcasting).toBeNull();
+    const t = formatSheetText(s, "Ari", "");
+    expect(t).toContain("CONJUROS");
+    expect(t).toMatch(/^ {2}Otros — Linaje élfico \(\w+ · CD \d+ · ataque [+-]\d+\): /m);
+    expect(t).not.toContain("Trucos:");
+  });
+
+  it("shows pact slots for a warlock", () => {
+    const s = sheetOf(greedyChoices("human", "warlock", "acolyte", 3));
+    expect(formatSheetText(s, "Zed", "")).toContain("Espacios de pacto");
+  });
+});
+
+describe("formatSheetMarkdown", () => {
+  it("starts with the name and has an Atributos section", () => {
+    const m = formatSheetMarkdown(fighter(), "Brisa", story);
+    expect(m.startsWith("# Brisa")).toBe(true);
+    expect(m).toContain("## Atributos");
+    expect(m).not.toMatch(/\+-/);
+    expect(m.trimEnd().split("\n").at(-1)).toBe("Reglas: SRD 5.2 (CC-BY-4.0)");
+  });
+
+  it("lists languages and masteries as items of Competencias", () => {
+    const m = formatSheetMarkdown(fighter(), "Brisa", story);
+    expect(m).toContain("- Idiomas: Común, Elfo, Enano\n");
+    expect(m).toContain("- Maestrías: Espada larga (Debilitar)");
+  });
+});
