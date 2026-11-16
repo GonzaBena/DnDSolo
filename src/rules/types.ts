@@ -126,6 +126,14 @@ export interface ClassData {
   };
 }
 
+/** Spells from one source outside the class spell choices, cast with that source's ability. */
+export interface SpellGroup {
+  /** Species lineage, feat or class name, e.g. "Legado infernal", "Iniciado en la magia (mago)", "Hechicero". */
+  source: string;
+  ability: Ability; saveDc: number; attackBonus: number;
+  spells: string[];
+}
+
 /** The computed character sheet. Every number comes from code; names are in Spanish; speed is in feet. */
 export interface CharacterSheet {
   species: string; className: string; subclass: string | null; level: number; background: string;
@@ -140,10 +148,13 @@ export interface CharacterSheet {
   masteries: { weapon: string; mastery: string }[];
   attacks: { name: string; attackBonus: number; damage: string; mastery: string | null }[];
   features: { source: string; name: string; summary: string }[];
+  /** Class spellcasting; null for classes without it. */
   spellcasting: null | {
     ability: Ability; saveDc: number; attackBonus: number; slots: number[];
     pactSlots: { count: number; slotLevel: number } | null;
-    cantrips: string[]; prepared: string[]; spellbook: string[] | null; other: string[];
+    cantrips: string[]; prepared: string[]; spellbook: string[] | null;
   };
+  /** Species, feat and other class spells, one group per source (each with its own ability). */
+  otherSpells: SpellGroup[];
   equipment: string[]; gold: number;
 }

@@ -518,6 +518,8 @@ const spellName = (id: string) => findSpell(id)!.name;
 const skillOf = (sheet: CharacterSheet, id: SkillId) => sheet.skills.find((s) => s.id === id)!;
 const attackOf = (sheet: CharacterSheet, name: string) => sheet.attacks.find((a) => a.name === name);
 const featureNames = (sheet: CharacterSheet) => sheet.features.map((f) => f.name);
+/** Every spell outside the class spell choices, whatever its group. */
+const otherSpells = (sheet: CharacterSheet) => sheet.otherSpells.flatMap((g) => g.spells);
 
 function withoutHuman(choices: CharacterChoices): CharacterChoices {
   return { ...choices, picks: Object.fromEntries(Object.entries(choices.picks).filter(([k]) => !k.startsWith("species.human"))) };
@@ -636,6 +638,7 @@ describe("buildSheet: fighter (human soldier, Defense)", () => {
 
   it("has no spellcasting", () => {
     expect(sheet.spellcasting).toBeNull();
+    expect(sheet.otherSpells).toEqual([]);
   });
 
   it("assigns the subclass at its level", () => {
@@ -856,7 +859,9 @@ describe("buildSheet: spellcasting", () => {
     expect(sc.spellbook).toHaveLength(6);
     expect(sc.cantrips).toContain(spellName(choices.picks["class.wizard.cantrips"]![0]!));
     const initiate = [...choices.picks["feat.magic_initiate_wizard.cantrips"]!, ...choices.picks["feat.magic_initiate_wizard.spell"]!];
-    expect(sc.other).toEqual(initiate.map(spellName));
+    expect(sheetOf(choices).otherSpells).toEqual([
+      { source: "Iniciado en la magia (mago)", ability: "int", saveDc: 13, attackBonus: 5, spells: initiate.map(spellName) },
+    ]);
   });
 
   it("gives the warlock pact slots", () => {
@@ -866,22 +871,45 @@ describe("buildSheet: spellcasting", () => {
   });
 
   it("lists Magic Initiate spells as other spells of a cleric", () => {
-    const sc = sheetOf(clericChoices()).spellcasting!;
-    expect(sc.other).toEqual(expect.arrayContaining([spellName("guidance"), spellName("resistance")]));
-    expect(sc.saveDc).toBe(13); // Wis 17 (+3)
+    const sheet = sheetOf(clericChoices());
+    expect(sheet.spellcasting!.saveDc).toBe(13); // Wis 17 (+3)
+    expect(sheet.otherSpells).toEqual([expect.objectContaining({
+      source: "Iniciado en la magia (clérigo)", ability: "wis", saveDc: 13,
+      spells: expect.arrayContaining([spellName("guidance"), spellName("resistance")]),
+    })]);
   });
 
-  it("gives a non-caster with species spells a block using the chosen spellcasting ability", () => {
-    const sc = sheetOf(rogueChoices(["stealth", "perception"])).spellcasting!;
+  it("gives a non-caster with species spells only a group with the chosen spellcasting ability", () => {
+    const sheet = sheetOf(rogueChoices(["stealth", "perception"]));
+    expect(sheet.spellcasting).toBeNull();
     // Wood elf with Wisdom 13 (+1).
-    expect(sc).toEqual({
-      ability: "wis", saveDc: 11, attackBonus: 3, slots: [], pactSlots: null,
-      cantrips: [], prepared: [], spellbook: null, other: [spellName("druidcraft")],
-    });
+    expect(sheet.otherSpells).toEqual([
+      { source: "Linaje élfico", ability: "wis", saveDc: 11, attackBonus: 3, spells: [spellName("druidcraft")] },
+    ]);
+  });
+
+  it("gives each spell source its own ability, save DC and attack bonus", () => {
+    // Tiefling sorcerer 3, sage: Cha 15 (+2), Int 12 + 1 = 13 (+1), Wis 10 (+0); proficiency +2.
+    const base = greedyChoices("tiefling", "sorcerer", "sage", 3);
+    const choices: CharacterChoices = {
+      ...base,
+      baseScores: { str: 8, dex: 14, con: 13, int: 12, wis: 10, cha: 15 },
+      backgroundBonus: { con: 2, int: 1 },
+      picks: { ...base.picks, "species.tiefling.spell_ability": ["int"], "feat.magic_initiate_wizard.ability": ["wis"] },
+    };
+    const sheet = sheetOf(choices);
+    expect(sheet.spellcasting).toMatchObject({ ability: "cha", saveDc: 12, attackBonus: 4 });
+    const group = (source: string) => sheet.otherSpells.find((g) => g.source === source);
+    expect(group("Legado infernal")).toMatchObject({ ability: "int", saveDc: 11, attackBonus: 3 });
+    expect(group("Legado infernal")!.spells).toEqual(expect.arrayContaining(["thaumaturgy", "poison_spray", "ray_of_sickness"].map(spellName)));
+    expect(group("Iniciado en la magia (mago)")).toMatchObject({ ability: "wis", saveDc: 10, attackBonus: 2 });
+    expect(group("Hechicero")).toMatchObject({ ability: "cha", saveDc: 12, attackBonus: 4 });
+    expect(group("Hechicero")!.spells).toContain(spellName("command"));
+    expect(sheet.otherSpells.map((g) => g.source)).toEqual(["Legado infernal", "Iniciado en la magia (mago)", "Hechicero"]);
   });
 
   it("adds lineage spells only from their level, and the tiefling's Thaumaturgy", () => {
-    const tiefling = (level: number) => sheetOf(greedyChoices("tiefling", "fighter", "soldier", level)).spellcasting!.other;
+    const tiefling = (level: number) => otherSpells(sheetOf(greedyChoices("tiefling", "fighter", "soldier", level)));
     expect(greedyChoices("tiefling", "fighter", "soldier", 1).picks["species.tiefling.legacy"]).toEqual(["abyssal"]);
     expect(tiefling(1)).toEqual(expect.arrayContaining([spellName("thaumaturgy"), spellName("poison_spray")]));
     expect(tiefling(1)).not.toContain(spellName("ray_of_sickness"));
@@ -889,15 +917,15 @@ describe("buildSheet: spellcasting", () => {
   });
 
   it("lists always-prepared class and subclass spells", () => {
-    expect(sheetOf(greedyChoices("human", "druid", "sage", 1)).spellcasting!.other).toContain(spellName("speak_with_animals"));
-    expect(sheetOf(greedyChoices("human", "ranger", "sage", 1)).spellcasting!.other).toContain(spellName("hunters_mark"));
-    expect(sheetOf(greedyChoices("human", "sorcerer", "sage", 3)).spellcasting!.other).toEqual(
+    expect(otherSpells(sheetOf(greedyChoices("human", "druid", "sage", 1)))).toContain(spellName("speak_with_animals"));
+    expect(otherSpells(sheetOf(greedyChoices("human", "ranger", "sage", 1)))).toContain(spellName("hunters_mark"));
+    expect(otherSpells(sheetOf(greedyChoices("human", "sorcerer", "sage", 3)))).toEqual(
       expect.arrayContaining(["alter_self", "chromatic_orb", "command", "dragons_breath"].map(spellName)),
     );
-    expect(sheetOf(greedyChoices("human", "sorcerer", "sage", 2)).spellcasting!.other).not.toContain(spellName("command"));
+    expect(otherSpells(sheetOf(greedyChoices("human", "sorcerer", "sage", 2)))).not.toContain(spellName("command"));
     const land = greedyChoices("human", "druid", "sage", 3);
     expect(land.picks["subclass.land.land_type"]).toEqual(["arid"]);
-    expect(sheetOf(land).spellcasting!.other).toEqual(expect.arrayContaining(["blur", "burning_hands"].map(spellName)));
+    expect(otherSpells(sheetOf(land))).toEqual(expect.arrayContaining(["blur", "burning_hands"].map(spellName)));
   });
 
   it("lists the invocation and Pact of the Tome spells", () => {
@@ -912,8 +940,9 @@ describe("buildSheet: spellcasting", () => {
     );
     delete tome.picks["invocation.agonizing_blast.cantrip"];
     expect(validateChoices(tome)).toEqual([]);
-    const sc = sheetOf(tome).spellcasting!;
-    expect(sc.other).toEqual(expect.arrayContaining(
+    const tomeSheet = sheetOf(tome);
+    expect(tomeSheet.otherSpells.map((g) => g.source)).toEqual(["Brujo"]);
+    expect(otherSpells(tomeSheet)).toEqual(expect.arrayContaining(
       ["mage_armor", "guidance", "light", "thaumaturgy", "alarm", "find_familiar"].map(spellName),
     ));
   });

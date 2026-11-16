@@ -39,8 +39,13 @@ function sheetProblems(speciesId: string, classId: string, backgroundId: string,
   const sc = sheet.spellcasting;
   if (cls.spellcasting) {
     if (sc?.ability !== cls.spellcasting.ability) problems.push(`spellcasting ${JSON.stringify(sc)}`);
-  } else if (sc && (sc.slots.length > 0 || sc.pactSlots || sc.cantrips.length > 0 || sc.prepared.length > 0 || sc.other.length === 0)) {
+  } else if (sc) {
     problems.push(`spellcasting de no lanzador ${JSON.stringify(sc)}`);
+  }
+  for (const g of sheet.otherSpells) {
+    if (g.spells.length === 0 || g.saveDc !== 8 + sheet.proficiencyBonus + sheet.abilities[g.ability].modifier) {
+      problems.push(`grupo de conjuros ${JSON.stringify(g)}`);
+    }
   }
   return problems;
 }

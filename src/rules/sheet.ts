@@ -363,50 +363,83 @@ function features(ctx: Context): Sheet["features"] {
 
 const spellName = (id: string) => findSpell(id)?.name ?? id;
 
-/** Spells from outside the class spell choices: species, feats, invocations, extra cantrips, always-prepared spells. */
-function otherSpellIds(ctx: Context): string[] {
-  const { c, cls, species } = ctx;
-  const own = new Set([`class.${cls.id}.cantrips`, `class.${cls.id}.prepared`]);
-  const ids: string[] = (species.spells ?? []).filter((g) => g.fromLevel <= c.level).map((g) => g.spellId);
-  for (const spec of ctx.specs) {
-    for (const option of picked(spec, c.picks)) {
-      for (const g of option.spells ?? []) if (g.fromLevel <= c.level) ids.push(g.spellId);
-    }
-    if (isSpellChoice(spec.id) && !own.has(spec.id)) ids.push(...(c.picks[spec.id] ?? []));
-  }
-  ids.push(...alwaysPreparedSpells(cls, c.level));
-  return [...new Set(ids)];
-}
+const saveDc = (ctx: Context, ability: Ability) => 8 + ctx.prof + ctx.mods[ability];
+const spellAttack = (ctx: Context, ability: Ability) => ctx.prof + ctx.mods[ability];
 
-/** The ability of species or feat spells for a character without class spellcasting. */
-function nonClassAbility(ctx: Context): Ability {
-  const spec = ctx.specs.find((s) => /^species\.\w+\.spell_ability$|^feat\.magic_initiate_\w+\.ability$/.test(s.id));
-  const pick = spec ? ctx.c.picks[spec.id]?.[0] : undefined;
+/** The ability picked in a "spellcasting ability" choice (species lineage, Magic Initiate). */
+function pickedAbility(ctx: Context, choiceId: string): Ability {
+  const pick = ctx.c.picks[choiceId]?.[0];
   if (pick && ABILITIES.includes(pick as Ability)) return pick as Ability;
   // Unreachable with valid choices (every spell source asks for its ability); use the best mental ability.
   return (["int", "wis", "cha"] as const).reduce((best, a) => (ctx.mods[a] > ctx.mods[best] ? a : best));
 }
 
+/** Where a spell comes from: the species, a feat (by id), or the class (extra cantrips, invocations, Book of
+    Shadows, subclass options, always-prepared spells), which casts with the class ability. */
+type SpellSource = { kind: "species" } | { kind: "feat"; featId: string } | { kind: "class" };
+
+function sourceOf(choiceId: string): SpellSource {
+  if (choiceId.startsWith("species.")) return { kind: "species" };
+  const feat = /^feat\.(\w+)\./.exec(choiceId);
+  return feat ? { kind: "feat", featId: feat[1]! } : { kind: "class" };
+}
+
+/** Spells outside the class spell choices, grouped by source; each group casts with its own ability. */
+function otherSpells(ctx: Context): Sheet["otherSpells"] {
+  const { c, cls, species } = ctx;
+  const own = new Set([...(c.picks[`class.${cls.id}.cantrips`] ?? []), ...(c.picks[`class.${cls.id}.prepared`] ?? [])]);
+  const ownSpecs = new Set([`class.${cls.id}.cantrips`, `class.${cls.id}.prepared`]);
+  const groups = new Map<string, { source: string; ability: Ability; ids: string[] }>();
+  const add = (key: string, source: string, ability: Ability, ids: string[]) => {
+    const group = groups.get(key) ?? { source, ability, ids: [] };
+    groups.set(key, group);
+    group.ids.push(...ids);
+  };
+
+  const speciesAbility = () => pickedAbility(ctx, `species.${species.id}.spell_ability`);
+  // The lineage choice that grants spells names the group (e.g. "Legado infernal"); else the species.
+  const lineage = ctx.specs.find((s) => s.id.startsWith("species.") && picked(s, c.picks).some((o) => o.spells));
+  const speciesLabel = lineage?.label ?? species.name;
+  const speciesWide = (species.spells ?? []).filter((g) => g.fromLevel <= c.level).map((g) => g.spellId);
+  if (speciesWide.length > 0) add("species", speciesLabel, speciesAbility(), speciesWide);
+
+  for (const spec of ctx.specs) {
+    const ids = picked(spec, c.picks).flatMap((o) => (o.spells ?? []).filter((g) => g.fromLevel <= c.level).map((g) => g.spellId));
+    if (isSpellChoice(spec.id) && !ownSpecs.has(spec.id)) ids.push(...(c.picks[spec.id] ?? []));
+    if (ids.length === 0) continue;
+    const source = sourceOf(spec.id);
+    if (source.kind === "species") add("species", speciesLabel, speciesAbility(), ids);
+    else if (source.kind === "feat") {
+      const featName = findFeat(source.featId)?.name ?? spec.label;
+      add(`feat.${source.featId}`, featName, pickedAbility(ctx, `feat.${source.featId}.ability`), ids);
+    } else if (cls.spellcasting) add("class", cls.name, cls.spellcasting.ability, ids);
+  }
+  const always = alwaysPreparedSpells(cls, c.level);
+  if (always.length > 0 && cls.spellcasting) add("class", cls.name, cls.spellcasting.ability, always);
+
+  const order = (key: string) => (key === "species" ? 0 : key === "class" ? 2 : 1);
+  return [...groups].sort(([a], [b]) => order(a) - order(b)).flatMap(([, g]) => {
+    const spells = [...new Set(g.ids)].filter((id) => !own.has(id)).map(spellName);
+    return spells.length === 0 ? [] : [{
+      source: g.source, ability: g.ability, saveDc: saveDc(ctx, g.ability), attackBonus: spellAttack(ctx, g.ability), spells,
+    }];
+  });
+}
+
 function spellcasting(ctx: Context): Sheet["spellcasting"] {
   const { cls, row, c } = ctx;
+  if (!cls.spellcasting) return null;
   const names = (ids: string[]) => ids.map(spellName);
-  const cantrips = c.picks[`class.${cls.id}.cantrips`] ?? [];
-  const prepared = c.picks[`class.${cls.id}.prepared`] ?? [];
-  const classIds = new Set([...cantrips, ...prepared]);
-  const other = otherSpellIds(ctx).filter((id) => !classIds.has(id));
-  if (!cls.spellcasting && other.length === 0) return null;
-
-  const ability = cls.spellcasting?.ability ?? nonClassAbility(ctx);
+  const { ability } = cls.spellcasting;
   return {
     ability,
-    saveDc: 8 + ctx.prof + ctx.mods[ability],
-    attackBonus: ctx.prof + ctx.mods[ability],
+    saveDc: saveDc(ctx, ability),
+    attackBonus: spellAttack(ctx, ability),
     slots: row.slots ?? [],
     pactSlots: row.pactSlots ?? null,
-    cantrips: names(cantrips),
-    prepared: names(prepared),
+    cantrips: names(c.picks[`class.${cls.id}.cantrips`] ?? []),
+    prepared: names(c.picks[`class.${cls.id}.prepared`] ?? []),
     spellbook: cls.id === "wizard" ? names(c.picks["class.wizard.spellbook"] ?? []) : null,
-    other: names(other),
   };
 }
 
@@ -443,6 +476,7 @@ export function computeSheet(c: CharacterChoices): CharacterSheet {
     attacks: attacks(ctx, weapons),
     features: features(ctx),
     spellcasting: spellcasting(ctx),
+    otherSpells: otherSpells(ctx),
     equipment: equipment(ctx),
     gold: (cls.equipment[c.classEquipment]?.gold ?? 0) + ctx.background.gold[c.backgroundEquipment],
   };

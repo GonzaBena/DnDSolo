@@ -59,6 +59,28 @@ describe("formatSheetText", () => {
     expect(t).toContain("Libro de conjuros");
   });
 
+  it("prints each other spell source with its own ability, DC and attack", () => {
+    const base = greedyChoices("tiefling", "sorcerer", "sage", 3);
+    const s = sheetOf({
+      ...base,
+      baseScores: { str: 8, dex: 14, con: 13, int: 12, wis: 10, cha: 15 },
+      backgroundBonus: { con: 2, int: 1 },
+      picks: { ...base.picks, "species.tiefling.spell_ability": ["int"] },
+    });
+    const t = formatSheetText(s, "Vex", "");
+    expect(t).toContain("  Característica: Carisma · CD 12 · Ataque +4\n");
+    expect(t).toMatch(/^ {2}Otros — Legado infernal \(Inteligencia · CD 11 · ataque \+3\): .*Taumaturgia/m);
+  });
+
+  it("prints a Conjuros section for a non-caster with species spells", () => {
+    const s = sheetOf(greedyChoices("elf", "fighter", "soldier", 1));
+    expect(s.spellcasting).toBeNull();
+    const t = formatSheetText(s, "Ari", "");
+    expect(t).toContain("CONJUROS");
+    expect(t).toMatch(/^ {2}Otros — Linaje élfico \(\w+ · CD \d+ · ataque [+-]\d+\): /m);
+    expect(t).not.toContain("Trucos:");
+  });
+
   it("shows pact slots for a warlock", () => {
     const s = sheetOf(greedyChoices("human", "warlock", "acolyte", 3));
     expect(formatSheetText(s, "Zed", "")).toContain("Espacios de pacto");

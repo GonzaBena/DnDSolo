@@ -72,16 +72,20 @@ function build(s: CharacterSheet, story: string): { header: string; sections: Se
   out.push({ title: "Rasgos", lines: features.length > 0 ? features : plain(["—"]) });
 
   const sc = s.spellcasting;
+  const spellLines: string[] = [];
   if (sc) {
-    const lines = [`Característica: ${ABILITY_NAMES[sc.ability]} · CD ${sc.saveDc} · Ataque ${sign(sc.attackBonus)}`];
+    spellLines.push(`Característica: ${ABILITY_NAMES[sc.ability]} · CD ${sc.saveDc} · Ataque ${sign(sc.attackBonus)}`);
     const slots = sc.slots.flatMap((n, i) => (n > 0 ? [`nivel ${i + 1}: ${n}`] : []));
-    if (slots.length > 0) lines.push(`Espacios: ${slots.join(", ")}`);
-    if (sc.pactSlots) lines.push(`Espacios de pacto: ${sc.pactSlots.count} de nivel ${sc.pactSlots.slotLevel}`);
-    lines.push(`Trucos: ${list(sc.cantrips)}`, `Preparados: ${list(sc.prepared)}`);
-    if (sc.spellbook) lines.push(`Libro de conjuros: ${list(sc.spellbook)}`);
-    if (sc.other.length > 0) lines.push(`Otros: ${list(sc.other)}`);
-    out.push({ title: "Conjuros", lines: plain(lines) });
+    if (slots.length > 0) spellLines.push(`Espacios: ${slots.join(", ")}`);
+    if (sc.pactSlots) spellLines.push(`Espacios de pacto: ${sc.pactSlots.count} de nivel ${sc.pactSlots.slotLevel}`);
+    spellLines.push(`Trucos: ${list(sc.cantrips)}`, `Preparados: ${list(sc.prepared)}`);
+    if (sc.spellbook) spellLines.push(`Libro de conjuros: ${list(sc.spellbook)}`);
   }
+  for (const g of s.otherSpells) {
+    const detail = `${ABILITY_NAMES[g.ability]} · CD ${g.saveDc} · ataque ${sign(g.attackBonus)}`;
+    spellLines.push(`Otros — ${g.source} (${detail}): ${list(g.spells)}`);
+  }
+  if (spellLines.length > 0) out.push({ title: "Conjuros", lines: plain(spellLines) });
 
   out.push({ title: "Equipo", lines: plain([...s.equipment, `Oro: ${s.gold} po`]) });
   if (story.trim() !== "") out.push({ title: "Historia", lines: plain([story.trim()]) });
