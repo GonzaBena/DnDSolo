@@ -137,4 +137,67 @@ describe("applyStateChanges", () => {
     const over = applyStateChanges(maxed, [{ type: "level", playerId: PLAYER_ID, level: 21 }]);
     expect(over.rejected).toHaveLength(1);
   });
+
+  it("applies at most one level per player in a reply", () => {
+    const game = newGame(); // level 3
+    const result = applyStateChanges(game, [
+      { type: "level", playerId: PLAYER_ID, level: 4 },
+      { type: "level", playerId: PLAYER_ID, level: 5 },
+    ]);
+    expect(result.state.players[0]!.level).toBe(4);
+    expect(result.rejected).toEqual([
+      { change: { type: "level", playerId: PLAYER_ID, level: 5 }, reason: "Level changes go one at a time." },
+    ]);
+  });
+
+  describe("subclass", () => {
+    // newGame() is a level 3 elf rogue without a subclass; the SRD rogue subclass is the Thief at level 3.
+    const subclass = (subclassId: string) => ({ type: "subclass" as const, playerId: PLAYER_ID, subclassId });
+
+    it("sets the SRD subclass of the player's class once its level is reached", () => {
+      const result = applyStateChanges(newGame(), [subclass("thief")]);
+      expect(result.rejected).toEqual([]);
+      expect(result.state.players[0]!.subclassId).toBe("thief");
+    });
+
+    it("finds the class by its label when the save has no class id", () => {
+      const game = newGame();
+      const legacy = { ...game, players: [{ ...game.players[0]!, classId: null, characterClass: "Pícaro" }] };
+      expect(applyStateChanges(legacy, [subclass("thief")]).state.players[0]!.subclassId).toBe("thief");
+    });
+
+    it("rejects another class's subclass, an unknown one and an unknown class", () => {
+      const game = newGame();
+      const other = applyStateChanges(game, [subclass("champion")]);
+      expect(other.state.players[0]!.subclassId).toBeNull();
+      expect(other.rejected[0]!.reason).toBe("That is not the SRD subclass of the player's class.");
+      expect(applyStateChanges(game, [subclass("assassin")]).rejected).toHaveLength(1);
+      const homebrew = { ...game, players: [{ ...game.players[0]!, classId: null, characterClass: "Artífice" }] };
+      expect(applyStateChanges(homebrew, [subclass("thief")]).rejected).toHaveLength(1);
+    });
+
+    it("rejects it below the subclass level", () => {
+      const game = newGame();
+      const low = { ...game, players: [{ ...game.players[0]!, level: 2 }] };
+      const result = applyStateChanges(low, [subclass("thief")]);
+      expect(result.state.players[0]!.subclassId).toBeNull();
+      expect(result.rejected[0]!.reason).toBe("The player hasn't reached the subclass level.");
+    });
+
+    it("accepts it right after a level change that reaches the subclass level", () => {
+      const game = newGame();
+      const low = { ...game, players: [{ ...game.players[0]!, level: 2 }] };
+      const result = applyStateChanges(low, [{ type: "level", playerId: PLAYER_ID, level: 3 }, subclass("thief")]);
+      expect(result.rejected).toEqual([]);
+      expect(result.state.players[0]).toMatchObject({ level: 3, subclassId: "thief" });
+    });
+
+    it("rejects a second subclass and an unknown player", () => {
+      const game = newGame();
+      const chosen = { ...game, players: [{ ...game.players[0]!, subclassId: "thief" }] };
+      expect(applyStateChanges(chosen, [subclass("thief")]).rejected[0]!.reason).toBe("The player already has a subclass.");
+      const two = { ...game, players: [game.players[0]!, { ...game.players[0]!, id: "other" }] };
+      expect(applyStateChanges(two, [{ ...subclass("thief"), playerId: "nobody" }]).rejected[0]!.reason).toBe("Unknown player.");
+    });
+  });
 });

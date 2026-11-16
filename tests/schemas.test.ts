@@ -36,6 +36,14 @@ describe("parseDMResponse", () => {
     expect(parseDMResponse(JSON.stringify(bad)).ok).toBe(false);
   });
 
+  it("accepts subclass changes with a subclass id", () => {
+    const withSubclass = (change: object) => JSON.stringify({ ...reply(), stateChanges: [{ type: "subclass", playerId: "p", ...change }] });
+    const ok = parseDMResponse(withSubclass({ subclassId: "thief" }));
+    expect(ok.ok && ok.response.stateChanges[0]).toEqual({ type: "subclass", playerId: "p", subclassId: "thief" });
+    expect(parseDMResponse(withSubclass({ subclassId: "" })).ok).toBe(false);
+    expect(parseDMResponse(withSubclass({})).ok).toBe(false);
+  });
+
   it("accepts level changes from 1 to 20 only", () => {
     const withLevel = (level: number) =>
       JSON.stringify({ ...reply(), stateChanges: [{ type: "level", playerId: "p", level }] });

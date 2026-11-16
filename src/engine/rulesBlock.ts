@@ -25,7 +25,7 @@ function describeLevel(cls: ClassData, subclassChosen: boolean, previewSubclass:
     ...(slots ? [slots] : []),
     ...(previewSubclass && subclassFeatures.length
       ? [
-          `  Si elige la subclase SRD (${cls.subclass.name}, aún no elegida):`,
+          `  Si elige la subclase SRD (${cls.subclass.name}, id "${cls.subclass.id}", aún no elegida):`,
           ...subclassFeatures.map((f) => `    ${f.name}: ${f.summary}`),
         ]
       : []),
@@ -40,7 +40,7 @@ function describeCharacter(c: Character): string {
   if (!species) missing.push(`especie "${c.race}"`);
   if (!cls) missing.push(`clase "${c.characterClass}"`);
   if (cls && !subclassChosen && c.level >= cls.subclass.level) {
-    missing.push(`subclase no elegida (se obtiene en el nivel ${cls.subclass.level})`);
+    missing.push(`subclase no elegida (se obtiene en el nivel ${cls.subclass.level}; la del SRD es ${cls.subclass.name}, id "${cls.subclass.id}")`);
   }
   if (c.level + 1 > LOADED_MAX_LEVEL) {
     const levels = c.level > LOADED_MAX_LEVEL ? `${c.level} y ${c.level + 1}` : `${c.level + 1}`;
@@ -53,7 +53,8 @@ function describeCharacter(c: Character): string {
     for (const level of [c.level, c.level + 1]) {
       // The SRD has one subclass per class, so even before it is chosen the DM
       // can preview what level-up brings (e.g. a level 2 fighter's Champion).
-      const preview = !subclassChosen && c.level < cls.subclass.level && level === cls.subclass.level;
+      // Once its level is reached and it is still unchosen, keep offering it (with its id) for the "subclass" change.
+      const preview = !subclassChosen && level >= cls.subclass.level;
       lines.push(...describeLevel(cls, subclassChosen, preview, level));
     }
   }

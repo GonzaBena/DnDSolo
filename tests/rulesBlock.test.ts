@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Character } from "../src/domain/types";
 import { describeCharacterRules } from "../src/engine/rulesBlock";
-import { buildTurnPrompt } from "../src/engine/dmPrompt";
+import { DM_SYSTEM_PROMPT, buildTurnPrompt } from "../src/engine/dmPrompt";
 import { newGame } from "./helpers";
 
 function hero(overrides: Partial<Character>): Character {
@@ -20,7 +20,7 @@ describe("describeCharacterRules", () => {
     expect(block).toContain("bonificador de competencia +2");
     // The subclass is not chosen yet at level 2, but level 3 previews the Champion.
     expect(block).toContain("Crítico mejorado");
-    const label = block.indexOf("Si elige la subclase SRD (Campeón, aún no elegida):");
+    const label = block.indexOf('Si elige la subclase SRD (Campeón, id "champion", aún no elegida):');
     expect(label).toBeGreaterThan(-1);
     expect(block.indexOf("Crítico mejorado")).toBeGreaterThan(label);
     expect(block.indexOf("Atleta sobresaliente")).toBeGreaterThan(label);
@@ -44,6 +44,17 @@ describe("describeCharacterRules", () => {
     ]);
     expect(block).toContain("Sin datos de reglas");
     expect(block).toContain("subclase no elegida");
+  });
+
+  it("offers the SRD subclass with its id once its level is reached and it is not chosen", () => {
+    const block = describeCharacterRules([
+      hero({ level: 3, race: "Elfo", speciesId: "elf", characterClass: "Pícaro", classId: "rogue" }),
+    ]);
+    const label = block.indexOf('Si elige la subclase SRD (Ladrón, id "thief", aún no elegida):');
+    expect(label).toBeGreaterThan(-1);
+    expect(block.indexOf("Manos rápidas")).toBeGreaterThan(label);
+    const later = describeCharacterRules([hero({ level: 4, characterClass: "Pícaro", classId: "rogue" })]);
+    expect(later).toContain('subclase no elegida (se obtiene en el nivel 3; la del SRD es Ladrón, id "thief")');
   });
 
   it("falls back to labels and flags unknown species", () => {
@@ -76,6 +87,14 @@ describe("casters and caps", () => {
   it("flags both levels when above the loaded cap", () => {
     const block = describeCharacterRules([hero({ level: 6 })]);
     expect(block).toContain("nivel 6 y 7");
+  });
+});
+
+describe("DM_SYSTEM_PROMPT", () => {
+  it("tells the DM to send the subclass change with the id from the rules block", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('cambio "subclass"');
+    expect(DM_SYSTEM_PROMPT).toMatch(/subclass"[^\n]*REGLAS DE LOS PERSONAJES/);
+    expect(DM_SYSTEM_PROMPT).toMatch(/subclase que no está en el SRD[^\n]*frase/);
   });
 });
 

@@ -1,3 +1,4 @@
+import { findClass } from "../rules";
 import type { Character, GameState, StateChange } from "./types";
 
 export interface RejectedChange {
@@ -98,12 +99,36 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
           rejected.push({ change, reason: "Unknown player." });
           break;
         }
-        const player = next.players[index]!;
-        if (change.level !== player.level + 1 || change.level > 20) {
+        // Against the level before this reply, so a reply raises each player one level at most.
+        const before = state.players[index]!;
+        if (change.level !== before.level + 1 || next.players[index]!.level !== before.level || change.level > 20) {
           rejected.push({ change, reason: "Level changes go one at a time." });
           break;
         }
         updatePlayer(index, (p) => ({ ...p, level: change.level }));
+        break;
+      }
+      case "subclass": {
+        const index = findPlayerIndex(next.players, change.playerId);
+        if (index === -1) {
+          rejected.push({ change, reason: "Unknown player." });
+          break;
+        }
+        const player = next.players[index]!;
+        const subclass = findClass(player.classId ?? player.characterClass)?.subclass;
+        if (!subclass || subclass.id !== change.subclassId) {
+          rejected.push({ change, reason: "That is not the SRD subclass of the player's class." });
+          break;
+        }
+        if (player.subclassId !== null) {
+          rejected.push({ change, reason: "The player already has a subclass." });
+          break;
+        }
+        if (player.level < subclass.level) {
+          rejected.push({ change, reason: "The player hasn't reached the subclass level." });
+          break;
+        }
+        updatePlayer(index, (p) => ({ ...p, subclassId: subclass.id }));
         break;
       }
       case "location":
