@@ -1,9 +1,10 @@
 import { armorClass } from "./armorClass";
 import type { CharacterChoices } from "./buildSheet";
 import {
-  ABILITY_INCREASE_CHOICES, activeChoices, isExpertise, isFeatChoice, isInvocationChoice, isSpellChoice,
+  ABILITY_INCREASE_CHOICES, activeChoices, isExpertise, isFeatChoice, isInvocationCantripChoice, isInvocationChoice, isSpellChoice,
   isWeaponMasteryChoice, requiredChoices,
 } from "./choices";
+import { LANGUAGES } from "./data/classes/common";
 import { CLASSES_DATA, SPECIES, findBackground, findFeat, findItem, findSpell } from "./index";
 import type { ArmorData, WeaponData } from "./index";
 import { ABILITIES, SKILLS } from "./types";
@@ -33,9 +34,24 @@ const MAX_SCORE = 20;
 const MARTIAL_ARTS_DIE = "Dado de artes marciales";
 const UNARMORED_MOVEMENT_M = "Movimiento sin armadura (m)";
 const JACK_OF_ALL_TRADES = "Aprendiz de mucho";
+/** Languages a class feature teaches at level 1 (Thieves' Cant, Druidic), by language id. */
+const CLASS_LANGUAGES: Record<string, { feature: string; language: string }> = {
+  rogue: { feature: "Jerga de ladrones", language: "thieves_cant" },
+  druid: { feature: "Druídico", language: "druidic" },
+};
+/** Equipment text that stands for the pick of a choice (the soldier's gaming set, the monk's tool). */
+const ITEM_FROM_PICK: Record<string, string> = {
+  "text:Juego (el mismo de la competencia)": "background.soldier.tool",
+  "text:Herramientas de artesano o instrumento musical elegido": "class.monk.tool",
+};
 export const SHEET_HOOKS = {
   resources: { monk: [MARTIAL_ARTS_DIE, UNARMORED_MOVEMENT_M] },
-  features: { bard: [JACK_OF_ALL_TRADES] },
+  features: {
+    bard: [JACK_OF_ALL_TRADES],
+    ...Object.fromEntries(Object.entries(CLASS_LANGUAGES).map(([classId, l]) => [classId, [l.feature]])),
+  } as Record<string, string[]>,
+  /** Equipment texts the sheet replaces with a pick, and the choice whose pick replaces them. */
+  itemsFromPicks: ITEM_FROM_PICK,
   /** Option ids of the cleric and druid orders whose effects the sheet applies. */
   options: {
     "class.cleric.divine_order": ["protector", "thaumaturge"],
@@ -151,7 +167,8 @@ const subclassFeatures = (ctx: Context): Trait[] =>
 function skills(ctx: Context): Sheet["skills"] {
   const { proficient, expertise } = skillProficiencies(ctx);
   const jackOfAllTrades = classFeatures(ctx).some(({ feature }) => feature.name === JACK_OF_ALL_TRADES);
-  return SKILLS.map((s) => {
+  const byName = [...SKILLS].sort((a, b) => a.name.localeCompare(b.name, "es"));
+  return byName.map((s) => {
     const isProficient = proficient.has(s.id);
     const isExpert = isProficient && expertise.has(s.id);
     const profPart = isExpert ? 2 * ctx.prof : isProficient ? ctx.prof : jackOfAllTrades ? Math.floor(ctx.prof / 2) : 0;
@@ -189,6 +206,26 @@ function tools(ctx: Context): string[] {
   return [...new Set([...fixed, ...chosen])];
 }
 
+const languageName = (id: string) => LANGUAGES.find((l) => l.id === id)?.name ?? id;
+
+/** Common, the origin languages, the class's own language and the other language picks (rogue, ranger). */
+function languages(ctx: Context): string[] {
+  const picks = (origin: boolean) => ctx.specs
+    .filter((s) => /\.languages?$/.test(s.id) && (s.id === "origin.languages") === origin)
+    .flatMap((s) => picked(s, ctx.c.picks).map((o) => o.name));
+  const own = CLASS_LANGUAGES[ctx.cls.id];
+  return [...new Set(["Común", ...picks(true), ...(own ? [languageName(own.language)] : []), ...picks(false)])];
+}
+
+/** Each weapon mastery picked, in pick order. */
+function masteries(ctx: Context): Sheet["masteries"] {
+  const ids = new Set(ctx.specs.filter((s) => isWeaponMasteryChoice(s.id)).flatMap((s) => ctx.c.picks[s.id] ?? []));
+  return [...ids].flatMap((id) => {
+    const w = weaponOf(id);
+    return w ? [{ weapon: w.name, mastery: w.mastery }] : [];
+  });
+}
+
 const isLight = (w: WeaponData) => w.properties.some((p) => /^Liger[ao]$/.test(p));
 
 /** Weapon proficiency entries of the class data, as rules. */
@@ -212,10 +249,17 @@ export function isWeaponProficient(weapon: WeaponData, proficiencies: string[]):
 
 const itemName = (item: string) => (item.startsWith("text:") ? item.slice(5) : findItem(item)?.name ?? item);
 
+/** The item's name, or the picked option's name when the item stands for a pick (e.g. the soldier's gaming set). */
+function equipmentName(ctx: Context, item: string): string {
+  const choiceId = ITEM_FROM_PICK[item];
+  const spec = choiceId ? ctx.specs.find((s) => s.id === choiceId) : undefined;
+  return (spec && picked(spec, ctx.c.picks)[0]?.name) ?? itemName(item);
+}
+
 /** Item names in order, repeated items once with their count: "Jabalina (8)". */
 function equipment(ctx: Context): string[] {
   const counts = new Map<string, number>();
-  for (const item of ctx.items) counts.set(itemName(item), (counts.get(itemName(item)) ?? 0) + 1);
+  for (const name of ctx.items.map((item) => equipmentName(ctx, item))) counts.set(name, (counts.get(name) ?? 0) + 1);
   return [...counts].map(([name, n]) => (n > 1 ? `${name} (${n})` : name));
 }
 
@@ -294,7 +338,8 @@ function attacks(ctx: Context, weaponProficiencies: string[]): Sheet["attacks"] 
 
 /** Choices whose picks are features in their own right (beyond feats). */
 const isFeatureChoice = (id: string) =>
-  isInvocationChoice(id) || /\.(metamagic|divine_order|primal_order|lineage|legacy|ancestry|giant_ancestry|land_type)$/.test(id);
+  isInvocationChoice(id) || isInvocationCantripChoice(id) ||
+  /\.(metamagic|divine_order|primal_order|lineage|legacy|ancestry|giant_ancestry|land_type|hunters_prey)$/.test(id);
 
 function features(ctx: Context): Sheet["features"] {
   const { species, cls, background } = ctx;
@@ -393,6 +438,8 @@ export function computeSheet(c: CharacterChoices): CharacterSheet {
     passivePerception: 10 + perception.bonus,
     skills: sheetSkills,
     proficiencies: { armor, weapons, tools: tools(ctx) },
+    languages: languages(ctx),
+    masteries: masteries(ctx),
     attacks: attacks(ctx, weapons),
     features: features(ctx),
     spellcasting: spellcasting(ctx),

@@ -134,6 +134,10 @@ export interface CharacterSheet {
   initiative: number; speed: number; passivePerception: number;
   skills: { id: SkillId; name: string; bonus: number; proficient: boolean; expertise: boolean }[];
   proficiencies: { armor: string[]; weapons: string[]; tools: string[] };
+  /** Common first, then the picked and class languages. */
+  languages: string[];
+  /** Every weapon mastery picked, whether or not the weapon is in the equipment. */
+  masteries: { weapon: string; mastery: string }[];
   attacks: { name: string; attackBonus: number; damage: string; mastery: string | null }[];
   features: { source: string; name: string; summary: string }[];
   spellcasting: null | {

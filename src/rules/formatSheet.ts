@@ -49,6 +49,8 @@ function build(s: CharacterSheet, story: string): { header: string; sections: Se
       `Armaduras: ${list(s.proficiencies.armor)}`,
       `Armas: ${list(s.proficiencies.weapons)}`,
       `Herramientas: ${list(s.proficiencies.tools)}`,
+      `Idiomas: ${list(s.languages)}`,
+      ...(s.masteries.length > 0 ? [`Maestrías: ${s.masteries.map((m) => `${m.weapon} (${m.mastery})`).join(", ")}`] : []),
     ]),
   });
   out.push({

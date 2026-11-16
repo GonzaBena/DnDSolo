@@ -4,6 +4,7 @@ import type { CharacterChoices, ChoiceError } from "../src/rules/buildSheet";
 import { WEAPONS, findClass, findSpell, spellsFor } from "../src/rules";
 import type { CharacterSheet, SkillId } from "../src/rules";
 import { isWeaponProficient, weaponAbilityModifier } from "../src/rules/sheet";
+import { requiredChoices } from "../src/rules/choices";
 import { fighterChoices, greedyChoices } from "./helpers";
 
 const fields = (errors: ChoiceError[]) => errors.map((e) => e.field);
@@ -645,6 +646,55 @@ describe("buildSheet: fighter (human soldier, Defense)", () => {
   });
 });
 
+describe("buildSheet: picks shown on the sheet", () => {
+  it("lists Common and the origin languages", () => {
+    expect(sheetOf(fighterChoices()).languages).toEqual(["Común", "Elfo", "Enano"]);
+  });
+
+  it("adds the rogue's Thieves' Cant and the class language pick", () => {
+    expect(sheetOf(rogueChoices(["stealth", "perception"])).languages).toEqual(["Común", "Enano", "Gigante", "Jerga de ladrones", "Elfo"]);
+  });
+
+  it("adds the druid's Druidic and the ranger's level 2 languages", () => {
+    expect(sheetOf(greedyChoices("human", "druid", "sage", 1)).languages).toContain("Druídico");
+    const ranger = greedyChoices("human", "ranger", "sage", 2);
+    const picked = ranger.picks["class.ranger.languages"]!;
+    expect(picked).toHaveLength(2);
+    expect(sheetOf(ranger).languages).toHaveLength(5);
+  });
+
+  it("lists every weapon mastery picked, with its property, even without the weapon", () => {
+    expect(sheetOf(fighterChoices()).masteries).toEqual([
+      { weapon: "Espada larga", mastery: "Debilitar" },
+      { weapon: "Espadón", mastery: "Rozar" },
+      { weapon: "Arco largo", mastery: "Ralentizar" },
+    ]);
+    expect(sheetOf(fighterChoices({ classEquipment: "C" })).masteries).toHaveLength(3);
+    expect(sheetOf(grapplerFighter({ str: 13, dex: 10, con: 15, int: 12, wis: 14, cha: 8 })).masteries.map((m) => m.weapon)).toContain("Daga");
+    expect(sheetOf(greedyChoices("human", "wizard", "sage", 1)).masteries).toEqual([]);
+  });
+
+  it("names the soldier's gaming set and the monk's tool in the equipment", () => {
+    const soldier = sheetOf(withPicks({ "background.soldier.tool": ["playing_cards"] }));
+    expect(soldier.equipment).toContain("Naipes");
+    expect(soldier.equipment.join()).not.toContain("el mismo de la competencia");
+    const monkChoices = greedyChoices("human", "monk", "soldier", 1);
+    const monk = sheetOf(monkChoices);
+    const tool = requiredChoices(monkChoices).find((s) => s.id === "class.monk.tool")!
+      .options.find((o) => o.id === monkChoices.picks["class.monk.tool"]![0])!.name;
+    expect(monk.equipment).toContain(tool);
+    expect(monk.proficiencies.tools).toContain(tool);
+    expect(monk.equipment.join()).not.toContain("elegido");
+  });
+
+  it("sorts the skills by their Spanish name", () => {
+    const names = sheetOf(fighterChoices()).skills.map((s) => s.name);
+    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b, "es")));
+    expect(names[0]).toBe("Acrobacias");
+    expect(names.indexOf("Trato con animales")).toBeGreaterThan(names.indexOf("Supervivencia"));
+  });
+});
+
 describe("buildSheet: ability increases", () => {
   it("applies an ASI of +1/+1 or +2", () => {
     const split = sheetOf(asiFighter(["str", "con"]));
@@ -878,6 +928,17 @@ describe("buildSheet: features from picked options", () => {
     ]));
     const sorcerer = sheetOf(greedyChoices("human", "sorcerer", "sage", 2));
     expect(sorcerer.features.filter((f) => f.source === "Metamagia")).toHaveLength(2);
+  });
+
+  it("lists the Hunter's Prey option and the cantrip an invocation improves", () => {
+    const hunter = greedyChoices("human", "ranger", "sage", 3);
+    expect(hunter.picks["subclass.hunter.hunters_prey"]).toEqual(["colossus_slayer"]);
+    expect(sheetOf(hunter).features).toEqual(expect.arrayContaining([
+      expect.objectContaining({ source: "El cazador y la presa", name: "Azote de colosos" }),
+    ]));
+    expect(sheetOf(warlockChoices()).features).toEqual(expect.arrayContaining([
+      expect.objectContaining({ source: "Truco de brujo para Descarga agónica", name: spellName("eldritch_blast") }),
+    ]));
   });
 });
 

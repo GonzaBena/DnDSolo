@@ -564,6 +564,15 @@ describe("spells (cantrips to level 2)", () => {
       for (const name of names) expect(features, `${classId}: ${name}`).toContain(name);
     }
     const specs = CLASSES_DATA.flatMap((c) => c.levels.flatMap((l) => l.choices));
+    const items = [
+      ...CLASSES_DATA.flatMap((c) => Object.values(c.equipment).flatMap((e) => e?.items ?? [])),
+      ...BACKGROUNDS.flatMap((b) => [...b.equipment.A, ...b.equipment.B]),
+    ];
+    const allSpecs = [...specs, ...BACKGROUNDS.flatMap((b) => b.choices)];
+    for (const [item, choiceId] of Object.entries(SHEET_HOOKS.itemsFromPicks)) {
+      expect(items, item).toContain(item);
+      expect(allSpecs.map((s) => s.id), item).toContain(choiceId);
+    }
     for (const [choiceId, ids] of Object.entries(SHEET_HOOKS.options)) {
       const options = specs.find((s) => s.id === choiceId)?.options.map((o) => o.id);
       for (const id of ids) expect(options, `${choiceId}: ${id}`).toContain(id);

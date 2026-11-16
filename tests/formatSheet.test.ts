@@ -33,6 +33,16 @@ describe("formatSheetText", () => {
     expect(t.match(/^ {2}.+ [+-]\d+/gm)!.length).toBeGreaterThanOrEqual(18);
   });
 
+  it("lists languages under Competencias and the weapon masteries", () => {
+    const t = formatSheetText(fighter(), "Brisa", story);
+    expect(t).toContain("  Idiomas: Común, Elfo, Enano\n");
+    expect(t).toContain("  Maestrías: Espada larga (Debilitar), Espadón (Rozar), Arco largo (Ralentizar)\n");
+    const competencias = t.slice(t.indexOf("COMPETENCIAS"), t.indexOf("ATAQUES"));
+    expect(competencias).toContain("Idiomas:");
+    expect(competencias).toContain("Maestrías:");
+    expect(formatSheetText(sheetOf(greedyChoices("human", "wizard", "sage", 1)), "Ilan", "")).not.toContain("Maestrías");
+  });
+
   it("shows speed in metres with decimal comma", () => {
     const s = fighter();
     expect(formatSheetText({ ...s, speed: 30 }, "A", "")).toContain("Velocidad 9 m");
@@ -62,5 +72,11 @@ describe("formatSheetMarkdown", () => {
     expect(m).toContain("## Atributos");
     expect(m).not.toMatch(/\+-/);
     expect(m.trimEnd().split("\n").at(-1)).toBe("Reglas: SRD 5.2 (CC-BY-4.0)");
+  });
+
+  it("lists languages and masteries as items of Competencias", () => {
+    const m = formatSheetMarkdown(fighter(), "Brisa", story);
+    expect(m).toContain("- Idiomas: Común, Elfo, Enano\n");
+    expect(m).toContain("- Maestrías: Espada larga (Debilitar)");
   });
 });
