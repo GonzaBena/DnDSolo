@@ -141,7 +141,7 @@ export class TurnEngine {
       case "action":
         if (state.turns.length === 0) return "The game hasn't started yet.";
         if (state.pendingEnemyRolls.length > 0) return "Enemy rolls must be resolved first.";
-        return input.text.trim() === "" ? "The action is empty." : null;
+        return input.text.trim() === "" && !input.roll ? "The action is empty." : null;
       case "enemy_rolls": {
         const pending = state.pendingEnemyRolls;
         if (pending.length === 0) return "There are no pending enemy rolls.";

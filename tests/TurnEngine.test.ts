@@ -88,6 +88,29 @@ describe("TurnEngine.playTurn", () => {
     expect(answered.state.pendingPlayerRoll).toBeNull();
   });
 
+  it("accepts a roll reported through the dice button, with or without text", async () => {
+    const ctx = setup();
+    const game = await started(ctx);
+    ctx.llm.queueStructured(reply({ narration: "Pasás sin ruido." }));
+
+    const outcome = await ctx.engine.playTurn(game, {
+      type: "action",
+      text: "",
+      roll: { die: "d20", value: 14, modifier: 3, reason: "Sigilo" },
+    });
+
+    expect(outcome.ok).toBe(true);
+    const prompt = ctx.llm.structuredRequests.at(-1)!.prompt;
+    expect(prompt).toContain("TIRADA DEL JUGADOR: Sigilo — 1d20: 14 + 3 = 17");
+  });
+
+  it("still rejects an action with neither text nor roll", async () => {
+    const ctx = setup();
+    const game = await started(ctx);
+    const outcome = await ctx.engine.playTurn(game, { type: "action", text: "  " });
+    expect(outcome.ok).toBe(false);
+  });
+
   it("rolls enemy dice in code and sends the totals back to the DM", async () => {
     const ctx = setup(() => 0.5); // d20 -> 11, d6 -> 4
     const game = await started(ctx);

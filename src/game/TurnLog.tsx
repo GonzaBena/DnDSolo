@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from "react";
 import { enterFromRight, enterNarration, enterPage, rollIn } from "../animations/motion";
 import { formatDice } from "../domain/dice";
-import type { Character, EnemyRollResult, Turn, TurnInput } from "../domain/types";
+import type { Character, EnemyRollResult, PlayerRoll, Turn, TurnInput } from "../domain/types";
 import { DieShape } from "./DieShape";
 import { useEnter } from "./useEnter";
 
@@ -10,26 +10,72 @@ import { useEnter } from "./useEnter";
 // moves from "in flight" to the log. A save being opened gets its own
 // entrance instead (see TurnLog).
 
-/** A roll the app made for an enemy. The player's own rolls never get a
-    card: they are plain chat messages. */
-function EnemyRollCard({ result, animated }: { result: EnemyRollResult; animated?: boolean }) {
+/** A die result with its tumbling animation, for enemy rolls and for the
+    rolls the player reports through the dice button. */
+function RollCard({
+  label,
+  die,
+  total,
+  meta,
+  variant,
+  animated,
+}: {
+  label: string;
+  die: EnemyRollResult["die"];
+  total: number;
+  meta: string;
+  variant: "enemy" | "player";
+  animated?: boolean | undefined;
+}) {
   const ref = useEnter<HTMLDivElement>(animated ? rollIn : null);
-  // Only worth spelling out when the total isn't just the single die.
-  const showDice = result.values.length > 1 || result.modifier !== 0;
   return (
-    <div ref={ref} className="roll-card">
-      <span className="roll-card__label">Tirada del enemigo</span>
+    <div ref={ref} className={`roll-card roll-card--${variant}`}>
+      <span className="roll-card__label">{label}</span>
       <span className="roll-card__result">
         {/* Only visible while the roll animates (see rollIn). */}
-        <DieShape die={result.die} className="roll-card__die" />
-        {result.die === "d100" && <span className="roll-card__burst" />}
-        <span className="roll-card__value">{result.total}</span>
+        <DieShape die={die} className="roll-card__die" />
+        {die === "d100" && <span className="roll-card__burst" />}
+        <span className="roll-card__value">{total}</span>
       </span>
-      <span className="roll-card__meta">
-        {result.reason} · {formatDice(result)}
-        {showDice && ` · dados: ${result.values.join(", ")}`}
-      </span>
+      <span className="roll-card__meta">{meta}</span>
     </div>
+  );
+}
+
+function EnemyRollCard({ result, animated }: { result: EnemyRollResult; animated?: boolean }) {
+  // Only worth spelling out when the total isn't just the single die.
+  const showDice = result.values.length > 1 || result.modifier !== 0;
+  const meta =
+    `${result.reason} · ${formatDice(result)}` +
+    (showDice ? ` · dados: ${result.values.join(", ")}` : "");
+  return (
+    <RollCard
+      label="Tirada del enemigo"
+      die={result.die}
+      total={result.total}
+      meta={meta}
+      variant="enemy"
+      animated={animated}
+    />
+  );
+}
+
+/** The player's own roll: the app didn't roll it, it shows what was typed. */
+function PlayerRollCard({ roll, animated }: { roll: PlayerRoll; animated?: boolean }) {
+  const dice = formatDice({ die: roll.die, count: roll.count ?? 1, modifier: roll.modifier });
+  const meta =
+    (roll.reason ? `${roll.reason} · ` : "") +
+    dice +
+    (roll.modifier !== 0 ? ` · ${(roll.count ?? 1) > 1 ? "dados" : "dado"}: ${roll.value}` : "");
+  return (
+    <RollCard
+      label="Tu tirada"
+      die={roll.die}
+      total={roll.value + roll.modifier}
+      meta={meta}
+      variant="player"
+      animated={animated}
+    />
   );
 }
 
@@ -94,11 +140,20 @@ export function InputEntry({
       return null;
     case "action":
       return (
-        <PlayerEntry
-          text={input.text}
-          name={speakerName(players, input.playerId)}
-          animated={animated}
-        />
+        <>
+          {input.text.trim() !== "" && (
+            <PlayerEntry
+              text={input.text}
+              name={speakerName(players, input.playerId)}
+              animated={animated}
+            />
+          )}
+          {input.roll && (
+            <div className="roll-cards roll-cards--player">
+              <PlayerRollCard roll={input.roll} animated={animated} />
+            </div>
+          )}
+        </>
       );
     case "enemy_rolls":
       return (

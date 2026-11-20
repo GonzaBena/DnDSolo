@@ -1,4 +1,4 @@
-import { formatDice } from "../domain/dice";
+import { describePlayerRoll as describeRolledDie, formatDice } from "../domain/dice";
 import { describeCharacterRules } from "./rulesBlock";
 import type { GameState, PlayerRollRequest, Turn, TurnInput } from "../domain/types";
 
@@ -62,8 +62,15 @@ export function describeInput(input: TurnInput): string {
   switch (input.type) {
     case "start":
       return "INICIO DE LA AVENTURA: presentá la escena inicial, el lugar y un gancho para que el personaje actúe.";
-    case "action":
-      return `ACCIÓN DEL JUGADOR: ${input.text}`;
+    case "action": {
+      const lines: string[] = [];
+      if (input.text.trim() !== "") lines.push(`ACCIÓN DEL JUGADOR: ${input.text}`);
+      if (input.roll) {
+        const reason = input.roll.reason ? `${input.roll.reason} — ` : "";
+        lines.push(`TIRADA DEL JUGADOR: ${reason}${describeRolledDie(input.roll)}`);
+      }
+      return lines.join("\n");
+    }
     case "enemy_rolls":
       return [
         "TIRADAS DE ENEMIGOS (hechas por el sistema):",

@@ -127,7 +127,20 @@ export function parseDMResponse(raw: string): ParseResult {
 
 const turnInput = z.discriminatedUnion("type", [
   z.object({ type: z.literal("start") }),
-  z.object({ type: z.literal("action"), text: z.string(), playerId: z.string().optional() }),
+  z.object({
+    type: z.literal("action"),
+    text: z.string(),
+    playerId: z.string().optional(),
+    roll: z
+      .object({
+        die: z.enum(DICE),
+        count: z.number().int().positive().optional(),
+        value: z.number().int(),
+        modifier: z.number().int(),
+        reason: z.string().optional(),
+      })
+      .optional(),
+  }),
   z.object({
     type: z.literal("enemy_rolls"),
     results: z.array(

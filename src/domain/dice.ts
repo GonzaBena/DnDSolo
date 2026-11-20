@@ -1,4 +1,4 @@
-import type { Die, EnemyRollRequest, EnemyRollResult } from "./types";
+import type { Die, EnemyRollRequest, EnemyRollResult, PlayerRoll } from "./types";
 
 const SIDES: Record<Die, number> = { d4: 4, d6: 6, d8: 8, d10: 10, d12: 12, d20: 20, d100: 100 };
 
@@ -9,7 +9,7 @@ export function rollDie(die: Die, random: () => number = Math.random): number {
 }
 
 /** Rolls for an enemy. The app only ever rolls for enemies and NPCs: the
-    player rolls their own dice and reports the total in the chat. */
+    player rolls their own dice and reports the result (see PlayerRoll). */
 export function rollForEnemy(
   request: EnemyRollRequest,
   random: () => number = Math.random,
@@ -24,4 +24,21 @@ export function formatDice(roll: { die: Die; count: number; modifier?: number })
   const modifier = roll.modifier ?? 0;
   const sign = modifier > 0 ? `+${modifier}` : modifier < 0 ? `${modifier}` : "";
   return `${roll.count}${roll.die}${sign}`;
+}
+
+/** "1d20: 14 + 3 = 17", "1d8: 8 - 1 = 7", "1d20: 20". */
+export function describePlayerRoll(
+  roll: Pick<PlayerRoll, "die" | "count" | "value" | "modifier">,
+): string {
+  const { die, value, modifier } = roll;
+  const math =
+    modifier === 0
+      ? `${value}`
+      : `${value} ${modifier > 0 ? "+" : "-"} ${Math.abs(modifier)} = ${value + modifier}`;
+  return `${formatDice({ die, count: roll.count ?? 1 })}: ${math}`;
+}
+
+/** Highest total a die can show, for validating what the player types. */
+export function dieSides(die: Die): number {
+  return SIDES[die];
 }

@@ -39,6 +39,19 @@ export interface PlayerRollRequest {
   difficulty: number | null;
 }
 
+/** A roll the player made with their own dice and reported through the
+    dice button. The app never rolls it: it only records what was typed. */
+export interface PlayerRoll {
+  die: Die;
+  /** How many of `die`; 1 when missing. */
+  count?: number | undefined;
+  /** What the dice showed, added up. */
+  value: number;
+  modifier: number;
+  /** What it was for, when the DM had asked for it. */
+  reason?: string | undefined;
+}
+
 /** A roll for an enemy or NPC. These are the only dice the app rolls. */
 export interface EnemyRollRequest {
   die: Die;
@@ -131,7 +144,13 @@ export type TurnInput =
   | { type: "start" }
   /** `playerId` says whose character spoke. Optional because saves from
       before it existed don't have it; those belong to the only player. */
-  | { type: "action"; text: string; playerId?: string | undefined }
+  | {
+      type: "action";
+      /** May be empty when the turn is only a roll. */
+      text: string;
+      playerId?: string | undefined;
+      roll?: PlayerRoll | undefined;
+    }
   /** Sent automatically by the app after rolling what the DM asked for. */
   | { type: "enemy_rolls"; results: EnemyRollResult[] };
 

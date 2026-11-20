@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDice, rollDie, rollForEnemy } from "../src/domain/dice";
+import { describePlayerRoll, formatDice, rollDie, rollForEnemy } from "../src/domain/dice";
 import { DICE } from "../src/domain/types";
 
 describe("rollDie", () => {
@@ -50,5 +50,23 @@ describe("formatDice", () => {
     expect(formatDice({ die: "d6", count: 2, modifier: 3 })).toBe("2d6+3");
     expect(formatDice({ die: "d8", count: 1, modifier: -1 })).toBe("1d8-1");
     expect(formatDice({ die: "d8", count: 1, modifier: 0 })).toBe("1d8");
+  });
+});
+
+describe("describePlayerRoll", () => {
+  it("states the die, the modifier and the total", () => {
+    expect(describePlayerRoll({ die: "d20", value: 14, modifier: 3 })).toBe("1d20: 14 + 3 = 17");
+  });
+
+  it("writes negative modifiers with a minus sign", () => {
+    expect(describePlayerRoll({ die: "d8", value: 8, modifier: -1 })).toBe("1d8: 8 - 1 = 7");
+  });
+
+  it("counts several dice of the same kind", () => {
+    expect(describePlayerRoll({ die: "d6", count: 2, value: 9, modifier: 2 })).toBe("2d6: 9 + 2 = 11");
+  });
+
+  it("omits a zero modifier", () => {
+    expect(describePlayerRoll({ die: "d20", value: 20, modifier: 0 })).toBe("1d20: 20");
   });
 });
