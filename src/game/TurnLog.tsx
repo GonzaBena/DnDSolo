@@ -1,7 +1,18 @@
 import { useLayoutEffect, useRef } from "react";
-import { enterFromRight, enterNarration, enterPage, rollIn } from "../animations/motion";
-import { formatDice } from "../domain/dice";
-import type { Character, EnemyRollResult, PlayerRoll, Turn, TurnInput } from "../domain/types";
+import {
+  enterFromRight,
+  enterNarration,
+  enterPage,
+  rollIn,
+} from "../animations/motion";
+import { formatDice, naturalResult } from "../domain/dice";
+import type {
+  Character,
+  EnemyRollResult,
+  PlayerRoll,
+  Turn,
+  TurnInput,
+} from "../domain/types";
 import { DieShape } from "./DieShape";
 import { useEnter } from "./useEnter";
 
@@ -18,6 +29,7 @@ function RollCard({
   total,
   meta,
   variant,
+  natural = null,
   animated,
 }: {
   label: string;
@@ -25,12 +37,22 @@ function RollCard({
   total: number;
   meta: string;
   variant: "enemy" | "player";
+  natural?: "critical" | "fumble" | null;
   animated?: boolean | undefined;
 }) {
   const ref = useEnter<HTMLDivElement>(animated ? rollIn : null);
   return (
-    <div ref={ref} className={`roll-card roll-card--${variant}`}>
-      <span className="roll-card__label">{label}</span>
+    <div
+      ref={ref}
+      className={`roll-card roll-card--${variant}${natural ? ` roll-card--${natural}` : ""}`}
+    >
+      <span className="roll-card__label">
+        {natural === "critical"
+          ? "¡20 natural!"
+          : natural === "fumble"
+            ? "¡Pifia!"
+            : label}
+      </span>
       <span className="roll-card__result">
         {/* Only visible while the roll animates (see rollIn). */}
         <DieShape die={die} className="roll-card__die" />
@@ -42,7 +64,13 @@ function RollCard({
   );
 }
 
-function EnemyRollCard({ result, animated }: { result: EnemyRollResult; animated?: boolean }) {
+function EnemyRollCard({
+  result,
+  animated,
+}: {
+  result: EnemyRollResult;
+  animated?: boolean;
+}) {
   // Only worth spelling out when the total isn't just the single die.
   const showDice = result.values.length > 1 || result.modifier !== 0;
   const meta =
@@ -61,12 +89,24 @@ function EnemyRollCard({ result, animated }: { result: EnemyRollResult; animated
 }
 
 /** The player's own roll: the app didn't roll it, it shows what was typed. */
-function PlayerRollCard({ roll, animated }: { roll: PlayerRoll; animated?: boolean }) {
-  const dice = formatDice({ die: roll.die, count: roll.count ?? 1, modifier: roll.modifier });
+function PlayerRollCard({
+  roll,
+  animated,
+}: {
+  roll: PlayerRoll;
+  animated?: boolean;
+}) {
+  const dice = formatDice({
+    die: roll.die,
+    count: roll.count ?? 1,
+    modifier: roll.modifier,
+  });
   const meta =
     (roll.reason ? `${roll.reason} · ` : "") +
     dice +
-    (roll.modifier !== 0 ? ` · ${(roll.count ?? 1) > 1 ? "dados" : "dado"}: ${roll.value}` : "");
+    (roll.modifier !== 0
+      ? ` · ${(roll.count ?? 1) > 1 ? "dados" : "dado"}: ${roll.value}`
+      : "");
   return (
     <RollCard
       label="Tu tirada"
@@ -74,6 +114,7 @@ function PlayerRollCard({ roll, animated }: { roll: PlayerRoll; animated?: boole
       total={roll.value + roll.modifier}
       meta={meta}
       variant="player"
+      natural={naturalResult(roll)}
       animated={animated}
     />
   );
@@ -83,7 +124,10 @@ const DM_NAME = "DM";
 
 /** Whose character said this. Falls back to the first player for messages
     saved before authorship was recorded (and for the solo game in general). */
-function speakerName(players: Character[], playerId: string | undefined): string {
+function speakerName(
+  players: Character[],
+  playerId: string | undefined,
+): string {
   const speaker = players.find((p) => p.id === playerId) ?? players[0];
   return speaker?.name ?? "Jugador";
 }
@@ -93,7 +137,9 @@ function speakerName(players: Character[], playerId: string | undefined): string
 export function initials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
   const letters =
-    words.length >= 2 ? words[0]![0]! + words[1]![0]! : (words[0] ?? "").slice(0, 2);
+    words.length >= 2
+      ? words[0]![0]! + words[1]![0]!
+      : (words[0] ?? "").slice(0, 2);
   return letters.toUpperCase();
 }
 
@@ -171,7 +217,13 @@ function Paragraph({ text, animated }: { text: string; animated?: boolean }) {
   return <p ref={ref}>{text}</p>;
 }
 
-export function Narration({ text, animated }: { text: string; animated?: boolean }) {
+export function Narration({
+  text,
+  animated,
+}: {
+  text: string;
+  animated?: boolean;
+}) {
   return (
     <div className="message message--dm">
       <Speaker name={DM_NAME} />
@@ -212,7 +264,8 @@ export function TurnLog({
   return (
     <>
       {turns.map((turn, index) => {
-        const enters = index < enterCount && index >= enterCount - ENTERING_TURNS;
+        const enters =
+          index < enterCount && index >= enterCount - ENTERING_TURNS;
         return (
           <div
             key={turn.number}

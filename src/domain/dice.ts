@@ -1,6 +1,19 @@
-import type { Die, EnemyRollRequest, EnemyRollResult, PlayerRoll } from "./types";
+import type {
+  Die,
+  EnemyRollRequest,
+  EnemyRollResult,
+  PlayerRoll,
+} from "./types";
 
-const SIDES: Record<Die, number> = { d4: 4, d6: 6, d8: 8, d10: 10, d12: 12, d20: 20, d100: 100 };
+const SIDES: Record<Die, number> = {
+  d4: 4,
+  d6: 6,
+  d8: 8,
+  d10: 10,
+  d12: 12,
+  d20: 20,
+  d100: 100,
+};
 
 /** Pure given `random` (a function returning [0, 1)), which is what makes
     rolls testable. */
@@ -14,15 +27,23 @@ export function rollForEnemy(
   request: EnemyRollRequest,
   random: () => number = Math.random,
 ): EnemyRollResult {
-  const values = Array.from({ length: request.count }, () => rollDie(request.die, random));
-  const total = values.reduce((sum, value) => sum + value, 0) + request.modifier;
+  const values = Array.from({ length: request.count }, () =>
+    rollDie(request.die, random),
+  );
+  const total =
+    values.reduce((sum, value) => sum + value, 0) + request.modifier;
   return { ...request, values, total };
 }
 
 /** "2d6+3", "1d20", "1d8-1". */
-export function formatDice(roll: { die: Die; count: number; modifier?: number }): string {
+export function formatDice(roll: {
+  die: Die;
+  count: number;
+  modifier?: number;
+}): string {
   const modifier = roll.modifier ?? 0;
-  const sign = modifier > 0 ? `+${modifier}` : modifier < 0 ? `${modifier}` : "";
+  const sign =
+    modifier > 0 ? `+${modifier}` : modifier < 0 ? `${modifier}` : "";
   return `${roll.count}${roll.die}${sign}`;
 }
 
@@ -35,7 +56,25 @@ export function describePlayerRoll(
     modifier === 0
       ? `${value}`
       : `${value} ${modifier > 0 ? "+" : "-"} ${Math.abs(modifier)} = ${value + modifier}`;
-  return `${formatDice({ die, count: roll.count ?? 1 })}: ${math}`;
+  const natural = naturalResult(roll);
+  const note =
+    natural === "critical"
+      ? " (20 natural: crítico)"
+      : natural === "fumble"
+        ? " (1 natural: pifia)"
+        : "";
+  return `${formatDice({ die, count: roll.count ?? 1 })}: ${math}${note}`;
+}
+
+/** A natural 20 or 1 only means something on a single d20; with several
+    dice the value is a sum and says nothing about any one of them. */
+export function naturalResult(
+  roll: Pick<PlayerRoll, "die" | "count" | "value">,
+): "critical" | "fumble" | null {
+  if (roll.die !== "d20" || (roll.count ?? 1) !== 1) return null;
+  if (roll.value === 20) return "critical";
+  if (roll.value === 1) return "fumble";
+  return null;
 }
 
 /** Highest total a die can show, for validating what the player types. */
