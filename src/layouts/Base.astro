@@ -4,9 +4,11 @@ import "../styles/global.css";
 interface Props {
   title: string;
   footer?: boolean;
+  /** Game screen: no generator link, and a header that hides while scrolling down. */
+  game?: boolean;
 }
 
-const { title, footer = true } = Astro.props;
+const { title, footer = true, game = false } = Astro.props;
 ---
 
 <!doctype html>
@@ -37,7 +39,7 @@ const { title, footer = true } = Astro.props;
       }
     </script>
   </head>
-  <body>
+  <body class:list={{ "game-shell": game }}>
     <header class="site-header">
       <a class="brand" href="/">
         <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">
@@ -47,8 +49,21 @@ const { title, footer = true } = Astro.props;
         DnDSolo
       </a>
       <nav class="site-nav">
-        <a href="/generator">Generador</a>
-        <a href="/settings">Configuración</a>
+        {!game && (
+          <a class="icon-button" href="/generator" aria-label="Generador de personajes" title="Generador de personajes">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M19 8v6M22 11h-6" />
+            </svg>
+          </a>
+        )}
+        <a class="icon-button" href="/settings" aria-label="Configuración" title="Configuración">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+          </svg>
+        </a>
         <button class="theme-toggle" type="button" aria-label="Cambiar a modo oscuro">
           <svg class="theme-toggle__moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
             <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" />
@@ -98,6 +113,45 @@ const { title, footer = true } = Astro.props;
         }
         labelToggle();
       });
+
+      // Game screen: the header slides away while reading down and comes
+      // back as soon as the player scrolls up, so home is always one flick
+      // away without stealing space from the story.
+      const header = document.querySelector<HTMLElement>(".site-header");
+      if (document.body.classList.contains("game-shell") && header) {
+        const body = document.body;
+        const measure = () => body.style.setProperty("--header-h", `${header.offsetHeight}px`);
+        measure();
+        new ResizeObserver(measure).observe(header);
+
+        let lastY = window.scrollY;
+        let ticking = false;
+        const MIN_DELTA = 8;
+        const update = () => {
+          ticking = false;
+          const y = window.scrollY;
+          const delta = y - lastY;
+          if (y <= header.offsetHeight) {
+            body.dataset.header = "shown";
+          } else if (Math.abs(delta) >= MIN_DELTA) {
+            body.dataset.header = delta > 0 ? "hidden" : "shown";
+          } else {
+            return;
+          }
+          lastY = y;
+        };
+        window.addEventListener(
+          "scroll",
+          () => {
+            if (ticking) return;
+            ticking = true;
+            requestAnimationFrame(update);
+          },
+          { passive: true },
+        );
+        // Keyboard users tabbing into the nav must be able to see it.
+        header.addEventListener("focusin", () => (body.dataset.header = "shown"));
+      }
     </script>
   </body>
 </html>
