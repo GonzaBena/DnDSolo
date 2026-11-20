@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { shakeScreen } from "../animations/motion";
 import { formatDice } from "../domain/dice";
-import type { GameState, StateChange, TurnInput } from "../domain/types";
+import type { GameState, PlayerRoll, StateChange, TurnInput } from "../domain/types";
 import { TurnEngine, type TurnFailure } from "../engine/TurnEngine";
 import { GeminiClient } from "../llm/GeminiClient";
 import { describeLLMError } from "../llm/errorMessages";
@@ -9,7 +9,9 @@ import { IndexedDBGameRepo } from "../persistence/IndexedDBGameRepo";
 import { isConfigured, loadSettings } from "../persistence/settings";
 import { CharacterPanel } from "./CharacterPanel";
 import { EventToasts, type ToastItem } from "./EventToasts";
+import { DieShape } from "./DieShape";
 import { InfoDrawer } from "./InfoDrawer";
+import { RollDialog } from "./RollDialog";
 import { SceneDrawer } from "./SceneDrawer";
 import { expandSlashCommands } from "./slashCommands";
 import { InputEntry, Narration, TurnLog } from "./TurnLog";
@@ -51,6 +53,7 @@ export default function Game() {
   const [draft, setDraft] = useState("");
   const [sceneOpen, setSceneOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [rollOpen, setRollOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [zenMode, setZenMode] = useState(false);
   const { atBottom, scrollToBottom, follow } = useStickToBottom();
@@ -298,6 +301,21 @@ export default function Game() {
     void send(engine, state, { type: "action", text, playerId: state.players[0]?.id });
   };
 
+  // Whatever was already typed goes first, so "Ataco al orco" + roll
+  // becomes a single turn.
+  const submitRoll = (roll: Omit<PlayerRoll, "reason">) => {
+    setRollOpen(false);
+    if (!canAct) return;
+    const raw = draft.trim();
+    setDraft("");
+    void send(engine, state, {
+      type: "action",
+      text: raw === "" ? "" : expandSlashCommands(raw),
+      playerId: state.players[0]?.id,
+      roll: { ...roll, reason: playerRoll?.reason },
+    });
+  };
+
   return (
     <section ref={gameRef} className={`game${zenMode ? " game--zen" : ""}`}>
       <EventToasts toasts={toasts} onDismiss={dismissToast} />
@@ -371,10 +389,17 @@ export default function Game() {
           </p>
           <p>{playerRoll.reason}</p>
           <p className="roll-request__hint">
-            Tirá tus dados, sumá tus modificadores y escribí el total en el chat.
+            Tirá tus dados y cargá el resultado con el botón del dado, o escribilo en el chat.
           </p>
         </div>
       )}
+
+      <RollDialog
+        open={rollOpen}
+        request={playerRoll}
+        onClose={() => setRollOpen(false)}
+        onSubmit={submitRoll}
+      />
 
       <form className="action-form" onSubmit={submitAction}>
         {!atBottom && (
@@ -416,6 +441,16 @@ export default function Game() {
                 playerRoll ? "Escribí el total de tu tirada…" : "Describí la acción de tu personaje…"
               }
             />
+            <button
+              type="button"
+              className={`button action-roll${playerRoll ? " action-roll--requested" : ""}`}
+              aria-label="Cargar tirada"
+              title="Cargar tirada"
+              disabled={!canAct}
+              onClick={() => setRollOpen(true)}
+            >
+              <DieShape die="d20" className="action-roll__die" />
+            </button>
             <button
               type="submit"
               className="button button--primary action-send"
