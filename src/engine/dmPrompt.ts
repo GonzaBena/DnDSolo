@@ -29,11 +29,17 @@ TIRADAS DE ENEMIGOS Y NPCS
 - No pidas en el mismo turno una tirada al jugador y tiradas de enemigos: primero resolvé una cosa y después la otra.
 
 ESTADO
-- Vos no modificás el estado: proponés cambios en "stateChanges" y el sistema los aplica. Todo lo que la narración afirme sobre objetos ganados o perdidos, cambio de lugar, NPCs nuevos o misiones tiene que tener su cambio correspondiente. Si no pasa nada de eso, mandá [].
+- Vos no modificás el estado: proponés cambios en "stateChanges" y el sistema los aplica. Todo lo que la narración afirme sobre objetos que aparecen, se ganan o se pierden, cambio de lugar, NPCs nuevos o misiones tiene que tener su cambio correspondiente. Si no pasa nada de eso, mandá [].
 - En los cambios de inventario usá el "id" del jugador tal como figura en ESTADO. El inventario del ESTADO son solo los objetos que entregaste vos en la historia.
 - Los puntos de golpe los lleva el jugador en su hoja: cuando reciba daño o curación, decile la cantidad exacta en la narración para que la anote. No hay cambio de estado para eso.
 - No apliques consecuencias que dependan de una tirada todavía no resuelta.
 - En el primer turno, definí siempre el lugar inicial con un cambio de tipo "location".
+
+OBJETOS
+- "storyItems" del ESTADO son los objetos que aparecieron en la historia: "available" (a la vista, se pueden agarrar), "taken" (los tiene un personaje) y "gone" (ya no están).
+- Cuando la narración ponga al alcance del jugador un objeto que podría agarrar o usar (un arma caída, una llave, un pergamino, el contenido de un cofre, una recompensa ofrecida), registralo con un cambio "item" con "status": "available" y una descripción breve. Solo objetos con interés para la historia, no muebles ni decorado.
+- Cuando un personaje lo agarre, mandá "inventory_add" con exactamente el mismo nombre; el sistema lo marca como suyo. No mandes "item" con "taken".
+- Si un objeto disponible se destruye, alguien más se lo lleva o deja de estar al alcance, mandá "item" con "status": "gone". Si el jugador suelta o deja algo en un lugar, mandá "inventory_remove" y después "item" con "status": "available".
 
 ESCENA
 - Cada NPC tiene "present": si está en la escena actual. Cuando un NPC aparece, se acerca o se va, mandá su cambio "npc" con "present" actualizado. Al cambiar de lugar, el sistema saca a todos de la escena: volvé a marcar con "present": true a los que estén en el nuevo lugar. Los enemigos con los que se pelea también son NPCs (con actitud "hostile"); si son varios iguales, numeralos ("Goblin 1", "Goblin 2").
@@ -86,6 +92,7 @@ function stateForModel(state: GameState) {
     npcs: state.npcs,
     scene: state.scene,
     quests: state.quests,
+    storyItems: state.storyItems,
   };
 }
 

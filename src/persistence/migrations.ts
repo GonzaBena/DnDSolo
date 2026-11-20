@@ -60,6 +60,28 @@ function fromV3(raw: Raw): Raw {
   return { ...raw, version: 4, players };
 }
 
+/** v4 -> v5. v5 records the objects that appeared in the story. Old saves
+    only know what the players carry, so that is the starting record, with
+    the place it came from unknown. */
+function fromV4(raw: Raw): Raw {
+  const names = new Map<string, string>();
+  for (const player of Array.isArray(raw.players) ? raw.players : []) {
+    if (!isObject(player) || !Array.isArray(player.inventory)) continue;
+    for (const item of player.inventory) {
+      if (!isObject(item) || typeof item.name !== "string") continue;
+      const key = item.name.trim().toLowerCase();
+      if (!names.has(key)) names.set(key, item.name.trim());
+    }
+  }
+  const storyItems = [...names.values()].map((name) => ({
+    name,
+    description: "",
+    location: "",
+    status: "taken",
+  }));
+  return { ...raw, version: 5, storyItems };
+}
+
 /** Turns whatever was stored into a GameState of the current version, or
     null if it can't be trusted (unknown version or wrong shape). Loading
     code must go through here so the screens never see a malformed save. */
@@ -69,6 +91,7 @@ export function migrateSave(raw: unknown): GameState | null {
   if (current.version === 1) current = fromV1(current);
   if (current.version === 2) current = fromV2(current);
   if (current.version === 3) current = fromV3(current);
+  if (current.version === 4) current = fromV4(current);
   if (current.version !== GAME_STATE_VERSION) return null;
   const parsed = gameStateSchema.safeParse(current);
   return parsed.success ? parsed.data : null;

@@ -1,5 +1,5 @@
 import { findClass } from "../rules";
-import type { Character, GameState, StateChange } from "./types";
+import type { Character, GameState, StateChange, StoryItem } from "./types";
 
 export interface RejectedChange {
   change: StateChange;
@@ -45,6 +45,11 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
   const moves = changes.some(
     (c) => c.type === "location" && !sameName(c.name, state.location.name),
   );
+  // Where the party ends up this turn: objects mentioned in it are seen
+  // there, whatever order the changes came in.
+  const finalLocation =
+    changes.findLast((c) => c.type === "location")?.name.trim() ?? state.location.name;
+
   if (moves) {
     next = {
       ...next,
@@ -159,10 +164,50 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
         };
         break;
       }
+      case "item": {
+        const existing = next.storyItems.find((i) => sameName(i.name, change.name));
+        const item: StoryItem = {
+          name: existing?.name ?? change.name.trim(),
+          description: change.description.trim() || existing?.description || "",
+          // Seen again within reach means it is here now; gone keeps where it was last.
+          location: change.status === "available" ? finalLocation : (existing?.location ?? finalLocation),
+          status: change.status,
+        };
+        next = {
+          ...next,
+          storyItems: upsert(next.storyItems, item, (i) => sameName(i.name, change.name)),
+        };
+        break;
+      }
     }
   }
 
-  return { state: settleTurn(next, changes, rejected), rejected };
+  return { state: settleTurn(syncStoryItems(next), changes, rejected), rejected };
+}
+
+/** Inventories are the truth about who holds what: anything carried is
+    "taken" (and recorded if the DM never announced it), and anything no
+    longer carried that wasn't left within reach again is "gone". */
+function syncStoryItems(state: GameState): GameState {
+  const held = new Map<string, string>();
+  for (const player of state.players) {
+    for (const item of player.inventory) {
+      const key = item.name.trim().toLowerCase();
+      if (!held.has(key)) held.set(key, item.name);
+    }
+  }
+  const storyItems: StoryItem[] = state.storyItems.map((item) => {
+    const key = item.name.trim().toLowerCase();
+    if (held.has(key)) {
+      held.delete(key);
+      return item.status === "taken" ? item : { ...item, status: "taken" };
+    }
+    return item.status === "taken" ? { ...item, status: "gone" } : item;
+  });
+  for (const name of held.values()) {
+    storyItems.push({ name, description: "", location: state.location.name, status: "taken" });
+  }
+  return { ...state, storyItems };
 }
 
 /** The turn can only belong to someone who is in the scene. A name that
