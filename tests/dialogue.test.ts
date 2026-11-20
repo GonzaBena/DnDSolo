@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { findNpc, speakingNow, splitDialogue, type Cast } from "../src/domain/dialogue";
+import { castOf, findNpc, speakingNow, splitDialogue, type Cast } from "../src/domain/dialogue";
 import type { Npc } from "../src/domain/types";
+import { newGame } from "./helpers";
 
 function npc(name: string): Npc {
   return { name, description: "", attitude: "neutral", present: true, voice: "" };
@@ -86,5 +87,11 @@ describe("speakingNow", () => {
     expect(speakingNow("[[Brena]] Hola.\nElla se va.", cast)).toBeNull();
     expect(speakingNow("[[Lira]] Sí", cast)).toBeNull();
     expect(speakingNow("", cast)).toBeNull();
+  });
+});
+
+describe("castOf", () => {
+  it("takes the NPCs and the players' names from the state", () => {
+    expect(castOf(newGame())).toEqual({ npcs: [], playerNames: ["Lira"] });
   });
 });

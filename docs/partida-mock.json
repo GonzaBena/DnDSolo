@@ -111,7 +111,7 @@
         "type": "action",
         "text": "Me acerco a la barra, pido un caldo caliente y le pregunto a la tabernera qué pasó con el farero."
       },
-      "narration": "La mujer te sirve un cuenco humeante de caldo de pescado y se apoya en la madera gastada. —Soy Mora —dice en voz baja, echando un vistazo rápido hacia los estibadores—. Don Anselmo no faltó ni una noche en treinta años. Hace dos días bajó al muelle viejo a discutir con unos tipos que descargaban cajones sin marca, y no volvió a subir al faro. Si pensás meterte, andá con cuidado: Braulio el Rengo anda rondando los galpones del sur. ¿Le pedís más detalles a Mora o salís directo para el muelle?",
+      "narration": "La mujer te sirve un cuenco humeante de caldo de pescado y se apoya en la madera gastada, echando un vistazo rápido hacia los estibadores.\n[[Mora]] —Soy Mora —dice en voz baja—. Don Anselmo no faltó ni una noche en treinta años. Hace dos días bajó al muelle viejo a discutir con unos tipos que descargaban cajones sin marca, y no volvió a subir al faro.\n[[Mora]] —Si pensás meterte, andá con cuidado: Braulio el Rengo anda rondando los galpones del sur.\n¿Le pedís más detalles a Mora o salís directo para el muelle?",
       "events": [
         "new_quest"
       ]
@@ -153,7 +153,7 @@
         "type": "action",
         "text": "Empujo la puerta de golpe con el arco preparado y le exijo que levante las manos y me diga dónde está Don Anselmo."
       },
-      "narration": "La puerta cede con un estruendo seco. Braulio pega un respingo, suelta la soga y lleva la mano hacia la cachiporra del cinto mientras te mide con ojos nerviosos. —¡Pará, pará! —escupe, retrocediendo un paso contra el cajón—. Yo no maté a nadie, ¿eh? Solo hago mandados. Tenés la flecha tensa, así que todo depende de qué tan convincente suene tu advertencia.",
+      "narration": "La puerta cede con un estruendo seco. Braulio pega un respingo, suelta la soga y lleva la mano hacia la cachiporra del cinto mientras te mide con ojos nerviosos.\n[[Braulio el Rengo]] —¡Pará, pará! —escupe, retrocediendo un paso contra el cajón—. Yo no maté a nadie, ¿eh? Solo hago mandados.\nTenés la flecha tensa, así que todo depende de qué tan convincente suene tu advertencia.",
       "events": []
     },
     {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { shakeScreen } from "../animations/motion";
+import { castOf } from "../domain/dialogue";
 import { formatDice } from "../domain/dice";
 import type { GameState, PlayerRoll, StateChange, TurnInput } from "../domain/types";
 import { TurnEngine, type TurnFailure } from "../engine/TurnEngine";
@@ -295,6 +296,7 @@ export default function Game() {
   }
 
   const { engine, state } = screen;
+  const cast = castOf(state);
 
   const submitAction = (event: { preventDefault(): void }) => {
     event.preventDefault();
@@ -341,11 +343,11 @@ export default function Game() {
       />
 
       <div className="log" aria-live="polite">
-        <TurnLog turns={state.turns} players={state.players} enterCount={screen.loadedTurns} />
+        <TurnLog turns={state.turns} players={state.players} cast={cast} enterCount={screen.loadedTurns} />
         {inFlight && (
           <div className="turn">
             <InputEntry input={inFlight.input} players={state.players} animated />
-            {streamed !== "" && <Narration text={streamed} animated />}
+            {streamed !== "" && <Narration text={streamed} cast={cast} animated />}
             {busy && streamed === "" && (
               <div className="thinking-indicator" role="status" aria-live="polite">
                 <span className="thinking-indicator__icon" aria-hidden="true">

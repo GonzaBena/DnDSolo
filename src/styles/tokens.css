@@ -25,6 +25,11 @@
   --color-turn-calm: #3d9a5f;   /* ...and outside of one */
   --color-hostile: #d1492e;
   --color-friendly: #1f6f66;
+  /* Pastel fills for the NPCs' speech bubbles, by attitude. */
+  --color-npc-hostile: #f6cfc4;
+  --color-npc-friendly: #cfe9d4;
+  --color-npc-neutral: #d3e1f2;
+  --color-npc-ink: #2a1f1a;
 
   /* Type */
   --font-display: "Fraunces Variable", Georgia, serif;
@@ -81,4 +86,8 @@
   --color-turn-calm: #5cc283;
   --color-hostile: #e8684b;
   --color-friendly: #58bfb0;
+  --color-npc-hostile: #e7a99a;
+  --color-npc-friendly: #a8d4b2;
+  --color-npc-neutral: #a9bfdd;
+  --color-npc-ink: #1b1512;
 }

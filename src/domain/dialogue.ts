@@ -1,4 +1,4 @@
-import type { Npc } from "./types";
+import type { GameState, Npc } from "./types";
 
 // The DM marks each line an NPC says with "[[Name]]" at the start of its
 // paragraph, inside the same narration string. Keeping it in the text means
@@ -24,6 +24,10 @@ const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().t
 
 export function findNpc(npcs: Npc[], name: string): Npc | undefined {
   return npcs.find((n) => sameName(n.name, name));
+}
+
+export function castOf(state: GameState): Cast {
+  return { npcs: state.npcs, playerNames: state.players.map((p) => p.name) };
 }
 
 /** Who a marker names: the NPC as the state spells them, the trimmed name
