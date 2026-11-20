@@ -16,6 +16,7 @@ import { SceneDrawer } from "./SceneDrawer";
 import { expandSlashCommands } from "./slashCommands";
 import { InputEntry, Narration, TurnLog } from "./TurnLog";
 import { useStickToBottom } from "./useStickToBottom";
+import { createTypewriter } from "./typewriter";
 import "./game.css";
 
 type Screen =
@@ -207,9 +208,14 @@ export default function Game() {
       setError(null);
       setWarning(null);
       setInFlight({ input, narration: "" });
+      const typewriter = createTypewriter((narration) => setInFlight({ input, narration }));
       const outcome = await engine.playTurn(state, input, (narration) =>
-        setInFlight({ input, narration }),
+        typewriter.setTarget(narration),
       );
+      // The turn joins the log only once its narration has been fully
+      // revealed, so the rest of the text doesn't pop in all at once.
+      if (outcome.ok) await typewriter.finish();
+      typewriter.cancel();
       setBusy(false);
       if (!outcome.ok) {
         // Keep the input on screen so "Reintentar" resends exactly this:
