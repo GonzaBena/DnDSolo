@@ -23,7 +23,7 @@ interface Props {
     and the NPCs met so far. */
 export function InfoDrawer({ state, open, onClose }: Props) {
   const { dialogProps, panelRef } = useDrawer(open, onClose);
-  const items = state.players.flatMap((p) => p.inventory);
+  const items = (state.players ?? []).flatMap((p) => p.inventory ?? []);
 
   return (
     <dialog {...dialogProps} aria-labelledby="info-title">
@@ -31,14 +31,32 @@ export function InfoDrawer({ state, open, onClose }: Props) {
         <header className="drawer__header">
           <div>
             <h2 id="info-title">Información</h2>
-            <p className="drawer__place">{state.location.name || "Lugar desconocido"}</p>
+            <p className="drawer__place">{state.location?.name || "Lugar desconocido"}</p>
           </div>
           <button type="button" className="drawer__close" onClick={onClose} aria-label="Cerrar">
             ×
           </button>
         </header>
 
-        {state.location.description && <p>{state.location.description}</p>}
+        {state.location?.description && <p>{state.location.description}</p>}
+
+        <section className="info-section">
+          <div className="info-section__header">
+            <h3>Crónica de la campaña</h3>
+            <span className="info-badge">{(state.turns ?? []).length} turnos</span>
+          </div>
+          {typeof state.summary === "string" && state.summary.trim() !== "" ? (
+            <div className="chronicle-text">
+              {state.summary.split(/\n+/).map((paragraph, index) => (
+                <p key={index}>{paragraph}</p>
+              ))}
+            </div>
+          ) : (
+            <p className="drawer__empty">
+              Tu historia recién comienza. A medida que avances, el diario de campaña registrará los hechos más importantes.
+            </p>
+          )}
+        </section>
 
         <section className="info-section">
           <h3>Personajes</h3>

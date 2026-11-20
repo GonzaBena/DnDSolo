@@ -4,19 +4,27 @@ interface Props {
   state: GameState;
   onOpenScene: () => void;
   onOpenInfo: () => void;
+  zenMode?: boolean;
+  onToggleZen?: () => void;
 }
 
-export function CharacterPanel({ state, onOpenScene, onOpenInfo }: Props) {
-  const player = state.players[0];
+export function CharacterPanel({
+  state,
+  onOpenScene,
+  onOpenInfo,
+  zenMode = false,
+  onToggleZen,
+}: Props) {
+  const player = state.players?.[0];
   if (!player) return null;
   // The first active quest is the main one.
-  const mainQuest = state.quests.find((q) => q.status === "active");
+  const mainQuest = (state.quests ?? []).find((q) => q.status === "active");
   // Players, the DM and the NPCs around.
-  const inScene = state.players.length + 1 + state.npcs.filter((n) => n.present).length;
-  const { inCombat } = state.scene;
+  const inScene = (state.players?.length ?? 1) + 1 + (state.npcs ?? []).filter((n) => n.present).length;
+  const inCombat = state.scene?.inCombat ?? false;
 
   return (
-    <aside className="sheet" aria-label="Tu personaje">
+    <aside className={`sheet${zenMode ? " sheet--zen" : ""}`} aria-label="Tu personaje">
       <div className="sheet__main">
         <div className="sheet__identity">
           <strong>{player.name}</strong>
@@ -24,20 +32,33 @@ export function CharacterPanel({ state, onOpenScene, onOpenInfo }: Props) {
             {player.race} · {player.characterClass} · Nivel {player.level}
           </span>
         </div>
-        <dl className="sheet__details">
-          <div>
-            <dt>Lugar</dt>
-            <dd>{state.location.name || "—"}</dd>
-          </div>
-          {mainQuest && (
+        {!zenMode && (
+          <dl className="sheet__details">
             <div>
-              <dt>Misión</dt>
-              <dd>{mainQuest.title}</dd>
+              <dt>Lugar</dt>
+              <dd>{state.location.name || "—"}</dd>
             </div>
-          )}
-        </dl>
+            {mainQuest && (
+              <div>
+                <dt>Misión</dt>
+                <dd>{mainQuest.title}</dd>
+              </div>
+            )}
+          </dl>
+        )}
       </div>
       <div className="sheet__actions">
+        {onToggleZen && (
+          <button
+            type="button"
+            className={`button scene-toggle ${zenMode ? "scene-toggle--active" : ""}`}
+            onClick={onToggleZen}
+            title={zenMode ? "Mostrar ficha completa" : "Modo lectura"}
+            aria-label={zenMode ? "Mostrar ficha completa" : "Modo lectura"}
+          >
+            {zenMode ? "Ficha" : "Lectura"}
+          </button>
+        )}
         <button
           type="button"
           className="button scene-toggle"

@@ -57,6 +57,45 @@ export function leaveDrawer(element: Element, onDone: () => void): () => void {
   return () => animation.cancel();
 }
 
+/** Subtle screen shake when damage or impact happens. */
+export function shakeScreen(element: Element): void {
+  if (!motionAllowed()) return;
+  animate(element, {
+    translateX: [0, -7, 7, -5, 5, -2, 2, 0],
+    duration: 360,
+    ease: "inOutQuad",
+  });
+}
+
+/** Toast entrance: drops down slightly and fades in. */
+export function enterToast(element: Element): void {
+  if (!motionAllowed()) return;
+  animate(element, {
+    opacity: [0, 1],
+    translateY: [-12, 0],
+    scale: [0.94, 1],
+    duration: 260,
+    ease: "outCubic",
+  });
+}
+
+/** Toast exit: fades out and slides up. Returns cancel function. */
+export function leaveToast(element: Element, onDone: () => void): () => void {
+  if (!motionAllowed()) {
+    onDone();
+    return () => {};
+  }
+  const animation = animate(element, {
+    opacity: [1, 0],
+    translateY: [0, -10],
+    scale: [1, 0.94],
+    duration: 180,
+    ease: "inQuad",
+    onComplete: onDone,
+  });
+  return () => animation.cancel();
+}
+
 const TUMBLE_MS = 750;
 const LEAVE_MS = 160;
 
