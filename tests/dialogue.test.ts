@@ -1,0 +1,90 @@
+import { describe, expect, it } from "vitest";
+import { findNpc, speakingNow, splitDialogue, type Cast } from "../src/domain/dialogue";
+import type { Npc } from "../src/domain/types";
+
+function npc(name: string): Npc {
+  return { name, description: "", attitude: "neutral", present: true };
+}
+
+const cast: Cast = { npcs: [npc("Brena"), npc("Goblin 1")], playerNames: ["Lira"] };
+
+describe("splitDialogue", () => {
+  it("keeps a narration without markers as a single DM segment", () => {
+    expect(splitDialogue("La puerta cruje.\nHuele a humo.", cast)).toEqual([
+      { speaker: null, paragraphs: ["La puerta cruje.", "Huele a humo."] },
+    ]);
+  });
+
+  it("splits the NPC's line out of the DM's narration", () => {
+    expect(splitDialogue("Entra alguien.\n[[Brena]] —¿Quién te manda?\nSilencio.", cast)).toEqual([
+      { speaker: null, paragraphs: ["Entra alguien."] },
+      { speaker: "Brena", paragraphs: ["—¿Quién te manda?"] },
+      { speaker: null, paragraphs: ["Silencio."] },
+    ]);
+  });
+
+  it("joins consecutive paragraphs of the same NPC", () => {
+    expect(splitDialogue("[[Brena]] Uno.\n\n[[Brena]] Dos.", cast)).toEqual([
+      { speaker: "Brena", paragraphs: ["Uno.", "Dos."] },
+    ]);
+  });
+
+  it("resolves the name to the NPC in the state, ignoring case and spaces", () => {
+    expect(splitDialogue("[[ brena ]] Hola.", cast)).toEqual([
+      { speaker: "Brena", paragraphs: ["Hola."] },
+    ]);
+  });
+
+  it("keeps an unknown speaker's name, trimmed", () => {
+    expect(splitDialogue("[[ Tabernero ]] Hola.", cast)).toEqual([
+      { speaker: "Tabernero", paragraphs: ["Hola."] },
+    ]);
+  });
+
+  it("never gives the player's character an NPC bubble", () => {
+    expect(splitDialogue("[[Lira]] Digo que sí.", cast)).toEqual([
+      { speaker: null, paragraphs: ["Digo que sí."] },
+    ]);
+  });
+
+  it("hides a marker that is still arriving", () => {
+    expect(splitDialogue("Entra alguien.\n[[Bre", cast)).toEqual([
+      { speaker: null, paragraphs: ["Entra alguien."] },
+    ]);
+    expect(splitDialogue("[[Brena", cast)).toEqual([]);
+  });
+
+  it("opens the speaker's segment as soon as the marker closes", () => {
+    expect(splitDialogue("[[Brena]]", cast)).toEqual([{ speaker: "Brena", paragraphs: [] }]);
+  });
+
+  it("only reads markers at the start of a paragraph", () => {
+    expect(splitDialogue("Dice [[Brena]] algo.", cast)).toEqual([
+      { speaker: null, paragraphs: ["Dice [[Brena]] algo."] },
+    ]);
+  });
+
+  it("returns nothing for an empty narration", () => {
+    expect(splitDialogue("", cast)).toEqual([]);
+  });
+});
+
+describe("findNpc", () => {
+  it("matches ignoring case and spaces", () => {
+    expect(findNpc(cast.npcs, " brena ")?.name).toBe("Brena");
+    expect(findNpc([], "X")).toBeUndefined();
+  });
+});
+
+describe("speakingNow", () => {
+  it("is the NPC whose line is being written", () => {
+    expect(speakingNow("Entra.\n[[Brena]] —Ho", cast)).toBe("Brena");
+    expect(speakingNow("[[ brena ]] Ho", cast)).toBe("Brena");
+  });
+
+  it("is null while the DM narrates, for the player, and for no text", () => {
+    expect(speakingNow("[[Brena]] Hola.\nElla se va.", cast)).toBeNull();
+    expect(speakingNow("[[Lira]] Sí", cast)).toBeNull();
+    expect(speakingNow("", cast)).toBeNull();
+  });
+});
