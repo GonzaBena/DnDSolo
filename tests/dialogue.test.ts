@@ -3,7 +3,7 @@ import { findNpc, speakingNow, splitDialogue, type Cast } from "../src/domain/di
 import type { Npc } from "../src/domain/types";
 
 function npc(name: string): Npc {
-  return { name, description: "", attitude: "neutral", present: true };
+  return { name, description: "", attitude: "neutral", present: true, voice: "" };
 }
 
 const cast: Cast = { npcs: [npc("Brena"), npc("Goblin 1")], playerNames: ["Lira"] };

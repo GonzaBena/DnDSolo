@@ -53,3 +53,13 @@ describe("v4 -> v5", () => {
     expect(game?.storyItems).toEqual([{ name: "Daga", description: "", location: "", status: "taken" }]);
   });
 });
+
+describe("v5 -> v6", () => {
+  it("gives every NPC an empty voice", () => {
+    const game = newGame();
+    const npcs = [{ name: "Berta", description: "Posadera", attitude: "neutral", present: true }];
+    const migrated = migrateSave({ ...game, version: 5, npcs });
+    expect(migrated?.version).toBe(GAME_STATE_VERSION);
+    expect(migrated?.npcs[0]?.voice).toBe("");
+  });
+});

@@ -83,6 +83,8 @@ export interface Npc {
   /** Whether they are in the current scene. Moving to another location
       clears it for everyone; the DM marks who is around. */
   present: boolean;
+  /** How they talk: tone, pet phrases, register. "" when the DM gave none. */
+  voice: string;
 }
 
 /** What is happening right now, for the scene drawer. */
@@ -123,7 +125,8 @@ export type StateChange =
   /** The SRD subclass of the player's class, once its level is reached. */
   | { type: "subclass"; playerId: string; subclassId: string }
   | { type: "location"; name: string; description: string }
-  | { type: "npc"; name: string; description: string; attitude: Attitude; present: boolean }
+  /** An empty `voice` keeps the one the NPC already had. */
+  | { type: "npc"; name: string; description: string; attitude: Attitude; present: boolean; voice: string }
   | { type: "scene"; inCombat: boolean; turnOf: string | null }
   | { type: "quest"; title: string; description: string; status: QuestStatus }
   /** An object the narration put within reach, or that stopped being there.
@@ -188,4 +191,4 @@ export interface GameState {
   pendingEnemyRolls: EnemyRollRequest[];
 }
 
-export const GAME_STATE_VERSION = 5;
+export const GAME_STATE_VERSION = 6;

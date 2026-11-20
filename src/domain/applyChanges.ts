@@ -140,11 +140,13 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
         next = { ...next, location: { name: change.name, description: change.description } };
         break;
       case "npc": {
+        const existing = next.npcs.find((n) => sameName(n.name, change.name));
         const npc = {
           name: change.name,
           description: change.description,
           attitude: change.attitude,
           present: change.present,
+          voice: change.voice.trim() || existing?.voice || "",
         };
         next = { ...next, npcs: upsert(next.npcs, npc, (n) => sameName(n.name, change.name)) };
         break;
