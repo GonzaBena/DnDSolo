@@ -1,4 +1,4 @@
-import type { Attitude, GameState, QuestStatus } from "../domain/types";
+import type { Attitude, GameState, QuestStatus, StoryItem } from "../domain/types";
 import { useDrawer } from "./useDrawer";
 
 const ATTITUDE_LABEL: Record<Attitude, string> = {
@@ -13,6 +13,40 @@ const QUEST_LABEL: Record<QuestStatus, string> = {
   failed: "Fallida",
 };
 
+const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+interface ItemRowProps {
+  item: StoryItem;
+  /** Total carried, for taken items. */
+  quantity?: number;
+  /** Small label after the name: who holds it, or where it was seen. */
+  note?: string;
+}
+
+/** One object on one line; the description, when there is one, unfolds. */
+function ItemRow({ item, quantity, note }: ItemRowProps) {
+  const head = (
+    <>
+      <span className="story-item__name">{item.name}</span>
+      {quantity !== undefined && quantity > 1 && <span className="story-item__qty">×{quantity}</span>}
+      {note && <span className="story-item__note">{note}</span>}
+      {item.status === "gone" && <span className="story-item__note">Ya no está</span>}
+    </>
+  );
+  return (
+    <li className="story-item" data-status={item.status}>
+      {item.description ? (
+        <details>
+          <summary>{head}</summary>
+          <p>{item.description}</p>
+        </details>
+      ) : (
+        <div className="story-item__head">{head}</div>
+      )}
+    </li>
+  );
+}
+
 interface Props {
   state: GameState;
   open: boolean;
@@ -23,7 +57,17 @@ interface Props {
     and the NPCs met so far. */
 export function InfoDrawer({ state, open, onClose }: Props) {
   const { dialogProps, panelRef } = useDrawer(open, onClose);
-  const items = (state.players ?? []).flatMap((p) => p.inventory ?? []);
+  const players = state.players ?? [];
+  const storyItems = state.storyItems ?? [];
+  const here = storyItems.filter(
+    (i) => i.status === "available" && i.location !== "" && sameName(i.location, state.location?.name ?? ""),
+  );
+  const held = storyItems.filter((i) => i.status === "taken");
+  const past = storyItems.filter((i) => i.status !== "taken" && !here.includes(i));
+  const holding = (item: StoryItem) =>
+    players
+      .map((p) => ({ player: p, entry: p.inventory.find((e) => sameName(e.name, item.name)) }))
+      .filter((h) => h.entry !== undefined);
 
   return (
     <dialog {...dialogProps} aria-labelledby="info-title">
@@ -91,17 +135,48 @@ export function InfoDrawer({ state, open, onClose }: Props) {
         </section>
 
         <section className="info-section">
-          <h3>Objetos de la historia</h3>
-          {items.length === 0 ? (
-            <p className="drawer__empty">Ninguno todavía.</p>
+          <div className="info-section__header">
+            <h3>Objetos de la historia</h3>
+            {storyItems.length > 0 && <span className="info-badge">{storyItems.length}</span>}
+          </div>
+          {storyItems.length === 0 ? (
+            <p className="drawer__empty">Todavía no apareció ningún objeto.</p>
           ) : (
-            <ul className="info-list">
-              {items.map((i) => (
-                <li key={i.name}>
-                  <strong>{i.quantity > 1 ? `${i.name} ×${i.quantity}` : i.name}</strong>
-                </li>
-              ))}
-            </ul>
+            <>
+              {here.length > 0 && (
+                <div className="story-items story-items--here">
+                  <h4>A tu alcance</h4>
+                  <ul>
+                    {here.map((i) => (
+                      <ItemRow key={i.name} item={i} />
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {held.length > 0 && (
+                <div className="story-items">
+                  <h4>En tu poder</h4>
+                  <ul>
+                    {held.map((i) => {
+                      const holders = holding(i);
+                      const quantity = holders.reduce((sum, h) => sum + (h.entry?.quantity ?? 0), 0);
+                      const note = players.length > 1 ? holders.map((h) => h.player.name).join(", ") : undefined;
+                      return <ItemRow key={i.name} item={i} quantity={quantity} note={note} />;
+                    })}
+                  </ul>
+                </div>
+              )}
+              {past.length > 0 && (
+                <div className="story-items story-items--past">
+                  <h4>Vistos antes</h4>
+                  <ul>
+                    {past.map((i) => (
+                      <ItemRow key={i.name} item={i} note={i.status === "available" ? i.location : undefined} />
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
           )}
         </section>
 

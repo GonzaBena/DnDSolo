@@ -711,3 +711,87 @@
 .chronicle-text p {
   margin: 0;
 }
+
+/* Story items in InfoDrawer: one compact line each, grouped by status. */
+.story-items {
+  display: grid;
+  gap: var(--space-1);
+}
+.story-items h4 {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-ink-soft);
+}
+.story-items ul {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.story-item {
+  border: 1.5px solid var(--color-ink);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  font-size: var(--text-sm);
+}
+.story-items--here .story-item {
+  border-color: var(--color-sun);
+  box-shadow: inset 4px 0 0 var(--color-sun);
+}
+.story-items--past .story-item {
+  border-style: dashed;
+  border-color: var(--color-ink-soft);
+  background: transparent;
+  color: var(--color-ink-soft);
+}
+.story-item[data-status="gone"] .story-item__name {
+  text-decoration: line-through;
+}
+.story-item summary,
+.story-item__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+}
+.story-item summary {
+  cursor: pointer;
+  list-style: none;
+}
+.story-item summary::-webkit-details-marker {
+  display: none;
+}
+.story-item summary::after {
+  content: "▸";
+  margin-left: auto;
+  color: var(--color-ink-soft);
+  transition: transform 0.15s;
+}
+.story-item details[open] summary::after {
+  transform: rotate(90deg);
+}
+.story-item details p {
+  margin: 0;
+  padding: 0 var(--space-2) var(--space-2);
+  color: var(--color-ink-soft);
+}
+.story-item__name {
+  font-weight: 700;
+}
+.story-item__qty {
+  font-size: var(--text-xs);
+  font-weight: 800;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--color-ink);
+  color: var(--color-surface);
+}
+.story-item__note {
+  font-size: var(--text-xs);
+  color: var(--color-ink-soft);
+}

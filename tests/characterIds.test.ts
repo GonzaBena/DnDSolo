@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { GAME_STATE_VERSION } from "../src/domain/types";
 import { createCharacter, createGame } from "../src/domain/character";
 import { gameStateSchema } from "../src/domain/schemas";
 import { migrateSave } from "../src/persistence/migrations";
@@ -18,7 +19,7 @@ function v3(race: string, characterClass: string) {
 describe("character ids", () => {
   it("migrates a v3 save with a species missing from SRD 5.2", () => {
     const game = migrateSave(v3("Semielfo", "Pícaro"));
-    expect(game?.version).toBe(4);
+    expect(game?.version).toBe(GAME_STATE_VERSION);
     expect(game?.players[0]).toMatchObject({ speciesId: null, classId: "rogue", subclassId: null, srdBackgroundId: null });
   });
 
@@ -40,5 +41,15 @@ describe("character ids", () => {
 
   it("accepts the new fields in the schema", () => {
     expect(gameStateSchema.safeParse(newGame()).success).toBe(true);
+  });
+});
+
+describe("v4 -> v5", () => {
+  it("seeds the story items with what the players carry", () => {
+    const { storyItems: _items, ...rest } = newGame();
+    const player = { ...rest.players[0]!, inventory: [{ name: "Daga", quantity: 2 }] };
+    const game = migrateSave({ ...rest, version: 4, players: [player] });
+    expect(game?.version).toBe(GAME_STATE_VERSION);
+    expect(game?.storyItems).toEqual([{ name: "Daga", description: "", location: "", status: "taken" }]);
   });
 });

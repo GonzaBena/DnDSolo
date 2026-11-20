@@ -201,3 +201,62 @@ describe("applyStateChanges", () => {
     });
   });
 });
+
+describe("story items", () => {
+  const seen = (name: string, description = "") =>
+    ({ type: "item", name, description, status: "available" }) as const;
+
+  it("records an object within reach at the place the party ends up this turn", () => {
+    const { state } = applyStateChanges(newGame(), [
+      seen("Daga rúnica", "Brilla en la oscuridad"),
+      { type: "location", name: "Cripta", description: "Fría" },
+    ]);
+    expect(state.storyItems).toEqual([
+      { name: "Daga rúnica", description: "Brilla en la oscuridad", location: "Cripta", status: "available" },
+    ]);
+  });
+
+  it("marks it taken when a player picks it up and gone when it runs out", () => {
+    const { state: shown } = applyStateChanges(newGame(), [
+      { type: "location", name: "Cripta", description: "Fría" },
+      seen("Poción", "Roja"),
+    ]);
+    const { state: taken } = applyStateChanges(shown, [
+      { type: "inventory_add", playerId: PLAYER_ID, item: "poción", quantity: 2 },
+    ]);
+    expect(taken.storyItems).toEqual([{ name: "Poción", description: "Roja", location: "Cripta", status: "taken" }]);
+    const { state: used } = applyStateChanges(taken, [
+      { type: "inventory_remove", playerId: PLAYER_ID, item: "Poción", quantity: 2 },
+    ]);
+    expect(used.storyItems[0]!.status).toBe("gone");
+  });
+
+  it("records items handed out without being announced first", () => {
+    const { state } = applyStateChanges(newGame(), [
+      { type: "location", name: "Posada", description: "" },
+      { type: "inventory_add", playerId: PLAYER_ID, item: "Llave", quantity: 1 },
+    ]);
+    expect(state.storyItems).toEqual([{ name: "Llave", description: "", location: "Posada", status: "taken" }]);
+  });
+
+  it("keeps a carried item taken even if the DM says it is gone", () => {
+    const { state: taken } = applyStateChanges(newGame(), [
+      { type: "inventory_add", playerId: PLAYER_ID, item: "Llave", quantity: 1 },
+    ]);
+    const { state } = applyStateChanges(taken, [{ type: "item", name: "Llave", description: "", status: "gone" }]);
+    expect(state.storyItems[0]!.status).toBe("taken");
+  });
+
+  it("leaves a dropped item where it was dropped, keeping its description", () => {
+    const { state: taken } = applyStateChanges(newGame(), [
+      seen("Escudo", "Abollado"),
+      { type: "inventory_add", playerId: PLAYER_ID, item: "Escudo", quantity: 1 },
+    ]);
+    const { state } = applyStateChanges(taken, [
+      { type: "location", name: "Puente", description: "" },
+      { type: "inventory_remove", playerId: PLAYER_ID, item: "Escudo", quantity: 1 },
+      seen("escudo"),
+    ]);
+    expect(state.storyItems).toEqual([{ name: "Escudo", description: "Abollado", location: "Puente", status: "available" }]);
+  });
+});

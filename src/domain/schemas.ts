@@ -3,6 +3,7 @@ import { DICE, type DMResponse, type GameState } from "./types";
 
 const attitude = z.enum(["friendly", "neutral", "hostile"]);
 const questStatus = z.enum(["active", "completed", "failed"]);
+const storyItemStatus = z.enum(["available", "taken", "gone"]);
 
 const diceCount = z.number().int().min(1).max(20);
 
@@ -61,6 +62,12 @@ const stateChange = z.discriminatedUnion("type", [
     title: z.string().min(1),
     description: z.string(),
     status: questStatus,
+  }),
+  z.object({
+    type: z.literal("item"),
+    name: z.string().min(1),
+    description: z.string(),
+    status: z.enum(["available", "gone"]),
   }),
 ]);
 
@@ -159,6 +166,9 @@ export const gameStateSchema = z.object({
   ),
   scene: z.object({ inCombat: z.boolean(), turnOf: z.string().nullable() }),
   quests: z.array(z.object({ title: z.string(), description: z.string(), status: questStatus })),
+  storyItems: z.array(
+    z.object({ name: z.string(), description: z.string(), location: z.string(), status: storyItemStatus }),
+  ),
   summary: z.string(),
   summarizedThroughTurn: z.number().int().min(0),
   turns: z.array(

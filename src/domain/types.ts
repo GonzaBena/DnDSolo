@@ -80,6 +80,22 @@ export interface Scene {
   turnOf: string | null;
 }
 
+/** "available": seen and within reach of being taken. "taken": some player
+    carries it (derived from the inventories, never set by the model).
+    "gone": used up, destroyed, carried off by someone else. */
+export type StoryItemStatus = "available" | "taken" | "gone";
+
+/** An object that showed up in the story: something the player could take,
+    did take, or missed. Inventories say who holds what and how many; this
+    is the record of everything that appeared, for the info drawer. */
+export interface StoryItem {
+  name: string;
+  description: string;
+  /** Name of the place where it was last seen; "" when unknown (old saves). */
+  location: string;
+  status: StoryItemStatus;
+}
+
 export interface Quest {
   title: string;
   description: string;
@@ -96,7 +112,10 @@ export type StateChange =
   | { type: "location"; name: string; description: string }
   | { type: "npc"; name: string; description: string; attitude: Attitude; present: boolean }
   | { type: "scene"; inCombat: boolean; turnOf: string | null }
-  | { type: "quest"; title: string; description: string; status: QuestStatus };
+  | { type: "quest"; title: string; description: string; status: QuestStatus }
+  /** An object the narration put within reach, or that stopped being there.
+      Taking it is an inventory_add with the same name. */
+  | { type: "item"; name: string; description: string; status: Exclude<StoryItemStatus, "taken"> };
 
 export interface DMResponse {
   /** Text the player reads. */
@@ -136,6 +155,7 @@ export interface GameState {
   npcs: Npc[];
   scene: Scene;
   quests: Quest[];
+  storyItems: StoryItem[];
   /** Memory layer 2: running summary of everything up to summarizedThroughTurn. */
   summary: string;
   summarizedThroughTurn: number;
@@ -149,4 +169,4 @@ export interface GameState {
   pendingEnemyRolls: EnemyRollRequest[];
 }
 
-export const GAME_STATE_VERSION = 4;
+export const GAME_STATE_VERSION = 5;
