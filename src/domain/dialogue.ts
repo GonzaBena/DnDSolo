@@ -48,19 +48,29 @@ export function splitDialogue(narration: string, cast: Cast): DialogueSegment[] 
     return segment;
   };
 
-  for (const raw of narration.split(/\n+/)) {
+  const lines = narration.split(/\n+/);
+  // A marker alone on its line: the model put the line itself in the next
+  // paragraph, which belongs to that speaker.
+  let awaitingLine: string | null | undefined;
+  lines.forEach((raw, index) => {
     const marker = MARKER.exec(raw);
     if (marker) {
+      const speaker = resolveSpeaker(marker[1]!, cast);
       const text = raw.slice(marker[0].length).trim();
-      const segment = open(resolveSpeaker(marker[1]!, cast));
+      const segment = open(speaker);
       if (text !== "") segment.paragraphs.push(text);
-      continue;
+      awaitingLine = text === "" ? speaker : undefined;
+      return;
     }
-    // A marker still arriving ("[[Bre"): hidden until it closes.
-    if (/^\s*\[\[/.test(raw) && !raw.includes("]]")) continue;
+    // A marker still arriving ("[[Bre") is hidden until it closes. Only the
+    // last line can still be arriving: a malformed marker earlier stays text.
+    const isLast = index === lines.length - 1;
+    if (isLast && /^\s*\[\[/.test(raw) && !raw.includes("]]")) return;
     const text = raw.trim();
-    if (text !== "") open(null).paragraphs.push(text);
-  }
+    if (text === "") return;
+    open(awaitingLine === undefined ? null : awaitingLine).paragraphs.push(text);
+    awaitingLine = undefined;
+  });
   return segments;
 }
 

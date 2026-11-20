@@ -55,6 +55,19 @@ describe("splitDialogue", () => {
     expect(splitDialogue("[[Brena", cast)).toEqual([]);
   });
 
+  it("keeps a finished paragraph whose marker is malformed", () => {
+    expect(splitDialogue("[[Brena] Hola.\nSigue.", cast)).toEqual([
+      { speaker: null, paragraphs: ["[[Brena] Hola.", "Sigue."] },
+    ]);
+  });
+
+  it("gives a marker on its own line the next paragraph", () => {
+    expect(splitDialogue("[[Brena]]\n—¿Y vos quién sos?\nSe va.", cast)).toEqual([
+      { speaker: "Brena", paragraphs: ["—¿Y vos quién sos?"] },
+      { speaker: null, paragraphs: ["Se va."] },
+    ]);
+  });
+
   it("opens the speaker's segment as soon as the marker closes", () => {
     expect(splitDialogue("[[Brena]]", cast)).toEqual([{ speaker: "Brena", paragraphs: [] }]);
   });
