@@ -78,7 +78,8 @@ a { color: var(--color-accent); text-underline-offset: 0.15em; }
 .site-footer .attribution { margin-top: var(--space-2); font-size: var(--text-xs); overflow-wrap: anywhere; }
 .site-nav { display: flex; align-items: center; gap: var(--space-3); }
 @media (max-width: 30rem) { .site-header { flex-wrap: wrap; row-gap: var(--space-2); } .site-nav { gap: var(--space-2); font-size: var(--text-sm); } }
-.theme-toggle {
+.theme-toggle,
+.icon-button {
   display: grid;
   place-items: center;
   width: 2.25rem;
@@ -90,12 +91,31 @@ a { color: var(--color-accent); text-underline-offset: 0.15em; }
   color: var(--color-ink);
   cursor: pointer;
 }
-.theme-toggle svg {
+.theme-toggle svg,
+.icon-button svg {
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+/* Game screen header: sticky, slides up while scrolling down. The shadow
+   + clip-path pair paints the background edge to edge without widening
+   the header's layout box. */
+.game-shell .site-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--color-bg);
+  box-shadow: 0 0 0 100vmax var(--color-bg);
+  clip-path: inset(0 -100vmax);
+  transition: transform 200ms ease;
+}
+.game-shell { --header-offset: var(--header-h, 0px); }
+.game-shell[data-header="hidden"] { --header-offset: 0px; }
+.game-shell[data-header="hidden"] .site-header { transform: translateY(-100%); }
+@media (prefers-reduced-motion: reduce) {
+  .game-shell .site-header { transition: none; }
 }
 /* Shows the mode you would switch to: moon by day, sun by night. */
 .theme-toggle__sun { display: none; }
