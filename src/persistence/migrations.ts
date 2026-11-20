@@ -82,6 +82,14 @@ function fromV4(raw: Raw): Raw {
   return { ...raw, version: 5, storyItems };
 }
 
+/** v5 -> v6. NPCs record how they talk; nobody had a voice before. */
+function fromV5(raw: Raw): Raw {
+  const npcs = (Array.isArray(raw.npcs) ? raw.npcs : []).map((npc) =>
+    isObject(npc) ? { ...npc, voice: "" } : npc,
+  );
+  return { ...raw, version: 6, npcs };
+}
+
 /** Turns whatever was stored into a GameState of the current version, or
     null if it can't be trusted (unknown version or wrong shape). Loading
     code must go through here so the screens never see a malformed save. */
@@ -92,6 +100,7 @@ export function migrateSave(raw: unknown): GameState | null {
   if (current.version === 2) current = fromV2(current);
   if (current.version === 3) current = fromV3(current);
   if (current.version === 4) current = fromV4(current);
+  if (current.version === 5) current = fromV5(current);
   if (current.version !== GAME_STATE_VERSION) return null;
   const parsed = gameStateSchema.safeParse(current);
   return parsed.success ? parsed.data : null;

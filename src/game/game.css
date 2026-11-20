@@ -112,6 +112,10 @@
 .message--player {
   grid-template-columns: minmax(0, 1fr) var(--speaker-width);
 }
+/* An NPC's line sits on the DM's side, as a bubble of their own. */
+.message--npc {
+  grid-template-columns: var(--speaker-width) minmax(0, 1fr);
+}
 .speaker {
   padding-top: 0.35em;
   font-size: var(--text-xs);
@@ -121,7 +125,8 @@
   letter-spacing: 0.04em;
   text-decoration: none;
 }
-.message--dm .speaker {
+.message--dm .speaker,
+.message--npc .speaker {
   text-align: right;
 }
 .thinking {
@@ -141,6 +146,39 @@
 }
 .entry--dm {
   max-width: 62ch;
+}
+.npc-line {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.npc-line__name {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-soft);
+}
+.entry--npc {
+  --npc-fill: var(--color-npc-neutral);
+  max-width: 62ch;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border);
+  border-radius: 0 var(--radius) var(--radius) var(--radius);
+  background: var(--npc-fill);
+  color: var(--color-npc-ink);
+}
+.entry--npc p {
+  margin: 0;
+}
+.entry--npc p + p {
+  margin-top: var(--space-2);
+}
+.message--hostile .entry--npc {
+  --npc-fill: var(--color-npc-hostile);
+}
+.message--friendly .entry--npc {
+  --npc-fill: var(--color-npc-friendly);
 }
 .thinking {
   margin: 0;
@@ -599,6 +637,7 @@
    goes above the message instead. */
 @media (max-width: 34rem) {
   .message--dm,
+  .message--npc,
   .message--player {
     grid-template-columns: minmax(0, 1fr);
     gap: 0;
@@ -609,6 +648,10 @@
   }
   .message--dm .speaker {
     text-align: left;
+  }
+  /* The bubble already carries the NPC's name. */
+  .message--npc .speaker {
+    display: none;
   }
   .speaker {
     padding-top: 0;

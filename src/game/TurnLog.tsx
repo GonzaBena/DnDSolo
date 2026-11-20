@@ -5,6 +5,7 @@ import {
   enterPage,
   rollIn,
 } from "../animations/motion";
+import { findNpc, splitDialogue, type Cast } from "../domain/dialogue";
 import { formatDice, naturalResult } from "../domain/dice";
 import type {
   Character,
@@ -217,24 +218,73 @@ function Paragraph({ text, animated }: { text: string; animated?: boolean }) {
   return <p ref={ref}>{text}</p>;
 }
 
+/** One NPC's line: a bubble on the DM's side, tinted by their attitude
+    (neutral for someone the state doesn't know yet). */
+function NpcLine({
+  name,
+  paragraphs,
+  cast,
+  animated,
+}: {
+  name: string;
+  paragraphs: string[];
+  cast: Cast;
+  animated?: boolean | undefined;
+}) {
+  const attitude = findNpc(cast.npcs, name)?.attitude ?? "neutral";
+  return (
+    <div className={`message message--npc message--${attitude}`}>
+      <Speaker name={name} />
+      <div className="npc-line">
+        <span className="npc-line__name">{name}</span>
+        {paragraphs.length > 0 && (
+          <div className="entry entry--npc">
+            {paragraphs.map((paragraph, index) => (
+              <Paragraph key={index} text={paragraph} animated={animated} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** The DM's reply, split into their narration and the lines each NPC
+    says (marked "[[Name]]" by the DM, see domain/dialogue). */
 export function Narration({
   text,
+  cast,
   animated,
 }: {
   text: string;
+  cast: Cast;
   animated?: boolean;
 }) {
+  // Keyed by position: while streaming, a segment and its paragraphs keep
+  // their elements as they grow and only what is new animates in.
   return (
-    <div className="message message--dm">
-      <Speaker name={DM_NAME} />
-      <div className="entry entry--dm">
-        {/* Keyed by position: while streaming, a paragraph keeps its element
-            as it grows and only a newly started paragraph animates in. */}
-        {text.split(/\n+/).map((paragraph, index) => (
-          <Paragraph key={index} text={paragraph} animated={animated} />
-        ))}
-      </div>
-    </div>
+    <>
+      {splitDialogue(text, cast).map((segment, index) =>
+        segment.speaker === null ? (
+          <div key={index} className="message message--dm">
+            <Speaker name={DM_NAME} />
+            <div className="entry entry--dm">
+              {segment.paragraphs.map((paragraph, p) => (
+                <Paragraph key={p} text={paragraph} animated={animated} />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <NpcLine
+            key={index}
+            name={segment.speaker}
+            paragraphs={segment.paragraphs}
+            cast={cast}
+            animated={animated}
+          />
+        ),
+      )}
+    </>
   );
 }
 
@@ -249,10 +299,12 @@ const ENTERING_TURNS = 6;
 export function TurnLog({
   turns,
   players,
+  cast,
   enterCount = 0,
 }: {
   turns: Turn[];
   players: Character[];
+  cast: Cast;
   enterCount?: number;
 }) {
   const entering = useRef<HTMLDivElement[]>([]);
@@ -277,7 +329,7 @@ export function TurnLog({
             }}
           >
             <InputEntry input={turn.input} players={players} />
-            <Narration text={turn.narration} />
+            <Narration text={turn.narration} cast={cast} />
           </div>
         );
       })}
