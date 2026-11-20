@@ -112,6 +112,8 @@ a { color: var(--color-accent); text-underline-offset: 0.15em; }
   transition: transform 200ms ease;
 }
 .game-shell { --header-offset: var(--header-h, 0px); }
+/* The composer is pinned to the bottom, so the page needs no trailing gap. */
+.game-shell .page { padding-bottom: 0; }
 .game-shell[data-header="hidden"] { --header-offset: 0px; }
 .game-shell[data-header="hidden"] .site-header { transform: translateY(-100%); }
 @media (prefers-reduced-motion: reduce) {

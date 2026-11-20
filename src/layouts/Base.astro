@@ -129,7 +129,11 @@ const { title, footer = true, game = false } = Astro.props;
         const MIN_DELTA = 8;
         const update = () => {
           ticking = false;
-          const y = window.scrollY;
+          // Clamp to the real scroll range: Safari's rubber-band bounce
+          // past the bottom (and top) briefly reports out-of-range values,
+          // and the spring back would otherwise read as scrolling up.
+          const maxY = document.documentElement.scrollHeight - window.innerHeight;
+          const y = Math.min(Math.max(window.scrollY, 0), Math.max(maxY, 0));
           const delta = y - lastY;
           if (y <= header.offsetHeight) {
             body.dataset.header = "shown";
