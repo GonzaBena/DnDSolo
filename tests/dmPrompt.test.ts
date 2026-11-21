@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
+import { TURN_EVENTS } from "../src/domain/types";
 import { buildTurnPrompt, DM_SYSTEM_PROMPT } from "../src/engine/dmPrompt";
 import { newGame } from "./helpers";
 
 describe("DM_SYSTEM_PROMPT", () => {
   it("distinguishes damage taken from damage dealt", () => {
-    expect(DM_SYSTEM_PROMPT).toContain("damage_taken");
-    expect(DM_SYSTEM_PROMPT).toContain("damage_dealt");
-    expect(DM_SYSTEM_PROMPT).not.toContain("damage,");
+    const line = DM_SYSTEM_PROMPT.split("\n").find((l) => l.includes("solo de esta lista:"));
+    const tags = (line ?? "")
+      .split("solo de esta lista:")[1]!
+      .replace(/\([^)]*\)/g, "")
+      .replace(/\.$/, "")
+      .split(",")
+      .map((t) => t.trim());
+    expect(tags).toEqual([...TURN_EVENTS]);
   });
   it("tells the DM how to mark what each NPC says", () => {
     expect(DM_SYSTEM_PROMPT).toContain("[[Nombre]]");

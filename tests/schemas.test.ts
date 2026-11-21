@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { dmResponseJsonSchema, parseDMResponse } from "../src/domain/schemas";
+import { TURN_EVENTS } from "../src/domain/types";
 import { extractPartialNarration } from "../src/engine/narrationStream";
 import { reply } from "./helpers";
 
@@ -71,12 +72,22 @@ describe("event tags", () => {
     const parsed = parseDMResponse(JSON.stringify({ ...reply(), events: ["damage_taken", "explosion", "damage"] }));
     expect(parsed.ok && parsed.response.events).toEqual(["damage_taken"]);
   });
+  it("yields an empty list when every tag is unknown", () => {
+    const parsed = parseDMResponse(JSON.stringify({ ...reply(), events: ["foo"] }));
+    expect(parsed.ok && parsed.response.events).toEqual([]);
+  });
+  it("still rejects events that are not an array", () => {
+    expect(parseDMResponse(JSON.stringify({ ...reply(), events: "damage_taken" })).ok).toBe(false);
+  });
 });
 
 describe("dmResponseJsonSchema", () => {
   const text = JSON.stringify(dmResponseJsonSchema);
   it("offers the model only the known tags", () => {
-    expect(text).toContain("damage_dealt");
+    const schema = dmResponseJsonSchema as { properties: { events: { items: { enum: string[] } } } };
+    const tags = schema.properties.events.items.enum;
+    expect(tags).toEqual([...TURN_EVENTS]);
+    expect(tags).not.toContain("damage");
   });
 
   it("only uses keywords the provider documents", () => {
