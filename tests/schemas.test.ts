@@ -8,7 +8,7 @@ describe("parseDMResponse", () => {
     const parsed = parseDMResponse(
       JSON.stringify(
         reply({
-          playerRoll: { die: "d20", count: 1, reason: "Sigilo", difficulty: 12 },
+          playerRoll: { die: "d20", count: 1, reason: "Sigilo", difficulty: 12, mode: "normal" },
           enemyRolls: [{ die: "d6", count: 2, modifier: 1, reason: "Daño" }],
         }),
       ),
@@ -21,9 +21,16 @@ describe("parseDMResponse", () => {
     expect(parseDMResponse(JSON.stringify({ narration: "Hola" })).ok).toBe(false);
     const badDie = {
       ...reply(),
-      playerRoll: { die: "d7", count: 1, reason: "x", difficulty: null },
+      playerRoll: { die: "d7", count: 1, reason: "x", difficulty: null, mode: "normal" },
     };
     expect(parseDMResponse(JSON.stringify(badDie)).ok).toBe(false);
+  });
+
+  it("requires a roll mode on the player's roll request", () => {
+    const request = { die: "d20", count: 1, reason: "Sigilo", difficulty: 12 } as const;
+    expect(parseDMResponse(JSON.stringify(reply({ playerRoll: request as never }))).ok).toBe(false);
+    const withMode = reply({ playerRoll: { ...request, mode: "advantage" } });
+    expect(parseDMResponse(JSON.stringify(withMode)).ok).toBe(true);
   });
 
   it("rejects state changes of an unknown type", () => {

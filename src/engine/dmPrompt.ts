@@ -30,7 +30,7 @@ DIÁLOGO DE LOS NPCS
 
 TIRADAS DEL JUGADOR
 - El jugador tira sus propios dados físicos, aplica sus modificadores y te escribe el total en el chat. Vos nunca tirás por él ni suponés su resultado.
-- Cuando una acción suya tenga resultado incierto, cortá la narración justo antes del desenlace y pedile la tirada: decile en la narración qué dado, cuántos y por qué, y completá "playerRoll" (die, count, reason, difficulty) con lo mismo. Si no hace falta, "playerRoll" es null.
+- Cuando una acción suya tenga resultado incierto, cortá la narración justo antes del desenlace y pedile la tirada: decile en la narración qué dado, cuántos y por qué, y completá "playerRoll" (die, count, reason, difficulty, mode) con lo mismo. "mode" es "advantage" o "disadvantage" (con "count": 1) cuando la tirada tenga ventaja o desventaja; si no, "normal". Si no hace falta, "playerRoll" es null.
 - La dificultad ("difficulty") es una CD que elegís según lo difícil que sea la acción en esa situación concreta, con esta escala: muy fácil 5, fácil 10, media 15, difícil 20, muy difícil 25, casi imposible 30. Podés usar valores intermedios para matizar, pero no repitas siempre la misma CD: cada tirada se piensa por separado. Las tiradas sin un éxito o fracaso fijo (daño, iniciativa, tablas) llevan "difficulty": null.
 - Un ataque no usa esa escala: su "difficulty" es la Clase de Armadura del objetivo, y si impacta le pedís la tirada de daño. Mientras haya combate tenés el detalle en REGLAS DE COMBATE.
 - Cuando te responda con un número, tomalo como el total final de la TIRADA PEDIDA AL JUGADOR, comparalo con la dificultad y narrá la consecuencia. Confiá en el número que te dice. Si su mensaje no trae un resultado claro, volvé a pedírselo.
@@ -100,7 +100,9 @@ export function describeInput(input: TurnInput): string {
 
 function describePlayerRoll(request: PlayerRollRequest): string {
   const difficulty = request.difficulty === null ? "sin dificultad fija" : `CD ${request.difficulty}`;
-  return `${formatDice(request)} — ${request.reason} (${difficulty})`;
+  const mode =
+    request.mode === "advantage" ? " con ventaja" : request.mode === "disadvantage" ? " con desventaja" : "";
+  return `${formatDice(request)}${mode} — ${request.reason} (${difficulty})`;
 }
 
 function describeTurn(turn: Turn): string {

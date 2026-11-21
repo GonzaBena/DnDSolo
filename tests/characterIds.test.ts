@@ -85,3 +85,18 @@ describe("v7 -> v8", () => {
     expect(migrated?.scene.turnOf).toBe("Tabernero");
   });
 });
+
+describe("v8 -> v9", () => {
+  it("gives a pending player roll the normal mode", () => {
+    const game = newGame();
+    const pending = { die: "d20", count: 1, reason: "x", difficulty: 12 };
+    const migrated = migrateSave({ ...game, version: 8, pendingPlayerRoll: pending });
+    expect(migrated?.version).toBe(GAME_STATE_VERSION);
+    expect(migrated?.pendingPlayerRoll).toEqual({ ...pending, mode: "normal" });
+  });
+
+  it("keeps a missing pending roll as null", () => {
+    const migrated = migrateSave({ ...newGame(), version: 8, pendingPlayerRoll: null });
+    expect(migrated?.pendingPlayerRoll).toBeNull();
+  });
+});

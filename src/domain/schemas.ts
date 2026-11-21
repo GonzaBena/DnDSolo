@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { PORTRAIT_IDS } from "./portraits";
-import { DICE, type DMResponse, type GameState } from "./types";
+import { DICE, ROLL_MODES, type DMResponse, type GameState } from "./types";
 
 const attitude = z.enum(["friendly", "neutral", "hostile"]);
 const questStatus = z.enum(["active", "completed", "failed"]);
@@ -13,6 +13,7 @@ const playerRollRequest = z.object({
   count: diceCount,
   reason: z.string().min(1),
   difficulty: z.number().int().nullable(),
+  mode: z.enum(ROLL_MODES),
 });
 
 const enemyRollRequest = z.object({
@@ -141,6 +142,8 @@ const turnInput = z.discriminatedUnion("type", [
         value: z.number().int(),
         modifier: z.number().int(),
         reason: z.string().optional(),
+        mode: z.enum(ROLL_MODES).optional(),
+        rolls: z.tuple([z.number().int(), z.number().int()]).optional(),
       })
       .optional(),
   }),

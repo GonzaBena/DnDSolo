@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describePlayerRoll, formatDice, naturalResult, rollDie, rollForEnemy } from "../src/domain/dice";
+import { describePlayerRoll, formatDice, naturalResult, resolveRollMode, rollDie, rollForEnemy } from "../src/domain/dice";
 import { DICE } from "../src/domain/types";
 
 describe("rollDie", () => {
@@ -89,6 +89,27 @@ describe("naturalResult", () => {
     );
     expect(describePlayerRoll({ die: "d20", value: 1, modifier: 0 })).toBe(
       "1d20: 1 (1 natural: pifia)",
+    );
+  });
+});
+
+describe("advantage and disadvantage", () => {
+  it("advantage keeps the higher die, disadvantage the lower", () => {
+    expect(resolveRollMode([7, 15], "advantage")).toBe(15);
+    expect(resolveRollMode([7, 15], "disadvantage")).toBe(7);
+  });
+
+  it("a natural 20 counts only on the die that was kept", () => {
+    expect(naturalResult({ die: "d20", count: 1, value: 20, mode: "advantage", rolls: [20, 3] })).toBe("critical");
+    expect(naturalResult({ die: "d20", count: 1, value: 3, mode: "disadvantage", rolls: [20, 3] })).toBeNull();
+  });
+
+  it("describes both dice of an advantage roll", () => {
+    expect(describePlayerRoll({ die: "d20", count: 1, value: 17, modifier: 3, mode: "advantage", rolls: [12, 17] })).toBe(
+      "1d20 con ventaja (12 y 17, queda 17): 17 + 3 = 20",
+    );
+    expect(describePlayerRoll({ die: "d20", count: 1, value: 4, modifier: 0, mode: "disadvantage", rolls: [4, 18] })).toBe(
+      "1d20 con desventaja (4 y 18, queda 4): 4",
     );
   });
 });

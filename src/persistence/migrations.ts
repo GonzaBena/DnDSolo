@@ -111,6 +111,15 @@ function fromV7(raw: Raw): Raw {
   return { ...raw, version: 8, npcs, scene };
 }
 
+/** v8 -> v9. A requested player roll says whether it is made with
+    advantage; every old request was a plain roll. */
+function fromV8(raw: Raw): Raw {
+  const pending = isObject(raw.pendingPlayerRoll)
+    ? { ...raw.pendingPlayerRoll, mode: "normal" }
+    : raw.pendingPlayerRoll;
+  return { ...raw, version: 9, pendingPlayerRoll: pending };
+}
+
 /** Turns whatever was stored into a GameState of the current version, or
     null if it can't be trusted (unknown version or wrong shape). Loading
     code must go through here so the screens never see a malformed save. */
@@ -124,6 +133,7 @@ export function migrateSave(raw: unknown): GameState | null {
   if (current.version === 5) current = fromV5(current);
   if (current.version === 6) current = fromV6(current);
   if (current.version === 7) current = fromV7(current);
+  if (current.version === 8) current = fromV8(current);
   if (current.version !== GAME_STATE_VERSION) return null;
   const parsed = gameStateSchema.safeParse(current);
   return parsed.success ? parsed.data : null;

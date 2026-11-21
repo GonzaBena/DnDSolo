@@ -32,13 +32,18 @@ export interface Character {
 /** A roll the DM asks the *player* for. The app never rolls it: the player
     rolls their own dice, applies their own modifiers and types the total
     in the chat. This only exists to show the request clearly. */
+export const ROLL_MODES = ["normal", "advantage", "disadvantage"] as const;
+export type RollMode = (typeof ROLL_MODES)[number];
+
 export interface PlayerRollRequest {
   die: Die;
+  /** How many dice are added up. Advantage is a mode, not a count of 2. */
   count: number;
   /** e.g. "Sigilo para pasar al guardia" */
   reason: string;
   /** Difficulty class, when the roll has one. */
   difficulty: number | null;
+  mode: RollMode;
 }
 
 /** A roll the player made with their own dice and reported through the
@@ -52,6 +57,10 @@ export interface PlayerRoll {
   modifier: number;
   /** What it was for, when the DM had asked for it. */
   reason?: string | undefined;
+  /** Advantage or disadvantage; `value` is then the die that was kept. */
+  mode?: RollMode | undefined;
+  /** Both d20 of an advantage or disadvantage roll. */
+  rolls?: [number, number] | undefined;
 }
 
 /** A roll for an enemy or NPC. These are the only dice the app rolls. */
@@ -205,4 +214,4 @@ export interface GameState {
   pendingEnemyRolls: EnemyRollRequest[];
 }
 
-export const GAME_STATE_VERSION = 8;
+export const GAME_STATE_VERSION = 9;

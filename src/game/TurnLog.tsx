@@ -103,9 +103,14 @@ function PlayerRollCard({
     count: roll.count ?? 1,
     modifier: roll.modifier,
   });
+  const kept =
+    roll.rolls && roll.mode && roll.mode !== "normal"
+      ? ` con ${roll.mode === "advantage" ? "ventaja" : "desventaja"} (${roll.rolls[0]} y ${roll.rolls[1]}, queda ${roll.value})`
+      : "";
   const meta =
     (roll.reason ? `${roll.reason} · ` : "") +
     dice +
+    kept +
     (roll.modifier !== 0
       ? ` · ${(roll.count ?? 1) > 1 ? "dados" : "dado"}: ${roll.value}`
       : "");

@@ -3,6 +3,7 @@ import type {
   EnemyRollRequest,
   EnemyRollResult,
   PlayerRoll,
+  RollMode,
 } from "./types";
 
 const SIDES: Record<Die, number> = {
@@ -47,9 +48,19 @@ export function formatDice(roll: {
   return `${roll.count}${roll.die}${sign}`;
 }
 
-/** "1d20: 14 + 3 = 17", "1d8: 8 - 1 = 7", "1d20: 20". */
+/** The die that counts out of the two d20 of an advantage or disadvantage
+    roll. */
+export function resolveRollMode(
+  rolls: readonly [number, number],
+  mode: Exclude<RollMode, "normal">,
+): number {
+  return mode === "advantage" ? Math.max(...rolls) : Math.min(...rolls);
+}
+
+/** "1d20: 14 + 3 = 17", "1d8: 8 - 1 = 7", "1d20: 20",
+    "1d20 con ventaja (12 y 17, queda 17): 17 + 3 = 20". */
 export function describePlayerRoll(
-  roll: Pick<PlayerRoll, "die" | "count" | "value" | "modifier">,
+  roll: Pick<PlayerRoll, "die" | "count" | "value" | "modifier" | "mode" | "rolls">,
 ): string {
   const { die, value, modifier } = roll;
   const math =
@@ -63,13 +74,20 @@ export function describePlayerRoll(
       : natural === "fumble"
         ? " (1 natural: pifia)"
         : "";
-  return `${formatDice({ die, count: roll.count ?? 1 })}: ${math}${note}`;
+  const dice = formatDice({ die, count: roll.count ?? 1 });
+  if (roll.rolls && roll.mode && roll.mode !== "normal") {
+    const label = roll.mode === "advantage" ? "ventaja" : "desventaja";
+    const [a, b] = roll.rolls;
+    return `${dice} con ${label} (${a} y ${b}, queda ${value}): ${math}${note}`;
+  }
+  return `${dice}: ${math}${note}`;
 }
 
 /** A natural 20 or 1 only means something on a single d20; with several
-    dice the value is a sum and says nothing about any one of them. */
+    dice the value is a sum and says nothing about any one of them. With
+    advantage or disadvantage `value` is already the die that was kept. */
 export function naturalResult(
-  roll: Pick<PlayerRoll, "die" | "count" | "value">,
+  roll: Pick<PlayerRoll, "die" | "count" | "value" | "mode" | "rolls">,
 ): "critical" | "fumble" | null {
   if (roll.die !== "d20" || (roll.count ?? 1) !== 1) return null;
   if (roll.value === 20) return "critical";

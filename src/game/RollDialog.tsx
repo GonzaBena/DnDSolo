@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { dieSides, formatDice } from "../domain/dice";
-import { DICE, type Die, type PlayerRollRequest } from "../domain/types";
+import { dieSides, formatDice, resolveRollMode } from "../domain/dice";
+import { DICE, type Die, type PlayerRollRequest, type RollMode } from "../domain/types";
 import { DieShape } from "./DieShape";
 
 interface Props {
@@ -13,6 +13,8 @@ interface Props {
     count: number;
     value: number;
     modifier: number;
+    mode: RollMode;
+    rolls?: [number, number];
   }) => void;
 }
 
@@ -26,13 +28,18 @@ export function RollDialog({ open, request, onClose, onSubmit }: Props) {
   // Only chosen by hand for rolls nobody asked for; otherwise it's the
   // die in the DM's request.
   const [chosenDie, setChosenDie] = useState<Die>("d20");
+  const [chosenMode, setChosenMode] = useState<RollMode>("normal");
+  const [secondValue, setSecondValue] = useState("");
   const die = request?.die ?? chosenDie;
+  // Advantage only exists on the d20 when the player picks it by hand.
+  const mode: RollMode = request ? request.mode : die === "d20" ? chosenMode : "normal";
 
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
     if (open && !dialog.open) {
       setValue("");
+      setSecondValue("");
       dialog.showModal();
     } else if (!open && dialog.open) {
       dialog.close();
@@ -41,12 +48,15 @@ export function RollDialog({ open, request, onClose, onSubmit }: Props) {
 
   const parsedValue = Number.parseInt(value, 10);
   const parsedModifier = Number.parseInt(modifier, 10) || 0;
-  const count = request?.count ?? 1;
+  const parsedSecond = Number.parseInt(secondValue, 10);
+  const twoDice = mode !== "normal";
+  // With advantage the system picks the die, so the count is always 1.
+  const count = twoDice ? 1 : (request?.count ?? 1);
   const maxValue = dieSides(die) * count;
-  const valid =
-    Number.isInteger(parsedValue) &&
-    parsedValue >= 1 &&
-    parsedValue <= maxValue;
+  const inRange = (n: number) => Number.isInteger(n) && n >= 1 && n <= maxValue;
+  const valid = twoDice ? inRange(parsedValue) && inRange(parsedSecond) : inRange(parsedValue);
+  const kept =
+    twoDice && valid ? resolveRollMode([parsedValue, parsedSecond], mode) : parsedValue;
 
   return (
     <dialog
@@ -67,8 +77,10 @@ export function RollDialog({ open, request, onClose, onSubmit }: Props) {
           onSubmit({
             die,
             count,
-            value: parsedValue,
+            value: kept,
             modifier: parsedModifier,
+            mode,
+            ...(twoDice ? { rolls: [parsedValue, parsedSecond] as [number, number] } : {}),
           });
         }}
       >
@@ -78,6 +90,8 @@ export function RollDialog({ open, request, onClose, onSubmit }: Props) {
         {request && (
           <p className="roll-dialog__request">
             {formatDice(request)}
+            {request.mode === "advantage" && " con ventaja"}
+            {request.mode === "disadvantage" && " con desventaja"}
             {request.difficulty !== null &&
               ` · CD ${request.difficulty}`} — {request.reason}
           </p>
@@ -102,23 +116,78 @@ export function RollDialog({ open, request, onClose, onSubmit }: Props) {
             ))}
           </fieldset>
         )}
+        {!request && die === "d20" && (
+          <fieldset className="roll-dialog__modes">
+            <legend>Tirada</legend>
+            {(
+              [
+                ["normal", "Normal"],
+                ["advantage", "Ventaja"],
+                ["disadvantage", "Desventaja"],
+              ] as const
+            ).map(([option, label]) => (
+              <label key={option} className="roll-dialog__mode">
+                <input
+                  type="radio"
+                  name="roll-mode"
+                  value={option}
+                  checked={mode === option}
+                  onChange={() => setChosenMode(option)}
+                />
+                {label}
+              </label>
+            ))}
+          </fieldset>
+        )}
         <div className="roll-dialog__fields">
-          <div className="field">
-            <label htmlFor="roll-value">
-              {count > 1 ? `Suma de ${count}${die}` : "Resultado"}
-            </label>
-            <input
-              id="roll-value"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={maxValue}
-              required
-              autoFocus
-              value={value}
-              onChange={(event) => setValue(event.target.value)}
-            />
-          </div>
+          {twoDice ? (
+            <div className="roll-dialog__pair">
+              <div className="field">
+                <label htmlFor="roll-value">Dado 1</label>
+                <input
+                  id="roll-value"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={maxValue}
+                  required
+                  autoFocus
+                  value={value}
+                  onChange={(event) => setValue(event.target.value)}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="roll-value-2">Dado 2</label>
+                <input
+                  id="roll-value-2"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={maxValue}
+                  required
+                  value={secondValue}
+                  onChange={(event) => setSecondValue(event.target.value)}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="field">
+              <label htmlFor="roll-value">
+                {count > 1 ? `Suma de ${count}${die}` : "Resultado"}
+              </label>
+              <input
+                id="roll-value"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={maxValue}
+                required
+                autoFocus
+                value={value}
+                onChange={(event) => setValue(event.target.value)}
+              />
+            </div>
+          )}
           <span className="roll-dialog__op" aria-hidden="true">
             +
           </span>
@@ -137,11 +206,16 @@ export function RollDialog({ open, request, onClose, onSubmit }: Props) {
           </span>
           <output
             className="roll-dialog__total"
-            htmlFor="roll-value roll-modifier"
+            htmlFor="roll-value roll-value-2 roll-modifier"
           >
-            {valid ? parsedValue + parsedModifier : "—"}
+            {valid ? kept + parsedModifier : "—"}
           </output>
         </div>
+        {twoDice && valid && (
+          <p className="roll-dialog__kept">
+            Con {mode === "advantage" ? "ventaja" : "desventaja"} queda el {kept}.
+          </p>
+        )}
         <div className="actions">
           <button type="button" className="button" onClick={onClose}>
             Cancelar

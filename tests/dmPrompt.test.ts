@@ -69,3 +69,12 @@ describe("combat rules", () => {
     expect(DM_SYSTEM_PROMPT).toContain('Un ataque no usa esa escala');
   });
 });
+
+describe("advantage", () => {
+  it("is asked for with a mode, never as two dice", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('"mode"');
+    const fight = buildTurnPrompt({ ...newGame(), scene: { inCombat: true, turnOf: null } }, { type: "start" }, 6);
+    expect(fight).toContain('"mode": "advantage"');
+    expect(fight).not.toContain('"count": 2');
+  });
+});

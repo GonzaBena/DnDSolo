@@ -26,7 +26,7 @@ CA DE LOS ENEMIGOS
 - Llevá la cuenta de los puntos de golpe de cada enemigo con lo que vayan recibiendo: goblin unos 10, lobo 11, bandido 11, orco 15, ogro 59.
 
 VENTAJA Y DESVENTAJA
-- Con ventaja se tiran 2d20 y se usa el mayor; con desventaja, el menor. Si hay de las dos, se cancelan. Para el jugador, pedile "count": 2 en el d20 y aclarale cuál usar.
+- Con ventaja se tiran 2d20 y se usa el mayor; con desventaja, el menor. Si hay de las dos, se cancelan. Para el jugador, pedile la tirada con "mode": "advantage" (o "disadvantage") y "count": 1: el sistema le hace tirar dos d20 y elige el dado.
 - Dan ventaja: atacar a una criatura que no te ve, derribada (cuerpo a cuerpo y a 1,5 m), aturdida, paralizada, inconsciente o apresada. Dan desventaja: atacar a distancia con un enemigo a 1,5 m, atacar a una criatura derribada desde más de 1,5 m, atacar estando envenenado, asustado o derribado, o a un objetivo que no ves.
 
 COBERTURA

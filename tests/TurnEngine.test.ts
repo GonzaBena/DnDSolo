@@ -66,7 +66,7 @@ describe("TurnEngine.playTurn", () => {
   it("never rolls for the player: the request is shown and answered in the chat", async () => {
     const ctx = setup();
     const game = await started(ctx);
-    const request = { die: "d20", count: 1, reason: "Sigilo", difficulty: 12 } as const;
+    const request = { die: "d20", count: 1, reason: "Sigilo", difficulty: 12, mode: "normal" } as const;
     ctx.llm.queueStructured(reply({ playerRoll: request }), reply({ narration: "Pasás sin ruido." }));
 
     const asked = await ctx.engine.playTurn(game, { type: "action", text: "Me escabullo" });

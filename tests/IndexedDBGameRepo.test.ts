@@ -70,7 +70,7 @@ describe("IndexedDBGameRepo", () => {
     const loaded = (await new IndexedDBGameRepo().load("legacy"))!;
     expect(loaded.version).toBe(GAME_STATE_VERSION);
     expect(loaded.players[0]).not.toHaveProperty("hp");
-    expect(loaded.pendingPlayerRoll).toEqual({ die: "d20", count: 1, reason: "Sigilo", difficulty: 12 });
+    expect(loaded.pendingPlayerRoll).toEqual({ die: "d20", count: 1, reason: "Sigilo", difficulty: 12, mode: "normal" });
     expect(loaded.pendingEnemyRolls).toEqual([]);
     expect(loaded.turns[1]!.input).toEqual({
       type: "action",
