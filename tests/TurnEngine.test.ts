@@ -118,8 +118,8 @@ describe("TurnEngine.playTurn", () => {
       reply({
         narration: "El goblin te lanza un tajo.",
         enemyRolls: [
-          { die: "d20", count: 1, modifier: 4, reason: "Ataque del goblin" },
-          { die: "d6", count: 2, modifier: 1, reason: "Daño de la cimitarra" },
+          { die: "d20", count: 1, modifier: 4, reason: "Ataque del goblin", mode: "normal" },
+          { die: "d6", count: 2, modifier: 1, reason: "Daño de la cimitarra", mode: "normal" },
         ],
       }),
       reply({ narration: "La cimitarra te alcanza: recibís 9 de daño." }),
@@ -141,11 +141,32 @@ describe("TurnEngine.playTurn", () => {
     expect(prompt).toContain("Daño de la cimitarra: 2d6+1 = 9 (dados: 4, 4)");
   });
 
+  it("tells the DM an enemy roll had advantage and shows both dice", async () => {
+    const ctx = setup();
+    const game = await started(ctx);
+    ctx.llm.queueStructured(
+      reply({
+        enemyRolls: [
+          { die: "d20", count: 1, modifier: 4, reason: "Ataque del goblin", mode: "advantage" },
+        ],
+      }),
+      reply({ narration: "El goblin acierta." }),
+    );
+    const asked = await ctx.engine.playTurn(game, { type: "action", text: "Avanzo" });
+    if (!asked.ok) throw new Error("expected ok");
+    const results = ctx.engine.rollEnemyDice(asked.state);
+    expect(results[0]!.values).toHaveLength(2);
+    await ctx.engine.playTurn(asked.state, { type: "enemy_rolls", results });
+    const prompt = ctx.llm.structuredRequests.at(-1)!.prompt;
+    expect(prompt).toContain("con ventaja");
+    expect(prompt).toContain(`dados: ${results[0]!.values.join(", ")}; queda ${Math.max(...results[0]!.values)}`);
+  });
+
   it("refuses a player action while enemy rolls are waiting to be sent", async () => {
     const ctx = setup();
     const game = await started(ctx);
     ctx.llm.queueStructured(
-      reply({ enemyRolls: [{ die: "d20", count: 1, modifier: 0, reason: "Ataque" }] }),
+      reply({ enemyRolls: [{ die: "d20", count: 1, modifier: 0, reason: "Ataque", mode: "normal" }] }),
     );
     const asked = await ctx.engine.playTurn(game, { type: "action", text: "Avanzo" });
     const calls = ctx.llm.structuredRequests.length;
@@ -162,13 +183,13 @@ describe("TurnEngine.playTurn", () => {
     const ctx = setup();
     const game = await started(ctx);
     ctx.llm.queueStructured(
-      reply({ enemyRolls: [{ die: "d20", count: 1, modifier: 0, reason: "Ataque" }] }),
+      reply({ enemyRolls: [{ die: "d20", count: 1, modifier: 0, reason: "Ataque", mode: "normal" }] }),
     );
     const asked = await ctx.engine.playTurn(game, { type: "action", text: "Avanzo" });
 
     const outcome = await ctx.engine.playTurn(asked.state, {
       type: "enemy_rolls",
-      results: [{ die: "d20", count: 1, modifier: 10, reason: "Ataque", values: [20], total: 30 }],
+      results: [{ die: "d20", count: 1, modifier: 10, reason: "Ataque", mode: "normal", values: [20], total: 30 }],
     });
 
     expect(outcome.ok).toBe(false);
@@ -177,7 +198,7 @@ describe("TurnEngine.playTurn", () => {
   it("stops a DM that keeps chaining enemy rolls and hands the turn back", async () => {
     const ctx = setup();
     let state = await started(ctx);
-    const more = reply({ enemyRolls: [{ die: "d20", count: 1, modifier: 0, reason: "Otro" }] });
+    const more = reply({ enemyRolls: [{ die: "d20", count: 1, modifier: 0, reason: "Otro", mode: "normal" }] });
     ctx.llm.queueStructured(more, more, more, more);
 
     const first = await ctx.engine.playTurn(state, { type: "action", text: "Avanzo" });

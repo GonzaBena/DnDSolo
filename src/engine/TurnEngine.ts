@@ -154,7 +154,8 @@ export class TurnEngine {
               result.count === request.count &&
               result.modifier === request.modifier &&
               result.reason === request.reason &&
-              result.values.length === request.count
+              result.mode === request.mode &&
+              result.values.length === (request.mode === "normal" ? request.count : 2)
             );
           });
         return matches ? null : "The rolls don't match the ones that were requested.";

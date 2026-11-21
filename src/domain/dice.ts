@@ -28,12 +28,28 @@ export function rollForEnemy(
   request: EnemyRollRequest,
   random: () => number = Math.random,
 ): EnemyRollResult {
+  if (request.mode !== "normal") {
+    const values: [number, number] = [
+      rollDie(request.die, random),
+      rollDie(request.die, random),
+    ];
+    return {
+      ...request,
+      values,
+      total: resolveRollMode(values, request.mode) + request.modifier,
+    };
+  }
   const values = Array.from({ length: request.count }, () =>
     rollDie(request.die, random),
   );
   const total =
     values.reduce((sum, value) => sum + value, 0) + request.modifier;
   return { ...request, values, total };
+}
+
+/** "ventaja" or "desventaja", for texts like "con ventaja". */
+export function rollModeLabel(mode: Exclude<RollMode, "normal">): string {
+  return mode === "advantage" ? "ventaja" : "desventaja";
 }
 
 /** "2d6+3", "1d20", "1d8-1". */
@@ -76,7 +92,7 @@ export function describePlayerRoll(
         : "";
   const dice = formatDice({ die, count: roll.count ?? 1 });
   if (roll.rolls && roll.mode && roll.mode !== "normal") {
-    const label = roll.mode === "advantage" ? "ventaja" : "desventaja";
+    const label = rollModeLabel(roll.mode);
     const [a, b] = roll.rolls;
     return `${dice} con ${label} (${a} y ${b}, queda ${value}): ${math}${note}`;
   }

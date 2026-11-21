@@ -9,7 +9,7 @@ describe("parseDMResponse", () => {
       JSON.stringify(
         reply({
           playerRoll: { die: "d20", count: 1, reason: "Sigilo", difficulty: 12, mode: "normal" },
-          enemyRolls: [{ die: "d6", count: 2, modifier: 1, reason: "Daño" }],
+          enemyRolls: [{ die: "d6", count: 2, modifier: 1, reason: "Daño", mode: "normal" }],
         }),
       ),
     );
@@ -61,7 +61,7 @@ describe("parseDMResponse", () => {
   });
 
   it("rejects absurd dice counts", () => {
-    const bad = { ...reply(), enemyRolls: [{ die: "d6", count: 500, modifier: 0, reason: "x" }] };
+    const bad = { ...reply(), enemyRolls: [{ die: "d6", count: 500, modifier: 0, reason: "x", mode: "normal" }] };
     expect(parseDMResponse(JSON.stringify(bad)).ok).toBe(false);
   });
 });

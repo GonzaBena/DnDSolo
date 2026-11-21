@@ -111,13 +111,26 @@ function fromV7(raw: Raw): Raw {
   return { ...raw, version: 8, npcs, scene };
 }
 
-/** v8 -> v9. A requested player roll says whether it is made with
-    advantage; every old request was a plain roll. */
+/** v8 -> v9. A requested roll (the player's or an enemy's) says whether it
+    is made with advantage; every old one was a plain roll. */
 function fromV8(raw: Raw): Raw {
   const pending = isObject(raw.pendingPlayerRoll)
     ? { ...raw.pendingPlayerRoll, mode: "normal" }
     : raw.pendingPlayerRoll;
-  return { ...raw, version: 9, pendingPlayerRoll: pending };
+  const plain = (roll: unknown) => (isObject(roll) ? { ...roll, mode: "normal" } : roll);
+  const pendingEnemyRolls = Array.isArray(raw.pendingEnemyRolls)
+    ? raw.pendingEnemyRolls.map(plain)
+    : raw.pendingEnemyRolls;
+  const turns = Array.isArray(raw.turns)
+    ? raw.turns.map((turn: unknown) => {
+        if (!isObject(turn) || !isObject(turn.input) || turn.input.type !== "enemy_rolls") return turn;
+        const results = Array.isArray(turn.input.results)
+          ? turn.input.results.map(plain)
+          : turn.input.results;
+        return { ...turn, input: { ...turn.input, results } };
+      })
+    : raw.turns;
+  return { ...raw, version: 9, pendingPlayerRoll: pending, pendingEnemyRolls, turns };
 }
 
 /** Turns whatever was stored into a GameState of the current version, or

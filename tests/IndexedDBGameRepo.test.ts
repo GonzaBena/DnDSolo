@@ -100,7 +100,7 @@ describe("IndexedDBGameRepo", () => {
     const first = new TurnEngine({ llm, repo: new IndexedDBGameRepo(), now });
     llm.queueStructured(
       reply({ narration: "Un guardia bloquea el puente." }),
-      reply({ enemyRolls: [{ die: "d20", count: 1, modifier: 2, reason: "Ataque del guardia" }] }),
+      reply({ enemyRolls: [{ die: "d20", count: 1, modifier: 2, reason: "Ataque del guardia", mode: "normal" }] }),
       reply({ narration: "La alabarda te pasa rozando." }),
     );
     let outcome = await first.playTurn({ ...newGame(), id: "resume" }, { type: "start" });

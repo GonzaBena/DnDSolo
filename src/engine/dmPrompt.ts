@@ -1,4 +1,4 @@
-import { describePlayerRoll as describeRolledDie, formatDice } from "../domain/dice";
+import { describePlayerRoll as describeRolledDie, formatDice, resolveRollMode, rollModeLabel } from "../domain/dice";
 import { describeArchetypes } from "../domain/portraits";
 import { COMBAT_RULES } from "./combatRules";
 import { describeCharacterRules } from "./rulesBlock";
@@ -38,7 +38,7 @@ TIRADAS DEL JUGADOR
 - No pidas tiradas para acciones triviales.
 
 TIRADAS DE ENEMIGOS Y NPCS
-- Vos nunca inventás un resultado de dados. Cuando un enemigo o NPC tenga que tirar (ataque, daño, salvación, iniciativa), cortá la narración antes del desenlace y pedí las tiradas en "enemyRolls" (die, count, modifier, reason). El sistema las tira y te las manda en el turno siguiente como TIRADAS DE ENEMIGOS; recién ahí narrás qué pasó, respetando esos totales.
+- Vos nunca inventás un resultado de dados. Cuando un enemigo o NPC tenga que tirar (ataque, daño, salvación, iniciativa), cortá la narración antes del desenlace y pedí las tiradas en "enemyRolls" (die, count, modifier, reason, mode). "mode" es "advantage" o "disadvantage" (con "count": 1) cuando la tirada del enemigo tenga ventaja o desventaja; si no, "normal". El sistema las tira y te las manda en el turno siguiente como TIRADAS DE ENEMIGOS; recién ahí narrás qué pasó, respetando esos totales.
 - Si no hay tiradas de enemigos, "enemyRolls" es [].
 - No pidas en el mismo turno una tirada al jugador y tiradas de enemigos: primero resolvé una cosa y después la otra.
 
@@ -91,17 +91,20 @@ export function describeInput(input: TurnInput): string {
     case "enemy_rolls":
       return [
         "TIRADAS DE ENEMIGOS (hechas por el sistema):",
-        ...input.results.map(
-          (r) => `- ${r.reason}: ${formatDice(r)} = ${r.total} (dados: ${r.values.join(", ")})`,
-        ),
+        ...input.results.map((r) => {
+          if (r.mode === "normal") {
+            return `- ${r.reason}: ${formatDice(r)} = ${r.total} (dados: ${r.values.join(", ")})`;
+          }
+          const kept = resolveRollMode([r.values[0]!, r.values[1]!], r.mode);
+          return `- ${r.reason}: ${formatDice(r)} con ${rollModeLabel(r.mode)} = ${r.total} (dados: ${r.values.join(", ")}; queda ${kept})`;
+        }),
       ].join("\n");
   }
 }
 
 function describePlayerRoll(request: PlayerRollRequest): string {
   const difficulty = request.difficulty === null ? "sin dificultad fija" : `CD ${request.difficulty}`;
-  const mode =
-    request.mode === "advantage" ? " con ventaja" : request.mode === "disadvantage" ? " con desventaja" : "";
+  const mode = request.mode === "normal" ? "" : ` con ${rollModeLabel(request.mode)}`;
   return `${formatDice(request)}${mode} — ${request.reason} (${difficulty})`;
 }
 

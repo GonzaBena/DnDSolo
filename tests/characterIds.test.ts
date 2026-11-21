@@ -95,6 +95,28 @@ describe("v8 -> v9", () => {
     expect(migrated?.pendingPlayerRoll).toEqual({ ...pending, mode: "normal" });
   });
 
+  it("gives pending enemy rolls and past enemy_rolls turns the normal mode", () => {
+    const game = newGame();
+    const request = { die: "d20", count: 1, modifier: 2, reason: "x" };
+    const turn = {
+      number: 1,
+      input: { type: "enemy_rolls", results: [{ ...request, values: [5], total: 7 }] },
+      narration: "n",
+      events: [],
+      stateChanges: [],
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    const migrated = migrateSave({
+      ...game,
+      version: 8,
+      pendingEnemyRolls: [request],
+      turns: [turn],
+    });
+    expect(migrated?.pendingEnemyRolls).toEqual([{ ...request, mode: "normal" }]);
+    const input = migrated?.turns[0]?.input;
+    expect(input?.type === "enemy_rolls" && input.results[0]?.mode).toBe("normal");
+  });
+
   it("keeps a missing pending roll as null", () => {
     const migrated = migrateSave({ ...newGame(), version: 8, pendingPlayerRoll: null });
     expect(migrated?.pendingPlayerRoll).toBeNull();

@@ -21,6 +21,7 @@ const enemyRollRequest = z.object({
   count: diceCount,
   modifier: z.number().int(),
   reason: z.string().min(1),
+  mode: z.enum(ROLL_MODES),
 });
 
 const stateChange = z.discriminatedUnion("type", [

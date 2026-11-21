@@ -70,12 +70,16 @@ export interface EnemyRollRequest {
   /** Flat bonus the DM assigns to the creature, e.g. +4 to hit. */
   modifier: number;
   reason: string;
+  /** Advantage or disadvantage: two dice are rolled and one is kept. */
+  mode: RollMode;
 }
 
 export interface EnemyRollResult extends EnemyRollRequest {
-  /** Each die as rolled by code, never by the model. */
+  /** Each die as rolled by code, never by the model. With advantage or
+      disadvantage these are the two dice rolled. */
   values: number[];
-  /** Sum of values plus modifier. */
+  /** Sum of values (the kept die with advantage or disadvantage) plus
+      modifier. */
   total: number;
 }
 

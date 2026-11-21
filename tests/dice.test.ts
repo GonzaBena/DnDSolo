@@ -30,7 +30,7 @@ describe("rollForEnemy", () => {
     const sequence = [0, 0.5, 0.999];
     let i = 0;
     const result = rollForEnemy(
-      { die: "d6", count: 3, modifier: 2, reason: "Daño de la garra" },
+      { die: "d6", count: 3, modifier: 2, reason: "Daño de la garra", mode: "normal" },
       () => sequence[i++]!,
     );
     expect(result.values).toEqual([1, 4, 6]);
@@ -38,8 +38,27 @@ describe("rollForEnemy", () => {
     expect(result.reason).toBe("Daño de la garra");
   });
 
+  it("rolls two d20 for an enemy with advantage and keeps the higher", () => {
+    const seq = [0.1, 0.9]; // -> 3 and 19
+    const result = rollForEnemy(
+      { die: "d20", count: 1, modifier: 4, reason: "Ataque del goblin", mode: "advantage" },
+      () => seq.shift()!,
+    );
+    expect(result.values).toEqual([3, 19]);
+    expect(result.total).toBe(23);
+  });
+
+  it("keeps the lower die with disadvantage", () => {
+    const seq = [0.1, 0.9];
+    const result = rollForEnemy(
+      { die: "d20", count: 1, modifier: 4, reason: "x", mode: "disadvantage" },
+      () => seq.shift()!,
+    );
+    expect(result.total).toBe(7);
+  });
+
   it("handles negative modifiers", () => {
-    const result = rollForEnemy({ die: "d20", count: 1, modifier: -1, reason: "x" }, () => 0.5);
+    const result = rollForEnemy({ die: "d20", count: 1, modifier: -1, reason: "x", mode: "normal" }, () => 0.5);
     expect(result.total).toBe(10);
   });
 });
