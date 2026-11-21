@@ -141,7 +141,8 @@ export class TurnEngine {
           },
         });
       } catch (cause) {
-        if (cause instanceof LLMError && cause.kind === "aborted") {
+        // The SDK may wrap the abort in any error, so the signal decides too.
+        if (signal?.aborted || (cause instanceof LLMError && cause.kind === "aborted")) {
           return { ok: false, state, failure: { kind: "aborted" } };
         }
         const message = cause instanceof Error ? cause.message : String(cause);

@@ -529,7 +529,6 @@ describe("TurnEngine abort", () => {
 
     const controller = new AbortController();
     controller.abort();
-    ctx.llm.queueStructured(reply({}));
     const aborted = await ctx.engine.playTurn(asked.state, input, undefined, controller.signal);
     expect(aborted.ok).toBe(false);
     if (aborted.ok) return;
@@ -540,8 +539,29 @@ describe("TurnEngine abort", () => {
     ctx.llm.queueStructured(reply({ narration: "El goblin acierta." }));
     const retried = await ctx.engine.playTurn(asked.state, input);
     expect(retried.ok).toBe(true);
+    if (!retried.ok) return;
+    // Guards against playTurn rolling dice itself or mutating the results.
     expect(rolls).toBe(1);
     expect(input.results.map((r) => [...r.values])).toEqual(sentValues);
+    expect(retried.state.turns.at(-1)!.input).toEqual(input);
+    expect(ctx.llm.structuredRequests.at(-1)!.prompt).toContain(
+      `Ataque del goblin: 1d20+4 = ${results[0]!.total}`,
+    );
+  });
+
+  it("classifies as aborted whatever error the SDK throws once the signal fired", async () => {
+    const ctx = setup();
+    const game = newGame();
+    const controller = new AbortController();
+    // The SDK wrapped the abort in an error that is not an AbortError.
+    ctx.llm.generateStructured = async () => {
+      controller.abort();
+      throw new Error("exception sending request");
+    };
+
+    const outcome = await ctx.engine.playTurn(game, { type: "start" }, undefined, controller.signal);
+
+    expect(outcome).toEqual({ ok: false, state: game, failure: { kind: "aborted" } });
   });
 });
 

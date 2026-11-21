@@ -34,6 +34,8 @@ type Screen =
 interface InFlight {
   input: TurnInput;
   narration: string;
+  /** What the player typed, before slash commands were expanded. */
+  draft?: string;
 }
 
 const SAVE_WARNING = "El turno se jugó pero no se pudo guardar. Si recargás, lo perdés.";
@@ -58,6 +60,10 @@ export default function Game() {
   const [inFlight, setInFlight] = useState<InFlight | null>(null);
   const [busy, setBusy] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  // True only while the model call can still be cut; after that the
+  // typewriter is just finishing the reveal.
+  const [abortable, setAbortable] = useState(false);
+  useEffect(() => () => abortRef.current?.abort(), []);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -117,23 +123,27 @@ export default function Game() {
   }, []);
 
   const send = useCallback(
-    async (engine: TurnEngine, state: GameState, input: TurnInput) => {
+    async (engine: TurnEngine, state: GameState, input: TurnInput, typed?: string) => {
       setBusy(true);
       // Whoever sends wants to see the reply, even if they had scrolled up.
       scrollToBottom();
       setError(null);
       setWarning(null);
-      setInFlight({ input, narration: "" });
-      const typewriter = createTypewriter((narration) => setInFlight({ input, narration }));
+      setInFlight({ input, narration: "", draft: typed });
+      const typewriter = createTypewriter((narration) =>
+        setInFlight({ input, narration, draft: typed }),
+      );
       const controller = new AbortController();
       abortRef.current = controller;
+      setAbortable(true);
       const outcome = await engine.playTurn(
         state,
         input,
         (narration) => typewriter.setTarget(narration),
         controller.signal,
       );
-      abortRef.current = null;
+      if (abortRef.current === controller) abortRef.current = null;
+      setAbortable(false);
       // Set before the typewriter wait so a summary that resolves meanwhile
       // is applied on top of this turn.
       if (outcome.ok) {
@@ -162,16 +172,21 @@ export default function Game() {
       if (outcome.ok) await typewriter.finish();
       typewriter.cancel();
       setBusy(false);
-      if (!outcome.ok && outcome.failure.kind === "aborted" && input.type === "action") {
+      if (
+        !outcome.ok &&
+        outcome.failure.kind === "aborted" &&
+        input.type === "action" &&
+        !input.roll
+      ) {
         // Nothing happened: the text goes back to the box to edit or resend.
         setInFlight(null);
-        setDraft(input.text);
+        setDraft(typed ?? input.text);
         return;
       }
       if (!outcome.ok) {
         // Keep the input on screen so "Reintentar" resends exactly this:
         // enemy dice that were already rolled must not be rolled again.
-        setInFlight({ input, narration: "" });
+        setInFlight({ input, narration: "", draft: typed });
         setError(describeFailure(outcome.failure));
         return;
       }
@@ -322,7 +337,7 @@ export default function Game() {
     const text = expandSlashCommands(raw);
     setDraft("");
     // Solo game: the one player is always the author.
-    void send(engine, state, { type: "action", text, playerId: state.players[0]?.id });
+    void send(engine, state, { type: "action", text, playerId: state.players[0]?.id }, raw);
   };
 
   // Whatever was already typed goes first, so "Ataco al orco" + roll
@@ -393,7 +408,7 @@ export default function Game() {
                 <button
                   type="button"
                   className="button button--primary"
-                  onClick={() => void send(engine, state, inFlight.input)}
+                  onClick={() => void send(engine, state, inFlight.input, inFlight.draft)}
                 >
                   Reintentar
                 </button>
@@ -476,7 +491,7 @@ export default function Game() {
               >
                 <DieShape die="d20" className="action-roll__die" />
               </button>
-              {busy ? (
+              {busy && abortable ? (
                 <button
                   type="button"
                   className="button button--primary action-send"
@@ -489,24 +504,24 @@ export default function Game() {
                   </svg>
                 </button>
               ) : (
-              <button
-                type="submit"
-                className="button button--primary action-send"
-                aria-label="Enviar"
-                title="Enviar"
-                disabled={!canAct || draft.trim() === ""}
-              >
-                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-                  <path
-                    d="M21 3 3 10.5l7 2.5 2.5 7L21 3Zm0 0L10 13"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
+                <button
+                  type="submit"
+                  className="button button--primary action-send"
+                  aria-label="Enviar"
+                  title="Enviar"
+                  disabled={!canAct || draft.trim() === ""}
+                >
+                  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                    <path
+                      d="M21 3 3 10.5l7 2.5 2.5 7L21 3Zm0 0L10 13"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
               )}
             </div>
           </div>
