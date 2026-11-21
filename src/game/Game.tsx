@@ -127,7 +127,27 @@ export default function Game() {
       );
       // Set before the typewriter wait so a summary that resolves meanwhile
       // is applied on top of this turn.
-      if (outcome.ok) latestStateRef.current = outcome.state;
+      if (outcome.ok) {
+        const held = latestStateRef.current;
+        const heldIsNewer =
+          held !== null &&
+          held.id === outcome.state.id &&
+          (held.turns.length > outcome.state.turns.length ||
+            (held.turns.length === outcome.state.turns.length &&
+              held.summarizedThroughTurn > outcome.state.summarizedThroughTurn));
+        if (!heldIsNewer) {
+          latestStateRef.current =
+            held !== null &&
+            held.id === outcome.state.id &&
+            held.summarizedThroughTurn > outcome.state.summarizedThroughTurn
+              ? {
+                  ...outcome.state,
+                  summary: held.summary,
+                  summarizedThroughTurn: held.summarizedThroughTurn,
+                }
+              : outcome.state;
+        }
+      }
       // The turn joins the log only once its narration has been fully
       // revealed, so the rest of the text doesn't pop in all at once.
       if (outcome.ok) await typewriter.finish();
@@ -166,9 +186,9 @@ export default function Game() {
         setWarning(SAVE_WARNING);
       }
       // The summary is written in the background; failures stay silent.
-      void engine.summarizeIfDue(outcome.state).then(async (patch) => {
+      void engine.summarizeIfDue(shown).then(async (patch) => {
         const latest = latestStateRef.current;
-        if (!patch || !latest || latest.id !== outcome.state.id) return;
+        if (!patch || !latest || latest.id !== shown.id) return;
         const applied = await engine.applySummary(latest, patch);
         const appliedState = applied.state;
         // Nothing new to show when the ref already holds this summary.

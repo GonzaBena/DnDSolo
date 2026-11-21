@@ -253,8 +253,11 @@ export class TurnEngine {
       cover yet into it. Returns null when nothing is due, when a call is
       already pending, when the model fails or answers with nothing, or when
       a failure happened fewer than SUMMARY_RETRY_AFTER_TURNS turns ago. */
-  async summarizeIfDue(state: GameState): Promise<SummaryPatch | null> {
+  async summarizeIfDue(given: GameState): Promise<SummaryPatch | null> {
     if (this.summaryInFlight) return null;
+    // Same rebase rule as applySummary: the caller may hold a stale state.
+    const tracked = this.latestByGame.get(given.id);
+    const state = tracked && tracked.turns.length >= given.turns.length ? tracked : given;
     const pending = state.turns.slice(state.summarizedThroughTurn);
     if (pending.length < this.config.summaryEveryTurns) return null;
     const failedAt = this.lastFailedSummaryAt.get(state.id);

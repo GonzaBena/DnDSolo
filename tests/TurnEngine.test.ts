@@ -515,6 +515,24 @@ describe("TurnEngine background summary", () => {
     expect(patch).toEqual({ summary: "RESUMEN", summarizedThroughTurn: 10 });
   });
 
+  it("summarizeIfDue rebases onto the tracked state before deciding", async () => {
+    const ctx = setup();
+    ctx.llm.queueStructured(reply({ narration: "escena-10." }), reply({ narration: "escena-11." }));
+    ctx.llm.queueText("RESUMEN");
+    const turn10 = await ctx.engine.playTurn(gameWithTurns(9), { type: "action", text: "x" });
+    if (!turn10.ok) throw new Error("turn 10 failed");
+    const patch = await ctx.engine.summarizeIfDue(turn10.state);
+    await ctx.engine.applySummary(turn10.state, patch!);
+    // Turn 11 starts from the unsummarized state; the carry-over keeps the summary.
+    const turn11 = await ctx.engine.playTurn(turn10.state, { type: "action", text: "y" });
+    if (!turn11.ok) throw new Error("turn 11 failed");
+    expect(turn11.state.summarizedThroughTurn).toBe(10);
+
+    const stale: GameState = { ...turn11.state, summarizedThroughTurn: 0 };
+    expect(await ctx.engine.summarizeIfDue(stale)).toBeNull();
+    expect(ctx.llm.textRequests.length).toBe(1);
+  });
+
   it("summarizeIfDue returns null when nothing is due", async () => {
     const ctx = setup();
     expect(await ctx.engine.summarizeIfDue(gameWithTurns(9))).toBeNull();
