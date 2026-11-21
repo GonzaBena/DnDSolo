@@ -15,6 +15,7 @@ import type {
   TurnInput,
 } from "../domain/types";
 import { DieShape } from "./DieShape";
+import { initials, NpcAvatar } from "./NpcAvatar";
 import { useEnter } from "./useEnter";
 
 // `animated` is only set for the turn being played right now. Turns already
@@ -133,17 +134,6 @@ function speakerName(
   return speaker?.name ?? "Jugador";
 }
 
-/** "Mateo Valen" -> "MV". A single-word name uses its first two letters
-    ("Lira" -> "LI") so the label is always the same width. */
-export function initials(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  const letters =
-    words.length >= 2
-      ? words[0]![0]! + words[1]![0]!
-      : (words[0] ?? "").slice(0, 2);
-  return letters.toUpperCase();
-}
-
 /** Who said a message, as two initials beside it. Deliberately faint: it
     is there to be found when you look for it, not to compete with the
     text. The full name stays available on hover and to screen readers. */
@@ -231,10 +221,11 @@ function NpcLine({
   cast: Cast;
   animated?: boolean | undefined;
 }) {
-  const attitude = findNpc(cast.npcs, name)?.attitude ?? "neutral";
+  const npc = findNpc(cast.npcs, name);
+  const attitude = npc?.attitude ?? "neutral";
   return (
     <div className={`message message--npc message--${attitude}`}>
-      <Speaker name={name} />
+      <NpcAvatar name={name} npc={npc} size="sm" />
       <div className="npc-line">
         <span className="npc-line__name">{name}</span>
         {paragraphs.length > 0 && (
