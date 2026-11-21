@@ -14,6 +14,7 @@ import { DieShape } from "./DieShape";
 import { InfoDrawer } from "./InfoDrawer";
 import { RollDialog } from "./RollDialog";
 import { SceneDrawer } from "./SceneDrawer";
+import { ScenePanel } from "./ScenePanel";
 import { expandSlashCommands } from "./slashCommands";
 import { InputEntry, Narration, TurnLog } from "./TurnLog";
 import { useStickToBottom } from "./useStickToBottom";
@@ -326,160 +327,163 @@ export default function Game() {
 
   return (
     <section ref={gameRef} className={`game${zenMode ? " game--zen" : ""}`}>
-      <EventToasts toasts={toasts} onDismiss={dismissToast} />
-      <CharacterPanel
-        state={state}
-        zenMode={zenMode}
-        onToggleZen={() => setZenMode((prev) => !prev)}
-        onOpenScene={() => setSceneOpen(true)}
-        onOpenInfo={() => setInfoOpen(true)}
-      />
-      <InfoDrawer state={state} open={infoOpen} onClose={() => setInfoOpen(false)} />
-      <SceneDrawer
-        state={state}
-        dmActing={busy}
-        open={sceneOpen}
-        onClose={() => setSceneOpen(false)}
-      />
+      <div className="game__main">
+        <EventToasts toasts={toasts} onDismiss={dismissToast} />
+        <CharacterPanel
+          state={state}
+          zenMode={zenMode}
+          onToggleZen={() => setZenMode((prev) => !prev)}
+          onOpenScene={() => setSceneOpen(true)}
+          onOpenInfo={() => setInfoOpen(true)}
+        />
+        <InfoDrawer state={state} open={infoOpen} onClose={() => setInfoOpen(false)} />
+        <SceneDrawer
+          state={state}
+          dmActing={busy}
+          open={sceneOpen}
+          onClose={() => setSceneOpen(false)}
+        />
 
-      <div className="log" aria-live="polite">
-        <TurnLog turns={state.turns} players={state.players} cast={cast} enterCount={screen.loadedTurns} />
-        {inFlight && (
-          <div className="turn">
-            <InputEntry input={inFlight.input} players={state.players} animated />
-            {streamed !== "" && <Narration text={streamed} cast={cast} animated />}
-            {busy && streamed === "" && (
-              <div className="thinking-indicator" role="status" aria-live="polite">
-                <span className="thinking-indicator__icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 19l7-7 3 3-7 7-3-3z" />
-                    <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
-                    <path d="M2 2l7.586 7.586" />
-                    <circle cx="11" cy="11" r="2" />
-                  </svg>
-                </span>
-                <span className="thinking-indicator__text">El DM está pensando</span>
-                <span className="thinking-indicator__dots" aria-hidden="true">
-                  <span>.</span><span>.</span><span>.</span>
-                </span>
-              </div>
-            )}
+        <div className="log" aria-live="polite">
+          <TurnLog turns={state.turns} players={state.players} cast={cast} enterCount={screen.loadedTurns} />
+          {inFlight && (
+            <div className="turn">
+              <InputEntry input={inFlight.input} players={state.players} animated />
+              {streamed !== "" && <Narration text={streamed} cast={cast} animated />}
+              {busy && streamed === "" && (
+                <div className="thinking-indicator" role="status" aria-live="polite">
+                  <span className="thinking-indicator__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 19l7-7 3 3-7 7-3-3z" />
+                      <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+                      <path d="M2 2l7.586 7.586" />
+                      <circle cx="11" cy="11" r="2" />
+                    </svg>
+                  </span>
+                  <span className="thinking-indicator__text">El DM está pensando</span>
+                  <span className="thinking-indicator__dots" aria-hidden="true">
+                    <span>.</span><span>.</span><span>.</span>
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {error && (
+          <div className="notice notice--error" role="alert">
+            <p>{error}</p>
+            <div className="actions">
+              {inFlight && (
+                <button
+                  type="button"
+                  className="button button--primary"
+                  onClick={() => void send(engine, state, inFlight.input)}
+                >
+                  Reintentar
+                </button>
+              )}
+              <a className="button" href="/settings">
+                Revisar configuración
+              </a>
+            </div>
           </div>
         )}
-      </div>
+        {warning && <p className="notice">{warning}</p>}
 
-      {error && (
-        <div className="notice notice--error" role="alert">
-          <p>{error}</p>
-          <div className="actions">
-            {inFlight && (
-              <button
-                type="button"
-                className="button button--primary"
-                onClick={() => void send(engine, state, inFlight.input)}
-              >
-                Reintentar
-              </button>
-            )}
-            <a className="button" href="/settings">
-              Revisar configuración
-            </a>
+        {playerRoll && !inFlight && (
+          <div className="roll-request">
+            <p>
+              <strong>El DM te pide una tirada: {formatDice(playerRoll)}</strong>
+              {playerRoll.difficulty !== null && ` (CD ${playerRoll.difficulty})`}
+            </p>
+            <p>{playerRoll.reason}</p>
+            <p className="roll-request__hint">
+              Tirá tus dados y cargá el resultado con el botón del dado, o escribilo en el chat.
+            </p>
           </div>
-        </div>
-      )}
-      {warning && <p className="notice">{warning}</p>}
-
-      {playerRoll && !inFlight && (
-        <div className="roll-request">
-          <p>
-            <strong>El DM te pide una tirada: {formatDice(playerRoll)}</strong>
-            {playerRoll.difficulty !== null && ` (CD ${playerRoll.difficulty})`}
-          </p>
-          <p>{playerRoll.reason}</p>
-          <p className="roll-request__hint">
-            Tirá tus dados y cargá el resultado con el botón del dado, o escribilo en el chat.
-          </p>
-        </div>
-      )}
-
-      <RollDialog
-        open={rollOpen}
-        request={playerRoll}
-        onClose={() => setRollOpen(false)}
-        onSubmit={submitRoll}
-      />
-
-      <form className="action-form" onSubmit={submitAction}>
-        {!atBottom && (
-          <button
-            type="button"
-            className="button scroll-bottom"
-            aria-label="Ir al final"
-            title="Ir al final"
-            onClick={() => scrollToBottom("smooth")}
-          >
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-              <path
-                d="M12 4v15m-6-6 6 6 6-6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
         )}
-        <div className="field">
-          <label htmlFor="action-input">¿Qué hacés?</label>
-          <div className="action-row">
-            <textarea
-              id="action-input"
-              ref={draftRef}
-              className="action-input"
-              rows={1}
-              value={draft}
-              disabled={!canAct}
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={(event) => {
-                // Enter sends, Shift+Enter makes a new line.
-                if (event.key === "Enter" && !event.shiftKey) submitAction(event);
-              }}
-              placeholder={
-                playerRoll ? "Escribí el total de tu tirada…" : "Describí la acción de tu personaje…"
-              }
-            />
+
+        <RollDialog
+          open={rollOpen}
+          request={playerRoll}
+          onClose={() => setRollOpen(false)}
+          onSubmit={submitRoll}
+        />
+
+        <form className="action-form" onSubmit={submitAction}>
+          {!atBottom && (
             <button
               type="button"
-              className={`button action-roll${playerRoll ? " action-roll--requested" : ""}`}
-              aria-label="Cargar tirada"
-              title="Cargar tirada"
-              disabled={!canAct}
-              onClick={() => setRollOpen(true)}
-            >
-              <DieShape die="d20" className="action-roll__die" />
-            </button>
-            <button
-              type="submit"
-              className="button button--primary action-send"
-              aria-label="Enviar"
-              title="Enviar"
-              disabled={!canAct || draft.trim() === ""}
+              className="button scroll-bottom"
+              aria-label="Ir al final"
+              title="Ir al final"
+              onClick={() => scrollToBottom("smooth")}
             >
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
                 <path
-                  d="M21 3 3 10.5l7 2.5 2.5 7L21 3Zm0 0L10 13"
+                  d="M12 4v15m-6-6 6 6 6-6"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="2"
+                  strokeWidth="2.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
               </svg>
             </button>
+          )}
+          <div className="field">
+            <label htmlFor="action-input">¿Qué hacés?</label>
+            <div className="action-row">
+              <textarea
+                id="action-input"
+                ref={draftRef}
+                className="action-input"
+                rows={1}
+                value={draft}
+                disabled={!canAct}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  // Enter sends, Shift+Enter makes a new line.
+                  if (event.key === "Enter" && !event.shiftKey) submitAction(event);
+                }}
+                placeholder={
+                  playerRoll ? "Escribí el total de tu tirada…" : "Describí la acción de tu personaje…"
+                }
+              />
+              <button
+                type="button"
+                className={`button action-roll${playerRoll ? " action-roll--requested" : ""}`}
+                aria-label="Cargar tirada"
+                title="Cargar tirada"
+                disabled={!canAct}
+                onClick={() => setRollOpen(true)}
+              >
+                <DieShape die="d20" className="action-roll__die" />
+              </button>
+              <button
+                type="submit"
+                className="button button--primary action-send"
+                aria-label="Enviar"
+                title="Enviar"
+                disabled={!canAct || draft.trim() === ""}
+              >
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                  <path
+                    d="M21 3 3 10.5l7 2.5 2.5 7L21 3Zm0 0L10 13"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
-        </div>
-      </form>
+        </form>
+      </div>
+      <ScenePanel state={state} dmActing={busy} speaking={null} />
     </section>
   );
 }
