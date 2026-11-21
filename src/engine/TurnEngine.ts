@@ -12,6 +12,7 @@ import type { LLMClient } from "../llm/LLMClient";
 import type { GameRepo } from "../persistence/GameRepo";
 import {
   buildSummaryPrompt,
+  buildCorrection,
   buildTurnPrompt,
   DM_SYSTEM_PROMPT,
   SUMMARY_SYSTEM_PROMPT,
@@ -128,7 +129,7 @@ export class TurnEngine {
       try {
         raw = await this.llm.generateStructured({
           system: DM_SYSTEM_PROMPT,
-          prompt,
+          prompt: attempt > 0 ? `${prompt}\n\n${buildCorrection(lastReason)}` : prompt,
           jsonSchema: dmResponseJsonSchema,
           onChunk: (fragment) => {
             raw += fragment;

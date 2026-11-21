@@ -185,3 +185,8 @@ export function buildSummaryPrompt(previousSummary: string, newTurns: Turn[]): s
     `TURNOS NUEVOS\n${newTurns.map(describeTurn).join("\n\n")}`,
   ].join("\n\n");
 }
+
+/** Appended to the retry prompt so the model knows what was wrong with its previous reply. */
+export function buildCorrection(reason: string): string {
+  return `CORRECCIÓN\nTu respuesta anterior no respetó el esquema: ${reason}\nRespondé de nuevo, solo con el JSON válido.`;
+}

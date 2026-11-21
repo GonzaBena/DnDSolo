@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GameState, Turn } from "../src/domain/types";
+import { buildCorrection } from "../src/engine/dmPrompt";
 import { SUMMARY_RETRY_AFTER_TURNS, TurnEngine } from "../src/engine/TurnEngine";
 import { FakeLLMClient } from "../src/llm/FakeLLMClient";
 import { LLMError } from "../src/llm/LLMClient";
@@ -28,6 +29,32 @@ async function started(ctx: ReturnType<typeof setup>): Promise<GameState> {
 }
 
 describe("TurnEngine.playTurn", () => {
+  it("tells the model why the first reply failed when retrying (invalid JSON)", async () => {
+    const ctx = setup();
+    ctx.llm.queueStructured("no es json");
+    ctx.llm.queueStructured(reply({}));
+
+    const outcome = await ctx.engine.playTurn(newGame(), { type: "start" });
+
+    expect(outcome.ok).toBe(true);
+    const [first, second] = ctx.llm.structuredRequests;
+    expect(first!.prompt).not.toContain("CORRECCIÓN");
+    expect(second!.prompt.endsWith(buildCorrection("The response is not valid JSON."))).toBe(true);
+  });
+
+  it("includes the schema reason in the retry prompt", async () => {
+    const ctx = setup();
+    ctx.llm.queueStructured(JSON.stringify({ narration: "" }));
+    ctx.llm.queueStructured(reply({}));
+
+    const outcome = await ctx.engine.playTurn(newGame(), { type: "start" });
+
+    expect(outcome.ok).toBe(true);
+    const second = ctx.llm.structuredRequests[1]!.prompt;
+    expect(second).toContain("CORRECCIÓN");
+    expect(second).toContain("narration");
+  });
+
   it("applies the proposed changes, records the turn and saves", async () => {
     const ctx = setup();
     const game = await started(ctx);
