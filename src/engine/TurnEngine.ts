@@ -78,8 +78,12 @@ export class TurnEngine {
   private readonly random: () => number;
   private readonly now: () => Date;
   readonly config: EngineConfig;
-  /** `turns.length` at the last failed summary attempt, if any. */
-  private lastFailedSummaryAt: number | null = null;
+  /** Per game, `turns.length` at the last failed summary attempt. */
+  private readonly lastFailedSummaryAt = new Map<string, number>();
+  /** Newest state this engine committed or summarized, per game. */
+  private readonly latestByGame = new Map<string, GameState>();
+  /** Every save goes through here so a later call always lands last. */
+  private saveChain: Promise<void> = Promise.resolve();
   private summaryInFlight = false;
 
   constructor(deps: EngineDeps) {
@@ -186,7 +190,7 @@ export class TurnEngine {
       narration: response.narration,
       events: response.events,
     };
-    const next: GameState = {
+    let next: GameState = {
       ...applied.state,
       turns: [...state.turns, turn],
       pendingPlayerRoll: response.playerRoll,
@@ -196,13 +200,37 @@ export class TurnEngine {
       updatedAt: this.now().toISOString(),
     };
 
-    let saveError: unknown | null = null;
-    try {
-      await this.repo.save(next);
-    } catch (error) {
-      saveError = error;
+    // A summary applied while this turn was in flight must not be lost.
+    const tracked = this.latestByGame.get(state.id);
+    if (
+      tracked &&
+      tracked.summarizedThroughTurn > state.summarizedThroughTurn &&
+      tracked.summarizedThroughTurn <= next.turns.length
+    ) {
+      next = {
+        ...next,
+        summary: tracked.summary,
+        summarizedThroughTurn: tracked.summarizedThroughTurn,
+      };
     }
+    this.latestByGame.set(next.id, next);
+
+    const saveError = await this.enqueueSave(next);
     return { ok: true, state: next, response, rejectedChanges: applied.rejected, saveError };
+  }
+
+  /** Saves after every earlier save has settled; a failure doesn't break
+      the chain. Resolves to the error, or null. */
+  private enqueueSave(state: GameState): Promise<unknown | null> {
+    const run = this.saveChain.then(() => this.repo.save(state));
+    this.saveChain = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run.then(
+      () => null,
+      (error: unknown) => error,
+    );
   }
 
   /** How many enemy-roll turns in a row end with `input`. */
@@ -225,10 +253,8 @@ export class TurnEngine {
     if (this.summaryInFlight) return null;
     const pending = state.turns.slice(state.summarizedThroughTurn);
     if (pending.length < this.config.summaryEveryTurns) return null;
-    if (
-      this.lastFailedSummaryAt !== null &&
-      state.turns.length - this.lastFailedSummaryAt < SUMMARY_RETRY_AFTER_TURNS
-    ) {
+    const failedAt = this.lastFailedSummaryAt.get(state.id);
+    if (failedAt !== undefined && state.turns.length - failedAt < SUMMARY_RETRY_AFTER_TURNS) {
       return null;
     }
     this.summaryInFlight = true;
@@ -240,13 +266,13 @@ export class TurnEngine {
         })
       ).trim();
       if (summary === "") {
-        this.lastFailedSummaryAt = state.turns.length;
+        this.lastFailedSummaryAt.set(state.id, state.turns.length);
         return null;
       }
-      this.lastFailedSummaryAt = null;
+      this.lastFailedSummaryAt.delete(state.id);
       return { summary, summarizedThroughTurn: state.turns.length };
     } catch {
-      this.lastFailedSummaryAt = state.turns.length;
+      this.lastFailedSummaryAt.set(state.id, state.turns.length);
       return null;
     } finally {
       this.summaryInFlight = false;
@@ -260,19 +286,19 @@ export class TurnEngine {
     latest: GameState,
     patch: SummaryPatch,
   ): Promise<{ state: GameState; saveError: unknown | null }> {
-    if (patch.summarizedThroughTurn <= latest.summarizedThroughTurn) {
-      return { state: latest, saveError: null };
+    // Rebase onto the newest state this engine knows: a turn may have been
+    // committed after the one the caller still holds.
+    const tracked = this.latestByGame.get(latest.id);
+    const base = tracked && tracked.turns.length >= latest.turns.length ? tracked : latest;
+    if (base.summarizedThroughTurn >= patch.summarizedThroughTurn) {
+      return { state: base, saveError: null };
     }
     const next: GameState = {
-      ...latest,
+      ...base,
       summary: patch.summary,
       summarizedThroughTurn: patch.summarizedThroughTurn,
     };
-    try {
-      await this.repo.save(next);
-      return { state: next, saveError: null };
-    } catch (error) {
-      return { state: next, saveError: error };
-    }
+    this.latestByGame.set(next.id, next);
+    return { state: next, saveError: await this.enqueueSave(next) };
   }
 }

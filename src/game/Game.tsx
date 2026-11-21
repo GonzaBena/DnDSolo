@@ -35,6 +35,8 @@ interface InFlight {
   narration: string;
 }
 
+const SAVE_WARNING = "El turno se jugó pero no se pudo guardar. Si recargás, lo perdés.";
+
 function describeFailure(failure: TurnFailure): string {
   switch (failure.kind) {
     case "llm":
@@ -122,6 +124,9 @@ export default function Game() {
       const outcome = await engine.playTurn(state, input, (narration) =>
         typewriter.setTarget(narration),
       );
+      // Set before the typewriter wait so a summary that resolves meanwhile
+      // is applied on top of this turn.
+      if (outcome.ok) latestStateRef.current = outcome.state;
       // The turn joins the log only once its narration has been fully
       // revealed, so the rest of the text doesn't pop in all at once.
       if (outcome.ok) await typewriter.finish();
@@ -143,15 +148,21 @@ export default function Game() {
         el.classList.add("game--damage-flash");
         setTimeout(() => el.classList.remove("game--damage-flash"), 400);
       }
-      latestStateRef.current = outcome.state;
+      // A summary may have landed during the typewriter wait; keep it.
+      const newest = latestStateRef.current;
+      const shown =
+        newest && newest.id === outcome.state.id && newest.turns.length >= outcome.state.turns.length
+          ? newest
+          : outcome.state;
+      latestStateRef.current = shown;
       setScreen((previous) => ({
         status: "playing",
         engine,
-        state: outcome.state,
+        state: shown,
         loadedTurns: previous.status === "playing" ? previous.loadedTurns : 0,
       }));
       if (outcome.saveError) {
-        setWarning("El turno se jugó pero no se pudo guardar. Si recargás, lo perdés.");
+        setWarning(SAVE_WARNING);
       }
       // The summary is written in the background; failures stay silent.
       void engine.summarizeIfDue(outcome.state).then(async (patch) => {
@@ -159,15 +170,18 @@ export default function Game() {
         if (!patch || !latest || latest.id !== outcome.state.id) return;
         const applied = await engine.applySummary(latest, patch);
         if (applied.state === latest) return;
-        latestStateRef.current = applied.state;
+        const appliedState = applied.state;
+        if (appliedState.turns.length >= (latestStateRef.current?.turns.length ?? 0)) {
+          latestStateRef.current = appliedState;
+        }
         setScreen((previous) =>
-          previous.status === "playing" && previous.state.id === applied.state.id
-            ? { ...previous, state: applied.state }
+          previous.status === "playing" &&
+          previous.state.id === appliedState.id &&
+          appliedState.turns.length >= previous.state.turns.length
+            ? { ...previous, state: appliedState }
             : previous,
         );
-        if (applied.saveError) {
-          setWarning("El turno se jugó pero no se pudo guardar. Si recargás, lo perdés.");
-        }
+        if (applied.saveError) setWarning(SAVE_WARNING);
       });
     },
     [scrollToBottom],
