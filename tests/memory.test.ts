@@ -11,7 +11,8 @@ function setup() {
   return { llm, repo, engine: new TurnEngine({ llm, repo }) };
 }
 
-/** Plays turns until the game has `total`; turn n narrates "escena-n". */
+/** Plays turns until the game has `total`; turn n narrates "escena-n". Like
+    the UI, it asks for a summary after each turn and applies it. */
 async function playUntil(ctx: ReturnType<typeof setup>, game: GameState, total: number) {
   let state = game;
   while (state.turns.length < total) {
@@ -23,6 +24,8 @@ async function playUntil(ctx: ReturnType<typeof setup>, game: GameState, total: 
     );
     if (!outcome.ok) throw new Error(`turn ${n} failed`);
     state = outcome.state;
+    const patch = await ctx.engine.summarizeIfDue(state);
+    if (patch) state = (await ctx.engine.applySummary(state, patch)).state;
   }
   return state;
 }
@@ -93,7 +96,7 @@ describe("three-layer memory", () => {
     expect(second).not.toContain("escena-10.");
   });
 
-  it("keeps the turn when the summary call fails, and retries next turn", async () => {
+  it("keeps the turn when the summary call fails, and retries 3 turns later", async () => {
     const ctx = setup();
     ctx.llm.queueText(new Error("boom"), "RESUMEN-TARDE");
     const atTen = await playUntil(ctx, newGame(), 10);
@@ -101,9 +104,13 @@ describe("three-layer memory", () => {
     expect(atTen.summary).toBe("");
     expect(atTen.summarizedThroughTurn).toBe(0);
 
-    const atEleven = await playUntil(ctx, atTen, 11);
-    expect(atEleven.summary).toBe("RESUMEN-TARDE");
-    expect(atEleven.summarizedThroughTurn).toBe(11);
+    const atTwelve = await playUntil(ctx, atTen, 12);
+    expect(atTwelve.summary).toBe("");
+    expect(ctx.llm.textRequests).toHaveLength(1);
+
+    const atThirteen = await playUntil(ctx, atTwelve, 13);
+    expect(atThirteen.summary).toBe("RESUMEN-TARDE");
+    expect(atThirteen.summarizedThroughTurn).toBe(13);
   });
 
   it("keeps prompts bounded over a 30-turn game", async () => {

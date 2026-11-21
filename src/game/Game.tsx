@@ -62,6 +62,9 @@ export default function Game() {
   const [zenMode, setZenMode] = useState(false);
   const { atBottom, scrollToBottom, follow } = useStickToBottom();
   const startedRef = useRef(false);
+  // The newest playing state, so a summary that resolves late is applied to
+  // the game as it is now and not to the one the turn started from.
+  const latestStateRef = useRef<GameState | null>(null);
   const draftRef = useRef<HTMLTextAreaElement>(null);
   const gameRef = useRef<HTMLElement>(null);
 
@@ -95,12 +98,14 @@ export default function Game() {
     // /play?id=... opens a specific campaign; without it, the latest one.
     const id = new URLSearchParams(location.search).get("id");
     (id ? repo.load(id) : repo.loadLatest()).then(
-      (state) =>
+      (state) => {
+        latestStateRef.current = state;
         setScreen(
           state
             ? { status: "playing", engine, state, loadedTurns: state.turns.length }
             : { status: "no_game" },
-        ),
+        );
+      },
       () => setScreen({ status: "load_error" }),
     );
   }, []);
@@ -138,6 +143,7 @@ export default function Game() {
         el.classList.add("game--damage-flash");
         setTimeout(() => el.classList.remove("game--damage-flash"), 400);
       }
+      latestStateRef.current = outcome.state;
       setScreen((previous) => ({
         status: "playing",
         engine,
@@ -147,6 +153,22 @@ export default function Game() {
       if (outcome.saveError) {
         setWarning("El turno se jugó pero no se pudo guardar. Si recargás, lo perdés.");
       }
+      // The summary is written in the background; failures stay silent.
+      void engine.summarizeIfDue(outcome.state).then(async (patch) => {
+        const latest = latestStateRef.current;
+        if (!patch || !latest || latest.id !== outcome.state.id) return;
+        const applied = await engine.applySummary(latest, patch);
+        if (applied.state === latest) return;
+        latestStateRef.current = applied.state;
+        setScreen((previous) =>
+          previous.status === "playing" && previous.state.id === applied.state.id
+            ? { ...previous, state: applied.state }
+            : previous,
+        );
+        if (applied.saveError) {
+          setWarning("El turno se jugó pero no se pudo guardar. Si recargás, lo perdés.");
+        }
+      });
     },
     [scrollToBottom],
   );

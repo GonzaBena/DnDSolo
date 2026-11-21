@@ -25,6 +25,14 @@ export interface EngineConfig {
   summaryEveryTurns: number;
 }
 
+/** After a failed summary, how many more turns to wait before trying again. */
+export const SUMMARY_RETRY_AFTER_TURNS = 3;
+
+export interface SummaryPatch {
+  summary: string;
+  summarizedThroughTurn: number;
+}
+
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = { recentTurns: 6, summaryEveryTurns: 10 };
 
 /** Enemy-roll turns are sent without the player doing anything, so a DM
@@ -70,6 +78,9 @@ export class TurnEngine {
   private readonly random: () => number;
   private readonly now: () => Date;
   readonly config: EngineConfig;
+  /** `turns.length` at the last failed summary attempt, if any. */
+  private lastFailedSummaryAt: number | null = null;
+  private summaryInFlight = false;
 
   constructor(deps: EngineDeps) {
     this.llm = deps.llm;
@@ -175,7 +186,7 @@ export class TurnEngine {
       narration: response.narration,
       events: response.events,
     };
-    const next = await this.refreshSummary({
+    const next: GameState = {
       ...applied.state,
       turns: [...state.turns, turn],
       pendingPlayerRoll: response.playerRoll,
@@ -183,7 +194,7 @@ export class TurnEngine {
         ? []
         : response.enemyRolls,
       updatedAt: this.now().toISOString(),
-    });
+    };
 
     let saveError: unknown | null = null;
     try {
@@ -205,22 +216,63 @@ export class TurnEngine {
     return chained;
   }
 
-  /** Memory layer 2: every `summaryEveryTurns` turns, folds the turns the
-      summary doesn't cover yet into it. A failure here must not cost the
-      player their turn: the old summary is kept and, because the turns
-      stay unsummarized, the next turn tries again. */
-  private async refreshSummary(state: GameState): Promise<GameState> {
+  /** Memory layer 2, run after the turn so the player never waits for it.
+      Every `summaryEveryTurns` turns it folds the turns the summary doesn't
+      cover yet into it. Returns null when nothing is due, when a call is
+      already pending, when the model fails or answers with nothing, or when
+      a failure happened fewer than SUMMARY_RETRY_AFTER_TURNS turns ago. */
+  async summarizeIfDue(state: GameState): Promise<SummaryPatch | null> {
+    if (this.summaryInFlight) return null;
     const pending = state.turns.slice(state.summarizedThroughTurn);
-    if (pending.length < this.config.summaryEveryTurns) return state;
+    if (pending.length < this.config.summaryEveryTurns) return null;
+    if (
+      this.lastFailedSummaryAt !== null &&
+      state.turns.length - this.lastFailedSummaryAt < SUMMARY_RETRY_AFTER_TURNS
+    ) {
+      return null;
+    }
+    this.summaryInFlight = true;
     try {
-      const summary = await this.llm.generateText({
-        system: SUMMARY_SYSTEM_PROMPT,
-        prompt: buildSummaryPrompt(state.summary, pending),
-      });
-      if (summary.trim() === "") return state;
-      return { ...state, summary: summary.trim(), summarizedThroughTurn: state.turns.length };
+      const summary = (
+        await this.llm.generateText({
+          system: SUMMARY_SYSTEM_PROMPT,
+          prompt: buildSummaryPrompt(state.summary, pending),
+        })
+      ).trim();
+      if (summary === "") {
+        this.lastFailedSummaryAt = state.turns.length;
+        return null;
+      }
+      this.lastFailedSummaryAt = null;
+      return { summary, summarizedThroughTurn: state.turns.length };
     } catch {
-      return state;
+      this.lastFailedSummaryAt = state.turns.length;
+      return null;
+    } finally {
+      this.summaryInFlight = false;
+    }
+  }
+
+  /** Applies a patch to the newest state (the player may have played more
+      turns while the summary was being written) and saves. A patch that is
+      not ahead of the state's own summary is ignored. */
+  async applySummary(
+    latest: GameState,
+    patch: SummaryPatch,
+  ): Promise<{ state: GameState; saveError: unknown | null }> {
+    if (patch.summarizedThroughTurn <= latest.summarizedThroughTurn) {
+      return { state: latest, saveError: null };
+    }
+    const next: GameState = {
+      ...latest,
+      summary: patch.summary,
+      summarizedThroughTurn: patch.summarizedThroughTurn,
+    };
+    try {
+      await this.repo.save(next);
+      return { state: next, saveError: null };
+    } catch (error) {
+      return { state: next, saveError: error };
     }
   }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { GameState } from "../src/domain/types";
-import { TurnEngine } from "../src/engine/TurnEngine";
+import type { GameState, Turn } from "../src/domain/types";
+import { SUMMARY_RETRY_AFTER_TURNS, TurnEngine } from "../src/engine/TurnEngine";
 import { FakeLLMClient } from "../src/llm/FakeLLMClient";
 import { LLMError } from "../src/llm/LLMClient";
 import { InMemoryGameRepo } from "../src/persistence/InMemoryGameRepo";
@@ -359,5 +359,100 @@ describe("message authorship", () => {
     const saved = (await ctx.repo.load(game.id))!;
     expect(outcome.ok).toBe(true);
     expect(saved.turns.at(-1)!.input).toEqual({ type: "action", text: "Saludo", playerId: PLAYER_ID });
+  });
+});
+
+function gameWithTurns(count: number, summarizedThroughTurn = 0): GameState {
+  const turns: Turn[] = Array.from({ length: count }, (_, i) => ({
+    number: i + 1,
+    input: { type: "action", text: `accion-${i + 1}` },
+    narration: `escena-${i + 1}.`,
+    events: [],
+  }));
+  return { ...newGame(), turns, summarizedThroughTurn };
+}
+
+describe("TurnEngine background summary", () => {
+  it("playTurn on turn 10 makes no text call", async () => {
+    const ctx = setup();
+    ctx.llm.queueStructured(reply({ narration: "escena-10." }));
+    const outcome = await ctx.engine.playTurn(gameWithTurns(9), { type: "action", text: "x" });
+    expect(outcome.ok && outcome.state.turns).toHaveLength(10);
+    expect(ctx.llm.textRequests.length).toBe(0);
+  });
+
+  it("summarizeIfDue returns a patch for 10 unsummarized turns", async () => {
+    const ctx = setup();
+    ctx.llm.queueText("  RESUMEN  ");
+    const patch = await ctx.engine.summarizeIfDue(gameWithTurns(10));
+    expect(patch).toEqual({ summary: "RESUMEN", summarizedThroughTurn: 10 });
+  });
+
+  it("summarizeIfDue returns null when nothing is due", async () => {
+    const ctx = setup();
+    expect(await ctx.engine.summarizeIfDue(gameWithTurns(9))).toBeNull();
+    expect(ctx.llm.textRequests.length).toBe(0);
+  });
+
+  it("after a failure waits SUMMARY_RETRY_AFTER_TURNS turns before retrying", async () => {
+    const ctx = setup();
+    ctx.llm.queueText(new Error("boom"), "RESUMEN-TARDE");
+    expect(await ctx.engine.summarizeIfDue(gameWithTurns(10))).toBeNull();
+    expect(ctx.llm.textRequests.length).toBe(1);
+
+    expect(await ctx.engine.summarizeIfDue(gameWithTurns(11))).toBeNull();
+    expect(ctx.llm.textRequests.length).toBe(1);
+
+    expect(SUMMARY_RETRY_AFTER_TURNS).toBe(3);
+    const patch = await ctx.engine.summarizeIfDue(gameWithTurns(13));
+    expect(ctx.llm.textRequests.length).toBe(2);
+    expect(patch).toEqual({ summary: "RESUMEN-TARDE", summarizedThroughTurn: 13 });
+  });
+
+  it("treats an empty summary as a failure", async () => {
+    const ctx = setup();
+    ctx.llm.queueText("   ");
+    expect(await ctx.engine.summarizeIfDue(gameWithTurns(10))).toBeNull();
+    expect(await ctx.engine.summarizeIfDue(gameWithTurns(11))).toBeNull();
+    expect(ctx.llm.textRequests.length).toBe(1);
+  });
+
+  it("ignores a call made while another is pending", async () => {
+    const ctx = setup();
+    ctx.llm.queueText("RESUMEN");
+    const state = gameWithTurns(10);
+    const first = ctx.engine.summarizeIfDue(state);
+    const second = ctx.engine.summarizeIfDue(state);
+    expect(await second).toBeNull();
+    expect(await first).not.toBeNull();
+    expect(ctx.llm.textRequests.length).toBe(1);
+  });
+
+  it("applySummary keeps turns added after the summary started", async () => {
+    const ctx = setup();
+    const latest = gameWithTurns(11);
+    const result = await ctx.engine.applySummary(latest, { summary: "R", summarizedThroughTurn: 10 });
+    expect(result.saveError).toBeNull();
+    expect(result.state.turns).toHaveLength(11);
+    expect(result.state.summary).toBe("R");
+    expect(result.state.summarizedThroughTurn).toBe(10);
+    expect((await ctx.repo.load(latest.id))!.summarizedThroughTurn).toBe(10);
+  });
+
+  it("applySummary ignores a patch older than the state's summary", async () => {
+    const ctx = setup();
+    const latest = { ...gameWithTurns(12, 12), summary: "NUEVO" };
+    const result = await ctx.engine.applySummary(latest, { summary: "R", summarizedThroughTurn: 10 });
+    expect(result.state).toBe(latest);
+    expect(result.saveError).toBeNull();
+  });
+
+  it("applySummary reports a save failure", async () => {
+    const ctx = setup();
+    const boom = new Error("disk");
+    ctx.repo.save = async () => { throw boom; };
+    const result = await ctx.engine.applySummary(gameWithTurns(10), { summary: "R", summarizedThroughTurn: 10 });
+    expect(result.saveError).toBe(boom);
+    expect(result.state.summary).toBe("R");
   });
 });
