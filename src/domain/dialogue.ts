@@ -1,3 +1,4 @@
+import { npcNameFromArchetype } from "./portraits";
 import type { GameState, Npc } from "./types";
 
 // The DM marks each line an NPC says with "[[Name]]" at the start of its
@@ -20,6 +21,12 @@ export interface Cast {
 
 const MARKER = /^\s*\[\[([^\]]+)\]\]\s*/;
 
+// The model sometimes glues the marker to the end of the previous paragraph
+// ("...agria. [[Oldman]] —El oro..."). A marker right after a sentence ends
+// (or one still arriving there) starts its own paragraph; one in the middle
+// of a sentence ("Dice [[Brena]] algo.") stays text.
+const INLINE_MARKER = /([.!?…:;»"”)—-])[ \t]+(?=\[\[)/g;
+
 const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 export function findNpc(npcs: Npc[], name: string): Npc | undefined {
@@ -35,7 +42,9 @@ export function castOf(state: GameState): Cast {
     (the DM never speaks for them, so such a line is plain narration). */
 function resolveSpeaker(name: string, cast: Cast): string | null {
   if (cast.playerNames.some((p) => sameName(p, name))) return null;
-  return findNpc(cast.npcs, name)?.name ?? name.trim();
+  // The NPC was saved under the Spanish name (see applyChanges).
+  const npc = findNpc(cast.npcs, name) ?? findNpc(cast.npcs, npcNameFromArchetype(name));
+  return npc?.name ?? npcNameFromArchetype(name.trim());
 }
 
 export function splitDialogue(narration: string, cast: Cast): DialogueSegment[] {
@@ -48,7 +57,7 @@ export function splitDialogue(narration: string, cast: Cast): DialogueSegment[] 
     return segment;
   };
 
-  const lines = narration.split(/\n+/);
+  const lines = narration.replace(INLINE_MARKER, "$1\n").split(/\n+/);
   // A marker alone on its line: the model put the line itself in the next
   // paragraph, which belongs to that speaker.
   let awaitingLine: string | null | undefined;

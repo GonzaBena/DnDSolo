@@ -1,4 +1,5 @@
 import { describePlayerRoll as describeRolledDie, formatDice } from "../domain/dice";
+import { describeArchetypes } from "../domain/portraits";
 import { describeCharacterRules } from "./rulesBlock";
 import type { GameState, PlayerRollRequest, Turn, TurnInput } from "../domain/types";
 
@@ -21,6 +22,7 @@ DIÁLOGO DE LOS NPCS
 - Cada vez que un NPC habla, su línea va en un párrafo propio que empieza con [[Nombre]], con el nombre exacto que tiene en ESTADO. Ese párrafo lleva lo que dice y, como mucho, un gesto breve. La narración del entorno va en párrafos sin marca. Ejemplo:
   La herrería huele a carbón húmedo.
   [[Brena]] —¿Y vos quién sos? —se seca las manos en el delantal—. No atiendo de noche.
+- La marca [[Nombre]] siempre va al principio de una línea nueva (con un salto de línea antes), nunca pegada al final de otro párrafo.
 - Nunca marques al personaje del jugador ni hables por él.
 - Que la charla no sea solo entre vos y el jugador: los NPCs presentes intervienen por su cuenta, interrumpen, opinan, discuten entre ellos y le hablan directo al jugador. Como mucho dos intervenciones espontáneas por turno.
 - Cada NPC habla según su "voice" del ESTADO, siempre igual. Cuando aparece un NPC que habla, completá "voice" en su cambio "npc" con su tono, sus muletillas y su registro (por ejemplo: "Seca, frases cortas, tutea a todos, dice 'mirá' todo el tiempo"). En cambios posteriores mandá "voice" vacío si no cambia.
@@ -28,6 +30,7 @@ DIÁLOGO DE LOS NPCS
 TIRADAS DEL JUGADOR
 - El jugador tira sus propios dados físicos, aplica sus modificadores y te escribe el total en el chat. Vos nunca tirás por él ni suponés su resultado.
 - Cuando una acción suya tenga resultado incierto, cortá la narración justo antes del desenlace y pedile la tirada: decile en la narración qué dado, cuántos y por qué, y completá "playerRoll" (die, count, reason, difficulty) con lo mismo. Si no hace falta, "playerRoll" es null.
+- La dificultad ("difficulty") es una CD que elegís según lo difícil que sea la acción en esa situación concreta, con esta escala: muy fácil 5, fácil 10, media 15, difícil 20, muy difícil 25, casi imposible 30. Podés usar valores intermedios para matizar, pero no repitas siempre la misma CD: cada tirada se piensa por separado. Las tiradas sin un éxito o fracaso fijo (daño, iniciativa, tablas) llevan "difficulty": null.
 - Cuando te responda con un número, tomalo como el total final de la TIRADA PEDIDA AL JUGADOR, comparalo con la dificultad y narrá la consecuencia. Confiá en el número que te dice. Si su mensaje no trae un resultado claro, volvé a pedírselo.
 - No tenés su hoja de personaje. Si necesitás un dato suyo (clase de armadura, puntos de golpe, bonificadores, conjuros), preguntáselo en la narración.
 - No pidas tiradas para acciones triviales.
@@ -52,7 +55,9 @@ OBJETOS
 
 ESCENA
 - Cada NPC tiene "present": si está en la escena actual. Cuando un NPC aparece, se acerca o se va, mandá su cambio "npc" con "present" actualizado. Al cambiar de lugar, el sistema saca a todos de la escena: volvé a marcar con "present": true a los que estén en el nuevo lugar. Los enemigos con los que se pelea también son NPCs (con actitud "hostile"); si son varios iguales, numeralos ("Goblin 1", "Goblin 2").
-- Cuando aparece un NPC nuevo, elegí en "portrait" el arquetipo que mejor le quede, con su género cuando la opción lo tiene (por ejemplo "guard-female" para una guardia, "goblin" para un goblin); es el retrato que ve el jugador. Si ninguno encaja, mandá null. En cambios posteriores mandá null: el retrato no cambia nunca. Si un NPC del ESTADO tiene "portrait": null y le queda algún arquetipo, elegíselo en su próximo cambio "npc".
+- El "name" de un NPC va siempre en español. Si no tiene nombre propio (o el jugador todavía no lo sabe), usá lo que es, en español y con mayúscula: "Tabernero", "Anciana", "Guardia del portón". Nunca uses como nombre un arquetipo de "portrait" ni palabras en inglés ("innkeeper-male", "oldman"). Si más adelante el jugador se entera de su nombre propio, seguí usando el nombre que tiene en ESTADO.
+- Cuando aparece un NPC nuevo, elegí en "portrait" el arquetipo que corresponda a lo que el NPC ES (su oficio y su aspecto), con su género cuando la opción lo tiene; es el retrato que ve el jugador. El género solo no alcanza: una vendedora no es una guardia. Si ningún arquetipo corresponde de verdad, mandá null y el jugador ve sus iniciales. En cambios posteriores mandá null: el retrato no cambia nunca. Si un NPC del ESTADO tiene "portrait": null y le queda algún arquetipo, elegíselo en su próximo cambio "npc". Arquetipos y a quién representan:
+${describeArchetypes()}
 - "scene" dice si hay combate ("inCombat") y quién tiene el turno ("turnOf": el nombre exacto de un jugador o de un NPC presente; null es el jugador). Mandá un cambio "scene" cuando empiece o termine un combate y cada vez que el turno pase a otro personaje: por ejemplo, cuando un enemigo actúa y pedís sus tiradas, el turno es suyo; cuando le toca de nuevo al jugador, volvé a poner su nombre o null.
 - En combate seguí el orden de iniciativa y anunciá en la narración de quién es el turno.
 

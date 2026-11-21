@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { DM_PORTRAIT_URL, PORTRAIT_FOLDERS, PORTRAIT_IDS, portraitUrl } from "../src/domain/portraits";
+import { DM_PORTRAIT_URL, PORTRAIT_FOLDERS, PORTRAIT_IDS, portraitUrl, npcNameFromArchetype, describeArchetypes } from "../src/domain/portraits";
 
 const ROOT = join(__dirname, "..", "public", "portraits");
 
@@ -53,5 +53,38 @@ describe("portraitUrl", () => {
   it("is null when there is no image for the archetype", () => {
     expect(portraitUrl("cleric-male", "Tobías")).toBeNull();
     expect(portraitUrl("dragon-turtle", "Tobías")).toBeNull();
+  });
+});
+
+describe("npcNameFromArchetype", () => {
+  it("names an archetype in Spanish, with its gender", () => {
+    expect(npcNameFromArchetype("innkeeper-male")).toBe("Tabernero");
+    expect(npcNameFromArchetype("Innkeeper-Female")).toBe("Tabernera");
+    expect(npcNameFromArchetype("elder")).toBe("Anciano");
+  });
+
+  it("keeps a trailing number", () => {
+    expect(npcNameFromArchetype("goblin-2")).toBe("Goblin 2");
+    expect(npcNameFromArchetype("guard_female 3")).toBe("Guardia 3");
+  });
+
+  it("leaves real names alone", () => {
+    expect(npcNameFromArchetype("Brena")).toBe("Brena");
+    expect(npcNameFromArchetype("Goblin 1")).toBe("Goblin 1");
+    expect(npcNameFromArchetype("Guardia del portón")).toBe("Guardia del portón");
+  });
+});
+
+describe("describeArchetypes", () => {
+  it("lists every archetype the DM can pick, with who it suits", () => {
+    const guide = describeArchetypes();
+    for (const id of PORTRAIT_IDS) expect(guide).toContain(`"${id}"`);
+    for (const line of guide.split("\n")) expect(line).toMatch(/: \S/);
+  });
+
+  it("points merchants to the townsfolk faces, not the guards", () => {
+    const line = describeArchetypes().split("\n").find((l) => l.includes("vendedores"));
+    expect(line).toContain('"innkeeper-female"');
+    expect(line).not.toContain("guard");
   });
 });

@@ -29,3 +29,23 @@ describe("buildTurnPrompt", () => {
     expect(buildTurnPrompt({ ...game, npcs }, { type: "start" }, 6)).toContain("Seca, frases cortas");
   });
 });
+
+describe("NPC names", () => {
+  it("asks for Spanish names, never the portrait archetype", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('"Tabernero"');
+    expect(DM_SYSTEM_PROMPT).toContain('"innkeeper-male"');
+  });
+});
+
+describe("portraits", () => {
+  it("tells the DM what each archetype shows", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('"guard-male" / "guard-female": con armadura');
+    expect(DM_SYSTEM_PROMPT).toContain("una vendedora no es una guardia");
+  });
+});
+
+describe("difficulty", () => {
+  it("gives the DM the DC scale instead of leaving it to guess", () => {
+    expect(DM_SYSTEM_PROMPT).toContain("muy fácil 5, fácil 10, media 15, difícil 20, muy difícil 25, casi imposible 30");
+  });
+});

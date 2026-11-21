@@ -845,11 +845,20 @@
   }
 }
 
-.action-input {
+.field .action-input {
   min-height: 2.75rem;
   resize: none;
   max-height: 12rem;
   overflow-y: auto;
+  scrollbar-width: none;
+}
+.field .action-input:focus,
+.field .action-input:focus-visible {
+  outline: none;
+  border-color: var(--color-focus);
+}
+.field .action-input::-webkit-scrollbar {
+  display: none;
 }
 
 .info-section {

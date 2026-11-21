@@ -20,6 +20,7 @@
   --color-sun: #f2b134;         /* highlight, focus ring */
   --color-sun-ink: #2a1f1a;     /* text on top of the highlight */
   --color-sky: #bfe0d8;
+  --color-focus: #8fb8e8;       /* pastel blue: border of a focused input */
   --color-hill: #7fb69a;
   --color-turn-combat: #ec7a1c; /* border of whoever has the turn in a fight */
   --color-turn-calm: #3d9a5f;   /* ...and outside of one */

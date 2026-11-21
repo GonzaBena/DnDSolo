@@ -1,4 +1,5 @@
 import { gameStateSchema } from "../domain/schemas";
+import { npcNameFromArchetype } from "../domain/portraits";
 import { findClass, findSpecies } from "../rules";
 import { GAME_STATE_VERSION, type GameState } from "../domain/types";
 
@@ -98,6 +99,18 @@ function fromV6(raw: Raw): Raw {
   return { ...raw, version: 7, npcs };
 }
 
+/** v7 -> v8. NPCs the model named after their portrait archetype
+    ("innkeeper-male") get the Spanish name ("Tabernero"). Past narrations
+    keep the old markers; dialogue.ts resolves them to the new name. */
+function fromV7(raw: Raw): Raw {
+  const rename = (name: unknown) => (typeof name === "string" ? npcNameFromArchetype(name) : name);
+  const npcs = (Array.isArray(raw.npcs) ? raw.npcs : []).map((npc) =>
+    isObject(npc) ? { ...npc, name: rename(npc.name) } : npc,
+  );
+  const scene = isObject(raw.scene) ? { ...raw.scene, turnOf: rename(raw.scene.turnOf) } : raw.scene;
+  return { ...raw, version: 8, npcs, scene };
+}
+
 /** Turns whatever was stored into a GameState of the current version, or
     null if it can't be trusted (unknown version or wrong shape). Loading
     code must go through here so the screens never see a malformed save. */
@@ -110,6 +123,7 @@ export function migrateSave(raw: unknown): GameState | null {
   if (current.version === 4) current = fromV4(current);
   if (current.version === 5) current = fromV5(current);
   if (current.version === 6) current = fromV6(current);
+  if (current.version === 7) current = fromV7(current);
   if (current.version !== GAME_STATE_VERSION) return null;
   const parsed = gameStateSchema.safeParse(current);
   return parsed.success ? parsed.data : null;

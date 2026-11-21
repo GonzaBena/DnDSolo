@@ -24,6 +24,13 @@ describe("splitDialogue", () => {
     ]);
   });
 
+  it("gives a marker with a portrait archetype to the NPC's Spanish name", () => {
+    const withInnkeeper: Cast = { npcs: [npc("Tabernero")], playerNames: [] };
+    expect(splitDialogue("[[innkeeper-male]] —Pasá.", withInnkeeper)).toEqual([
+      { speaker: "Tabernero", paragraphs: ["—Pasá."] },
+    ]);
+  });
+
   it("joins consecutive paragraphs of the same NPC", () => {
     expect(splitDialogue("[[Brena]] Uno.\n\n[[Brena]] Dos.", cast)).toEqual([
       { speaker: "Brena", paragraphs: ["Uno.", "Dos."] },
@@ -75,6 +82,23 @@ describe("splitDialogue", () => {
   it("only reads markers at the start of a paragraph", () => {
     expect(splitDialogue("Dice [[Brena]] algo.", cast)).toEqual([
       { speaker: null, paragraphs: ["Dice [[Brena]] algo."] },
+    ]);
+  });
+
+  it("splits a marker glued after the end of a sentence", () => {
+    expect(splitDialogue("La taberna huele a cerveza agria. [[Brena]] —El oro es tuyo.", cast)).toEqual([
+      { speaker: null, paragraphs: ["La taberna huele a cerveza agria."] },
+      { speaker: "Brena", paragraphs: ["—El oro es tuyo."] },
+    ]);
+    expect(splitDialogue("[[Brena]] —Andate. [[Goblin 1]] —¡No!", cast)).toEqual([
+      { speaker: "Brena", paragraphs: ["—Andate."] },
+      { speaker: "Goblin 1", paragraphs: ["—¡No!"] },
+    ]);
+  });
+
+  it("hides a glued marker that is still arriving", () => {
+    expect(splitDialogue("Huele a cerveza. [[Bre", cast)).toEqual([
+      { speaker: null, paragraphs: ["Huele a cerveza."] },
     ]);
   });
 
