@@ -63,3 +63,13 @@ describe("v5 -> v6", () => {
     expect(migrated?.npcs[0]?.voice).toBe("");
   });
 });
+
+describe("v6 -> v7", () => {
+  it("gives every NPC no portrait", () => {
+    const game = newGame();
+    const npcs = [{ name: "Berta", description: "Posadera", attitude: "neutral", present: true, voice: "" }];
+    const migrated = migrateSave({ ...game, version: 6, npcs });
+    expect(migrated?.version).toBe(GAME_STATE_VERSION);
+    expect(migrated?.npcs[0]?.portrait).toBeNull();
+  });
+});

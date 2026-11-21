@@ -10,13 +10,21 @@ describe("DM_SYSTEM_PROMPT", () => {
   it("asks for each NPC's voice", () => {
     expect(DM_SYSTEM_PROMPT).toContain('"voice"');
   });
+
+  it("asks for each NPC's portrait", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('"portrait"');
+  });
+
+  it("asks for a portrait for NPCs that still have none", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('"portrait": null y le queda');
+  });
 });
 
 describe("buildTurnPrompt", () => {
   it("shows the DM how each NPC talks", () => {
     const game = newGame();
     const npcs = [
-      { name: "Berta", description: "Posadera", attitude: "neutral" as const, present: true, voice: "Seca, frases cortas" },
+      { name: "Berta", description: "Posadera", attitude: "neutral" as const, present: true, voice: "Seca, frases cortas", portrait: null },
     ];
     expect(buildTurnPrompt({ ...game, npcs }, { type: "start" }, 6)).toContain("Seca, frases cortas");
   });

@@ -17,7 +17,7 @@
 - El marcador de diálogo es `[[Nombre]]` al **inicio de un párrafo** de `narration`. Todo el párrafo es de ese NPC (habla + gestos breves). Si el marcador no está al inicio de un párrafo, es texto común.
 - Los turnos viejos sin marcadores se ven exactamente igual que hoy. Los turnos no se migran.
 - `voice`: string corto con tono, muletillas y forma de hablar. Si el DM manda `""` en un cambio `npc`, se conserva la voz anterior.
-- Retratos: ids en inglés, en una lista cerrada que el esquema le pasa al modelo como `enum`. Las imágenes van en `public/portraits/<id>.webp`. Si un NPC no tiene retrato (`portrait: null`), se muestran sus iniciales.
+- Retratos: ids en inglés, en una lista cerrada que el esquema le pasa al modelo como `enum`. Las imágenes van en `public/portraits/<carpeta>/<n>.webp`; la variante sale de un hash del nombre del NPC. Si un NPC no tiene retrato (`portrait: null`), se muestran sus iniciales.
 - Animación del que habla: el retrato escala a 1.1 y rota de ±3° con pivote arriba al centro (`transform-origin: top center`), en un ciclo de ~1.6 s con ease-in-out. Al terminar vuelve a 0° de forma suave. Con `prefers-reduced-motion` solo escala.
 - El panel lateral solo se muestra desde `min-width: 64rem`. Por debajo de ese ancho no cambia nada.
 
@@ -155,27 +155,35 @@
 
 ### Task 5: Catálogo de retratos y campo `portrait` (estado v7)
 
+> Revisada el 2026-11-21 con las imágenes reales: `public/portraits/<carpeta>/<n>.webp`, carpetas con género (`guard-female`) o sin él (`goblin`, `soldier`).
+
 **Files:**
-- Create: `src/domain/portraits.ts`
-- Create: `public/portraits/` (las imágenes las genera el usuario; `.gitkeep` hasta entonces)
+- Create: `src/domain/portraits.ts`, `tests/portraits.test.ts`
+- Add: `public/portraits/**` (imágenes del usuario, ya optimizadas a 512px)
 - Modify: `src/domain/types.ts`, `src/domain/schemas.ts`, `src/domain/applyChanges.ts`, `src/persistence/migrations.ts` (`fromV6`, `GAME_STATE_VERSION = 7`), `src/engine/dmPrompt.ts`
-- Test: `tests/applyChanges.test.ts`, test de migraciones, `tests/dmPrompt.test.ts`
+- Test: `tests/portraits.test.ts`, `tests/applyChanges.test.ts`, `tests/characterIds.test.ts` (migración), `tests/dmPrompt.test.ts`
 
 **Interfaces:**
 - Produces:
   ```ts
-  export const PORTRAIT_IDS = ["goblin", "guard", "merchant", "noble", "beast"] as const; // ajustar a las imágenes reales
-  export type PortraitId = (typeof PORTRAIT_IDS)[number];
-  export function portraitUrl(id: PortraitId): string; // "/portraits/<id>.webp"
+  export const PORTRAIT_IDS: readonly [PortraitId, ...PortraitId[]]; // "<base>-male" | "<base>-female" para humanoides, "<base>" para el resto
+  export type PortraitId = `${GenderedBase}-male` | `${GenderedBase}-female` | PlainBase;
+  /** Carpetas en public/portraits y cuántas imágenes tiene cada una. */
+  export const PORTRAIT_FOLDERS: Readonly<Record<string, number>>;
+  /** Variante estable según el nombre del NPC. Prueba la carpeta del id y después la de su base sin género; null si no hay ninguna. */
+  export function portraitUrl(id: string, npcName: string): string | null; // "/portraits/guard-female/3.webp"
   ```
-  `Npc.portrait: PortraitId | null`; el cambio `npc` suma `portrait: PortraitId | null` (`z.enum(PORTRAIT_IDS).nullable()`).
+  `Npc.portrait: string | null` (en el estado un string, para que un id que salga del catálogo no rompa guardados); el cambio `npc` suma `portrait: PortraitId | null` (`z.enum(PORTRAIT_IDS).nullable()`).
 
 - [ ] **Step 1: Write the failing tests**
-  - Un cambio `npc` con `portrait: "guard"` lo guarda. Un cambio posterior con `portrait: null` conserva `"guard"`.
+  - `PORTRAIT_FOLDERS` coincide con las carpetas y la cantidad de `.webp` de `public/portraits` (lee el disco).
+  - Todo id de `PORTRAIT_IDS` resuelve a una carpeta existente, salvo los que no tienen ni carpeta propia ni de base (resuelven a null).
+  - `portraitUrl` es estable para el mismo nombre (sin importar mayúsculas ni espacios), usa la carpeta sin género si falta la con género (`soldier-female` → `soldier/`), y da null sin carpeta (`cleric-male`).
+  - Un cambio `npc` con `portrait: "guard-male"` lo guarda. Un cambio posterior con `portrait: null` lo conserva.
   - Un guardado v6 migra a v7 con `portrait: null` en cada NPC. El mock sigue cargando.
-  - `DM_SYSTEM_PROMPT` menciona `portrait`.
+  - `DM_SYSTEM_PROMPT` menciona `"portrait"`.
 - [ ] **Step 2: Run** `pnpm test` — Expected: FAIL.
-- [ ] **Step 3: Implement** según las Interfaces. En applyChanges: `portrait: change.portrait ?? existing?.portrait ?? null`. En el prompt, una línea en ESCENA: al crear un NPC hay que elegir en `portrait` el arquetipo que mejor le quede, o `null` si ninguno encaja.
+- [ ] **Step 3: Implement** según las Interfaces. Hash del nombre normalizado (trim + minúsculas), FNV-1a, `% count + 1`. En applyChanges: `portrait: change.portrait ?? existing?.portrait ?? null`. En el prompt, una línea en ESCENA: al crear un NPC hay que elegir en `portrait` el arquetipo y género que mejor le queden, o `null` si ninguno encaja; después mandarlo null si no cambia.
 - [ ] **Step 4: Run** `pnpm test && pnpm check` — Expected: PASS.
 - [ ] **Step 5: Commit** — `git commit -m "feat: los NPCs tienen un retrato de arquetipo"`
 

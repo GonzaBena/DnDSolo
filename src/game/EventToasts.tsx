@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { enterToast, leaveToast } from "../animations/motion";
 
 export interface ToastItem {
@@ -78,13 +79,17 @@ export function EventToasts({
   toasts: ToastItem[];
   onDismiss: (id: string) => void;
 }) {
-  if (toasts.length === 0) return null;
+  if (toasts.length === 0 || typeof document === "undefined") return null;
 
-  return (
+  // Rendered on <body>: inside the page they would share its stacking
+  // context (the view transition gives it one) and slide under the sticky
+  // header whatever their z-index.
+  return createPortal(
     <aside className="toasts-container" aria-live="polite" aria-atomic="true">
       {toasts.map((toast) => (
         <ToastCard key={toast.id} toast={toast} onDismiss={onDismiss} />
       ))}
-    </aside>
+    </aside>,
+    document.body,
   );
 }

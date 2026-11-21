@@ -52,6 +52,7 @@ OBJETOS
 
 ESCENA
 - Cada NPC tiene "present": si está en la escena actual. Cuando un NPC aparece, se acerca o se va, mandá su cambio "npc" con "present" actualizado. Al cambiar de lugar, el sistema saca a todos de la escena: volvé a marcar con "present": true a los que estén en el nuevo lugar. Los enemigos con los que se pelea también son NPCs (con actitud "hostile"); si son varios iguales, numeralos ("Goblin 1", "Goblin 2").
+- Cuando aparece un NPC nuevo, elegí en "portrait" el arquetipo que mejor le quede, con su género cuando la opción lo tiene (por ejemplo "guard-female" para una guardia, "goblin" para un goblin); es el retrato que ve el jugador. Si ninguno encaja, mandá null. En cambios posteriores mandá null: el retrato no cambia nunca. Si un NPC del ESTADO tiene "portrait": null y le queda algún arquetipo, elegíselo en su próximo cambio "npc".
 - "scene" dice si hay combate ("inCombat") y quién tiene el turno ("turnOf": el nombre exacto de un jugador o de un NPC presente; null es el jugador). Mandá un cambio "scene" cuando empiece o termine un combate y cada vez que el turno pase a otro personaje: por ejemplo, cuando un enemigo actúa y pedís sus tiradas, el turno es suyo; cuando le toca de nuevo al jugador, volvé a poner su nombre o null.
 - En combate seguí el orden de iniciativa y anunciá en la narración de quién es el turno.
 

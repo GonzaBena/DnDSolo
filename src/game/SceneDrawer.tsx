@@ -1,5 +1,5 @@
 import type { Attitude, GameState } from "../domain/types";
-import { initials } from "./TurnLog";
+import { initials } from "./NpcAvatar";
 import { useDrawer } from "./useDrawer";
 
 const ATTITUDE_LABEL: Record<Attitude, string> = {
