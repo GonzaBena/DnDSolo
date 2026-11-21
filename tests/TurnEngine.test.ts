@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { parseDMResponse } from "../src/domain/schemas";
 import type { GameState, Turn } from "../src/domain/types";
 import { buildCorrection } from "../src/engine/dmPrompt";
 import { SUMMARY_RETRY_AFTER_TURNS, TurnEngine } from "../src/engine/TurnEngine";
@@ -51,8 +52,24 @@ describe("TurnEngine.playTurn", () => {
 
     expect(outcome.ok).toBe(true);
     const second = ctx.llm.structuredRequests[1]!.prompt;
-    expect(second).toContain("CORRECCIÓN");
-    expect(second).toContain("narration");
+    const parsed = parseDMResponse(JSON.stringify({ narration: "" }));
+    if (parsed.ok) throw new Error("expected the schema to reject the reply");
+    expect(second).toContain(buildCorrection(parsed.reason));
+  });
+
+  it("returns an llm failure, untouched state and no save when the retry call throws", async () => {
+    const ctx = setup();
+    const game = newGame();
+    const before = structuredClone(game);
+    ctx.llm.queueStructured("no es json", new Error("boom"));
+
+    const outcome = await ctx.engine.playTurn(game, { type: "start" });
+
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.failure.kind).toBe("llm");
+    expect(outcome.state).toEqual(before);
+    expect(ctx.repo.saveCount).toBe(0);
   });
 
   it("applies the proposed changes, records the turn and saves", async () => {
