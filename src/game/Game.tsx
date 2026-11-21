@@ -173,7 +173,9 @@ export default function Game() {
     const el = draftRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
+    // scrollHeight leaves out the border; add it back so a border-box
+    // textarea fits its text without overflowing.
+    el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
   }, [draft]);
 
   useEffect(() => {
