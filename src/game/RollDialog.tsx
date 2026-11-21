@@ -139,7 +139,7 @@ export function RollDialog({ open, request, onClose, onSubmit }: Props) {
             ))}
           </fieldset>
         )}
-        <div className="roll-dialog__fields">
+        <div className={`roll-dialog__fields${twoDice ? " roll-dialog__fields--pair" : ""}`}>
           {twoDice ? (
             <div className="roll-dialog__pair">
               <div className="field">
