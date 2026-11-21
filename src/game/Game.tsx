@@ -20,6 +20,7 @@ import { buildTurnToasts, tookDamage } from "./turnToasts";
 import { InputEntry, Narration, TurnLog } from "./TurnLog";
 import { useStickToBottom } from "./useStickToBottom";
 import { createTypewriter } from "./typewriter";
+import { isEditable, shouldRedirectKey } from "./keyRedirect";
 import "./game.css";
 
 type Screen =
@@ -243,9 +244,8 @@ export default function Game() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const el = draftRef.current;
-      if (!el || el.disabled || event.defaultPrevented) return;
-      if (event.key.length !== 1 || event.ctrlKey || event.metaKey || event.altKey) return;
-      if (isEditable(event.target as Element | null)) return;
+      if (!el || el.disabled) return;
+      if (!shouldRedirectKey(event, event.target as Element | null)) return;
       if (document.querySelector("dialog[open]")) return;
       el.focus();
     };
@@ -466,11 +466,4 @@ export default function Game() {
       <ScenePanel state={state} dmActing={busy} speaking={speaking} />
     </section>
   );
-}
-
-/** Whether keystrokes on this element already go somewhere useful. */
-function isEditable(el: Element | null): boolean {
-  if (!el) return false;
-  if (el instanceof HTMLElement && el.isContentEditable) return true;
-  return el.matches("input, textarea, select");
 }
