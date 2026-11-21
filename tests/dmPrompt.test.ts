@@ -43,3 +43,9 @@ describe("portraits", () => {
     expect(DM_SYSTEM_PROMPT).toContain("una vendedora no es una guardia");
   });
 });
+
+describe("difficulty", () => {
+  it("gives the DM the DC scale instead of leaving it to guess", () => {
+    expect(DM_SYSTEM_PROMPT).toContain("muy fácil 5, fácil 10, media 15, difícil 20, muy difícil 25, casi imposible 30");
+  });
+});
