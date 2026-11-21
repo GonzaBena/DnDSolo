@@ -296,6 +296,10 @@
   object-fit: cover;
   background: var(--color-surface);
 }
+/* The DM's portrait has no background of its own. */
+.avatar[data-kind="dm"] .avatar__face img {
+  background: var(--avatar-fill);
+}
 .avatar--sm .avatar__face {
   width: var(--speaker-width);
   height: var(--speaker-width);

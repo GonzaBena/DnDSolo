@@ -14,6 +14,10 @@ describe("DM_SYSTEM_PROMPT", () => {
   it("asks for each NPC's portrait", () => {
     expect(DM_SYSTEM_PROMPT).toContain('"portrait"');
   });
+
+  it("asks for a portrait for NPCs that still have none", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('"portrait": null y le queda');
+  });
 });
 
 describe("buildTurnPrompt", () => {

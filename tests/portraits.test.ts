@@ -1,7 +1,7 @@
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { PORTRAIT_FOLDERS, PORTRAIT_IDS, portraitUrl } from "../src/domain/portraits";
+import { DM_PORTRAIT_URL, PORTRAIT_FOLDERS, PORTRAIT_IDS, portraitUrl } from "../src/domain/portraits";
 
 const ROOT = join(__dirname, "..", "public", "portraits");
 
@@ -26,6 +26,12 @@ describe("PORTRAIT_FOLDERS", () => {
 describe("PORTRAIT_IDS", () => {
   it("only offers the DM archetypes that have a folder of their own or of their base", () => {
     for (const id of PORTRAIT_IDS) expect(portraitUrl(id, "X"), id).not.toBeNull();
+  });
+});
+
+describe("DM_PORTRAIT_URL", () => {
+  it("points at an image in public/portraits", () => {
+    expect(existsSync(join(ROOT, "..", DM_PORTRAIT_URL))).toBe(true);
   });
 });
 

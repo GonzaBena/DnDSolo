@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { startSwing } from "../animations/motion";
-import { portraitUrl } from "../domain/portraits";
+import { DM_PORTRAIT_URL, portraitUrl } from "../domain/portraits";
 import type { Attitude, Npc } from "../domain/types";
 
 /** "Mateo Valen" -> "MV". A single-word name uses its first two letters
@@ -32,7 +32,8 @@ export function NpcAvatar({
   kind?: "dm" | "player" | Attitude;
   speaking?: boolean;
 }) {
-  const url = npc?.portrait ? portraitUrl(npc.portrait, npc.name) : null;
+  const url =
+    kind === "dm" ? DM_PORTRAIT_URL : npc?.portrait ? portraitUrl(npc.portrait, npc.name) : null;
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const showImage = url !== null && url !== failedUrl;
   // The container grows (CSS) and the face swings, so the two transforms

@@ -80,6 +80,9 @@ function hash(text: string): number {
   return h >>> 0;
 }
 
+/** The DM's own portrait. */
+export const DM_PORTRAIT_URL = "/portraits/dm.webp";
+
 /** The image for an NPC with this archetype, the same one every time for
     the same name; null when the archetype has no images. */
 export function portraitUrl(id: string, npcName: string): string | null {
