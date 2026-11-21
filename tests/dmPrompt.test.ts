@@ -32,6 +32,16 @@ describe("DM_SYSTEM_PROMPT", () => {
 });
 
 describe("buildTurnPrompt", () => {
+  it("adds the roll limit block right before the current turn only when rolls are not allowed", () => {
+    const game = newGame();
+    const blocked = buildTurnPrompt(game, { type: "start" }, 6, { enemyRollsAllowed: false });
+    expect(blocked).toContain(
+      "LÍMITE DE TIRADAS\nEn esta respuesta no pidas tiradas de enemigos: resolvé lo que quede con las tiradas que ya tenés y devolvele el turno al jugador.\n\nTURNO ACTUAL",
+    );
+    expect(buildTurnPrompt(game, { type: "start" }, 6, { enemyRollsAllowed: true })).not.toContain("LÍMITE");
+    expect(buildTurnPrompt(game, { type: "start" }, 6)).not.toContain("LÍMITE");
+  });
+
   it("shows the DM how each NPC talks", () => {
     const game = newGame();
     const npcs = [

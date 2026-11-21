@@ -116,7 +116,9 @@ export class TurnEngine {
       return { ok: false, state, failure: { kind: "invalid_input", message: inputProblem } };
     }
 
-    const prompt = buildTurnPrompt(state, input, this.config.recentTurns);
+    // Decided once so the prompt and the drop in commit can't disagree.
+    const enemyRollsAllowed = this.chainedEnemyRolls(state, input) < MAX_CHAINED_ENEMY_ROLLS;
+    const prompt = buildTurnPrompt(state, input, this.config.recentTurns, { enemyRollsAllowed });
 
     // One retry on malformed output, then give up cleanly (Spec, rule 2).
     let lastReason = "";
@@ -143,7 +145,7 @@ export class TurnEngine {
         lastReason = parsed.reason;
         continue;
       }
-      return this.commit(state, input, parsed.response);
+      return this.commit(state, input, parsed.response, enemyRollsAllowed);
     }
 
     return { ok: false, state, failure: { kind: "invalid_response", message: lastReason } };
@@ -182,6 +184,7 @@ export class TurnEngine {
     state: GameState,
     input: TurnInput,
     response: DMResponse,
+    enemyRollsAllowed: boolean,
   ): Promise<TurnOutcome> {
     const applied = applyStateChanges(state, response.stateChanges);
     const turn: Turn = {
@@ -194,9 +197,9 @@ export class TurnEngine {
       ...applied.state,
       turns: [...state.turns, turn],
       pendingPlayerRoll: response.playerRoll,
-      pendingEnemyRolls: this.chainedEnemyRolls(state, input) >= MAX_CHAINED_ENEMY_ROLLS
-        ? []
-        : response.enemyRolls,
+      pendingEnemyRolls: enemyRollsAllowed ? response.enemyRolls : [],
+      // Whose turn it is only matters while enemy rolls are pending.
+      ...(enemyRollsAllowed ? {} : { scene: { ...applied.state.scene, turnOf: null } }),
       updatedAt: this.now().toISOString(),
     };
 

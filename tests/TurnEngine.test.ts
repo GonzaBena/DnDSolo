@@ -273,6 +273,53 @@ describe("TurnEngine.playTurn", () => {
     expect(automatic).toBe(3);
   });
 
+  it("tells the DM not to ask for more enemy rolls once the chain is at its limit", async () => {
+    const ctx = setup();
+    let state = await started(ctx);
+    const more = reply({ enemyRolls: [{ die: "d20", count: 1, modifier: 0, reason: "Otro", mode: "normal" }] });
+    ctx.llm.queueStructured(more, more, more, more);
+    state = (await ctx.engine.playTurn(state, { type: "action", text: "Avanzo" })).state;
+    for (let i = 0; i < 3; i += 1) {
+      const next = await ctx.engine.playTurn(state, {
+        type: "enemy_rolls",
+        results: ctx.engine.rollEnemyDice(state),
+      });
+      state = next.state;
+    }
+
+    const prompts = ctx.llm.structuredRequests.map((request) => request.prompt);
+    // requests: start, action, enemy_rolls x3 (the third one is at the limit)
+    expect(prompts[3]).not.toContain("LÍMITE DE TIRADAS");
+    expect(prompts[4]).toContain("LÍMITE DE TIRADAS");
+  });
+
+  it("never shows the limit block on a normal action", async () => {
+    const ctx = setup();
+    const game = await started(ctx);
+    ctx.llm.queueStructured(reply({}));
+    await ctx.engine.playTurn(game, { type: "action", text: "Miro" });
+    expect(ctx.llm.structuredRequests.at(-1)!.prompt).not.toContain("LÍMITE DE TIRADAS");
+  });
+
+  it("clears pending rolls and the turn marker when the limit drops the rolls", async () => {
+    const ctx = setup();
+    let state = await started(ctx);
+    const more = reply({
+      enemyRolls: [{ die: "d20", count: 1, modifier: 0, reason: "Otro", mode: "normal" }],
+      stateChanges: [{ type: "scene", inCombat: true, turnOf: "Lira" }],
+    });
+    ctx.llm.queueStructured(more, more, more, more);
+    state = (await ctx.engine.playTurn(state, { type: "action", text: "Avanzo" })).state;
+    for (let i = 0; i < 3; i += 1) {
+      state = (
+        await ctx.engine.playTurn(state, { type: "enemy_rolls", results: ctx.engine.rollEnemyDice(state) })
+      ).state;
+    }
+
+    expect(state.pendingEnemyRolls).toEqual([]);
+    expect(state.scene.turnOf).toBeNull();
+  });
+
   it("retries once when the response is invalid", async () => {
     const ctx = setup();
     ctx.llm.queueStructured("{ not json", reply({ narration: "Segundo intento." }));

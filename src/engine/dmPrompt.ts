@@ -138,7 +138,17 @@ export function turnsForPrompt(state: GameState, recentTurns: number): Turn[] {
 /** Assembles the three memory layers for one call (Spec, architecture
     rule 3). The full history is never sent: only state, the running
     summary and the turns chosen by turnsForPrompt. */
-export function buildTurnPrompt(state: GameState, input: TurnInput, recentTurns: number): string {
+export interface PromptOptions {
+  /** False once the chain of enemy rolls hit its limit: the DM is told not to ask for more. */
+  enemyRollsAllowed: boolean;
+}
+
+export function buildTurnPrompt(
+  state: GameState,
+  input: TurnInput,
+  recentTurns: number,
+  options: PromptOptions = { enemyRollsAllowed: true },
+): string {
   const recent = turnsForPrompt(state, recentTurns);
   return [
     `ESTADO\n${JSON.stringify(stateForModel(state), null, 2)}`,
@@ -151,6 +161,11 @@ export function buildTurnPrompt(state: GameState, input: TurnInput, recentTurns:
     ...(state.pendingPlayerRoll && input.type === "action"
       ? [`TIRADA PEDIDA AL JUGADOR\n${describePlayerRoll(state.pendingPlayerRoll)}`]
       : []),
+    ...(options.enemyRollsAllowed
+      ? []
+      : [
+          "LÍMITE DE TIRADAS\nEn esta respuesta no pidas tiradas de enemigos: resolvé lo que quede con las tiradas que ya tenés y devolvele el turno al jugador.",
+        ]),
     `TURNO ACTUAL\n${describeInput(input)}`,
   ].join("\n\n");
 }
