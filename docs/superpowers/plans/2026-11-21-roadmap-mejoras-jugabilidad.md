@@ -73,7 +73,7 @@ git switch -c fix/arbitraje-y-ui
 - Modify: `src/persistence/migrations.ts` (`fromV8`)
 - Modify: `src/game/RollDialog.tsx`, `src/game/Game.tsx` (`submitRoll`)
 - Modify: `src/engine/dmPrompt.ts`, `src/engine/combatRules.ts` (texto de ventaja)
-- Modify: `docs/partida-mock.json` (queda en v3 a propósito para ejercitar toda la cadena de migración; `mode` en `pendingPlayerRoll` si existe)
+- No se toca: `docs/partida-mock.json` (queda en v3 a propósito para ejercitar toda la cadena de migración)
 - Test: `tests/dice.test.ts`, `tests/schemas.test.ts`, `tests/memory.test.ts` o el test de migraciones que ya exista (`grep -l migrateSave tests`), `tests/dmPrompt.test.ts`
 
 **Interfaces:**

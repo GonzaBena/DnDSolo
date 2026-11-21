@@ -584,6 +584,15 @@ describe("TurnEngine background summary", () => {
     expect((await ctx.repo.load(latest.id))!.summarizedThroughTurn).toBe(10);
   });
 
+  it("applySummary ignores a patch that covers turns the game doesn't have", async () => {
+    const ctx = setup();
+    const latest = gameWithTurns(5);
+    const result = await ctx.engine.applySummary(latest, { summary: "R", summarizedThroughTurn: 10 });
+    expect(result.state).toBe(latest);
+    expect(result.saveError).toBeNull();
+    expect(ctx.repo.saveCount).toBe(0);
+  });
+
   it("applySummary ignores a patch older than the state's summary", async () => {
     const ctx = setup();
     const latest = { ...gameWithTurns(12, 12), summary: "NUEVO" };

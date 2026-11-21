@@ -297,7 +297,12 @@ export class TurnEngine {
     // committed after the one the caller still holds.
     const tracked = this.latestByGame.get(latest.id);
     const base = tracked && tracked.turns.length >= latest.turns.length ? tracked : latest;
-    if (base.summarizedThroughTurn >= patch.summarizedThroughTurn) {
+    // Already summarized further, or a patch about turns this game doesn't
+    // have (only a direct caller could build one): nothing to apply.
+    if (
+      base.summarizedThroughTurn >= patch.summarizedThroughTurn ||
+      patch.summarizedThroughTurn > base.turns.length
+    ) {
       return { state: base, saveError: null };
     }
     const next: GameState = {
