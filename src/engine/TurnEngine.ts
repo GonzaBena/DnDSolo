@@ -8,7 +8,7 @@ import type {
   Turn,
   TurnInput,
 } from "../domain/types";
-import type { LLMClient } from "../llm/LLMClient";
+import { LLMError, type LLMClient } from "../llm/LLMClient";
 import type { GameRepo } from "../persistence/GameRepo";
 import {
   buildSummaryPrompt,
@@ -55,7 +55,9 @@ export type TurnFailure =
   /** The model answered twice with something that doesn't match the schema. */
   | { kind: "invalid_response"; message: string }
   /** The call itself failed (key, network, quota...). */
-  | { kind: "llm"; message: string; cause: unknown };
+  | { kind: "llm"; message: string; cause: unknown }
+  /** The player cut the response short; never retried, nothing saved. */
+  | { kind: "aborted" };
 
 export type TurnOutcome =
   | {
@@ -111,6 +113,7 @@ export class TurnEngine {
     state: GameState,
     input: TurnInput,
     onNarration?: (narrationSoFar: string) => void,
+    signal?: AbortSignal,
   ): Promise<TurnOutcome> {
     const inputProblem = this.checkInput(state, input);
     if (inputProblem) {
@@ -131,12 +134,16 @@ export class TurnEngine {
           system: DM_SYSTEM_PROMPT,
           prompt: attempt > 0 ? `${prompt}\n\n${buildCorrection(lastReason)}` : prompt,
           jsonSchema: dmResponseJsonSchema,
+          signal,
           onChunk: (fragment) => {
             raw += fragment;
             onNarration?.(extractPartialNarration(raw));
           },
         });
       } catch (cause) {
+        if (cause instanceof LLMError && cause.kind === "aborted") {
+          return { ok: false, state, failure: { kind: "aborted" } };
+        }
         const message = cause instanceof Error ? cause.message : String(cause);
         return { ok: false, state, failure: { kind: "llm", message, cause } };
       }

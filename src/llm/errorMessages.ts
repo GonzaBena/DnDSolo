@@ -12,6 +12,8 @@ export function describeLLMError(error: unknown): string {
         return "No se pudo conectar con Gemini. Revisá tu conexión a internet.";
       case "empty":
         return "El modelo no devolvió ninguna respuesta. Probá de nuevo.";
+      case "aborted":
+        return "Cortaste la respuesta del DM.";
       case "unknown":
         return `Gemini devolvió un error: ${error.message}`;
     }

@@ -3,6 +3,13 @@ import { LLMError, type LLMClient, type StructuredRequest, type TextRequest } fr
 
 function toLLMError(error: unknown): LLMError {
   if (error instanceof LLMError) return error;
+  // Raised when the AbortSignal passed in the request fires.
+  if (
+    (error instanceof Error || error instanceof DOMException) &&
+    error.name === "AbortError"
+  ) {
+    return new LLMError("aborted", error.message, { cause: error });
+  }
   if (error instanceof ApiError) {
     // An invalid key comes back as 400 (API_KEY_INVALID), not 401.
     const isKeyProblem =

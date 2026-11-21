@@ -46,6 +46,8 @@ function describeFailure(failure: TurnFailure): string {
       return "El DM respondió algo que no se pudo interpretar. Tu partida está intacta: probá de nuevo.";
     case "invalid_input":
       return "Esa acción no se puede hacer en este momento.";
+    case "aborted":
+      return "Cortaste la respuesta del DM.";
   }
 }
 
@@ -55,6 +57,7 @@ export default function Game() {
   const [screen, setScreen] = useState<Screen>({ status: "loading" });
   const [inFlight, setInFlight] = useState<InFlight | null>(null);
   const [busy, setBusy] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -122,9 +125,15 @@ export default function Game() {
       setWarning(null);
       setInFlight({ input, narration: "" });
       const typewriter = createTypewriter((narration) => setInFlight({ input, narration }));
-      const outcome = await engine.playTurn(state, input, (narration) =>
-        typewriter.setTarget(narration),
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const outcome = await engine.playTurn(
+        state,
+        input,
+        (narration) => typewriter.setTarget(narration),
+        controller.signal,
       );
+      abortRef.current = null;
       // Set before the typewriter wait so a summary that resolves meanwhile
       // is applied on top of this turn.
       if (outcome.ok) {
@@ -153,6 +162,12 @@ export default function Game() {
       if (outcome.ok) await typewriter.finish();
       typewriter.cancel();
       setBusy(false);
+      if (!outcome.ok && outcome.failure.kind === "aborted" && input.type === "action") {
+        // Nothing happened: the text goes back to the box to edit or resend.
+        setInFlight(null);
+        setDraft(input.text);
+        return;
+      }
       if (!outcome.ok) {
         // Keep the input on screen so "Reintentar" resends exactly this:
         // enemy dice that were already rolled must not be rolled again.
@@ -461,6 +476,19 @@ export default function Game() {
               >
                 <DieShape die="d20" className="action-roll__die" />
               </button>
+              {busy ? (
+                <button
+                  type="button"
+                  className="button button--primary action-send"
+                  aria-label="Detener respuesta"
+                  title="Detener"
+                  onClick={() => abortRef.current?.abort()}
+                >
+                  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                    <rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor" />
+                  </svg>
+                </button>
+              ) : (
               <button
                 type="submit"
                 className="button button--primary action-send"
@@ -479,6 +507,7 @@ export default function Game() {
                   />
                 </svg>
               </button>
+              )}
             </div>
           </div>
         </form>

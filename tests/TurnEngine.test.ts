@@ -471,6 +471,80 @@ describe("TurnEngine.playTurn", () => {
   });
 });
 
+describe("TurnEngine abort", () => {
+  it("returns an aborted failure with the state untouched and nothing saved", async () => {
+    const ctx = setup();
+    const game = newGame();
+    ctx.llm.queueStructured(reply({}));
+    const controller = new AbortController();
+    controller.abort();
+
+    const outcome = await ctx.engine.playTurn(game, { type: "start" }, undefined, controller.signal);
+
+    expect(outcome).toEqual({ ok: false, state: game, failure: { kind: "aborted" } });
+    expect(await ctx.repo.load(game.id)).toBeNull();
+    expect(ctx.llm.structuredRequests[0]!.signal).toBe(controller.signal);
+  });
+
+  it("does not retry when the abort happens mid-stream", async () => {
+    const ctx = setup();
+    const game = newGame();
+    ctx.llm.queueStructured(reply({}), reply({}));
+    const controller = new AbortController();
+
+    const outcome = await ctx.engine.playTurn(
+      game,
+      { type: "start" },
+      () => controller.abort(),
+      controller.signal,
+    );
+
+    expect(outcome).toEqual({ ok: false, state: game, failure: { kind: "aborted" } });
+    expect(ctx.llm.structuredRequests).toHaveLength(1);
+    expect(await ctx.repo.load(game.id)).toBeNull();
+  });
+
+  it("an aborted enemy_rolls turn can be resent with the same dice, without rerolling", async () => {
+    const ctx = setup();
+    const game = await started(ctx);
+    ctx.llm.queueStructured(
+      reply({
+        enemyRolls: [
+          { die: "d20", count: 1, modifier: 4, reason: "Ataque del goblin", mode: "normal" },
+        ],
+      }),
+    );
+    const asked = await ctx.engine.playTurn(game, { type: "action", text: "Avanzo" });
+    if (!asked.ok) throw new Error("expected ok");
+
+    let rolls = 0;
+    const original = ctx.engine.rollEnemyDice.bind(ctx.engine);
+    ctx.engine.rollEnemyDice = (state) => {
+      rolls += 1;
+      return original(state);
+    };
+    const results = ctx.engine.rollEnemyDice(asked.state);
+    const sentValues = results.map((r) => [...r.values]);
+    const input = { type: "enemy_rolls" as const, results };
+
+    const controller = new AbortController();
+    controller.abort();
+    ctx.llm.queueStructured(reply({}));
+    const aborted = await ctx.engine.playTurn(asked.state, input, undefined, controller.signal);
+    expect(aborted.ok).toBe(false);
+    if (aborted.ok) return;
+    expect(aborted.failure.kind).toBe("aborted");
+    expect(aborted.state).toBe(asked.state);
+
+    // Retry resends the very same input.
+    ctx.llm.queueStructured(reply({ narration: "El goblin acierta." }));
+    const retried = await ctx.engine.playTurn(asked.state, input);
+    expect(retried.ok).toBe(true);
+    expect(rolls).toBe(1);
+    expect(input.results.map((r) => [...r.values])).toEqual(sentValues);
+  });
+});
+
 describe("message authorship", () => {
   it("keeps who said each action through save and load", async () => {
     const ctx = setup();

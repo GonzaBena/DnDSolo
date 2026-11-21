@@ -1,4 +1,4 @@
-import type { LLMClient, StructuredRequest, TextRequest } from "./LLMClient";
+import { LLMError, type LLMClient, type StructuredRequest, type TextRequest } from "./LLMClient";
 
 type Scripted = string | Error;
 
@@ -26,12 +26,14 @@ export class FakeLLMClient implements LLMClient {
 
   async generateStructured(request: StructuredRequest): Promise<string> {
     this.structuredRequests.push(request);
+    this.throwIfAborted(request.signal);
     const reply = this.structuredQueue.shift();
     if (reply === undefined) throw new Error("FakeLLMClient: no structured reply queued.");
     if (reply instanceof Error) throw reply;
     // Two fragments, to exercise the streaming path.
     const middle = Math.floor(reply.length / 2);
     request.onChunk?.(reply.slice(0, middle));
+    this.throwIfAborted(request.signal);
     request.onChunk?.(reply.slice(middle));
     return reply;
   }
@@ -42,5 +44,9 @@ export class FakeLLMClient implements LLMClient {
     if (reply === undefined) throw new Error("FakeLLMClient: no text reply queued.");
     if (reply instanceof Error) throw reply;
     return reply;
+  }
+
+  private throwIfAborted(signal: AbortSignal | undefined): void {
+    if (signal?.aborted) throw new LLMError("aborted", "The request was aborted.");
   }
 }
