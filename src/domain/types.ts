@@ -131,7 +131,7 @@ export type StateChange =
   /** The SRD subclass of the player's class, once its level is reached. */
   | { type: "subclass"; playerId: string; subclassId: string }
   | { type: "location"; name: string; description: string }
-  /** An empty `voice` and a null `portrait` keep what the NPC already had. */
+  /** An empty `voice` keeps the NPC's voice; their first portrait is kept for good. */
   | {
       type: "npc";
       name: string;

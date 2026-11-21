@@ -83,6 +83,13 @@ describe("applyStateChanges", () => {
     expect(later.npcs[0]).toMatchObject({ present: false, portrait: "guard-male" });
   });
 
+  it("keeps an NPC's face when a later change names another portrait", () => {
+    const berta = { type: "npc", name: "Berta", description: "Posadera", attitude: "neutral", present: true, voice: "" } as const;
+    const first = applyStateChanges(newGame(), [{ ...berta, portrait: "guard-female" }]).state;
+    const later = applyStateChanges(first, [{ ...berta, portrait: "soldier-female" }]).state;
+    expect(later.npcs[0]!.portrait).toBe("guard-female");
+  });
+
   it("gives a new NPC without a portrait null", () => {
     const change = { type: "npc", name: "Berta", description: "", attitude: "neutral", present: true, voice: "", portrait: null } as const;
     expect(applyStateChanges(newGame(), [change]).state.npcs[0]!.portrait).toBeNull();

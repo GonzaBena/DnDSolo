@@ -119,7 +119,7 @@ a { color: var(--color-accent); text-underline-offset: 0.15em; }
 /* Wide screens fit the scene panel beside the log, so the game page grows
    by the panel; the log keeps its reading width. Zen mode hides the panel. */
 @media (min-width: 64rem) {
-  .game-shell:not(:has(.game--zen)) {
+  .game-shell:has(.game:not(.game--zen)) {
     --content-width: calc(var(--reading-width) + var(--scene-panel-width) + var(--space-4));
   }
 }

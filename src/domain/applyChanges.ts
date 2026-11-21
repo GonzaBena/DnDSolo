@@ -147,7 +147,8 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
           attitude: change.attitude,
           present: change.present,
           voice: change.voice.trim() || existing?.voice || "",
-          portrait: change.portrait ?? existing?.portrait ?? null,
+          // The first portrait sticks: an NPC keeps their face for the whole game.
+          portrait: existing?.portrait ?? change.portrait ?? null,
         };
         next = { ...next, npcs: upsert(next.npcs, npc, (n) => sameName(n.name, change.name)) };
         break;
