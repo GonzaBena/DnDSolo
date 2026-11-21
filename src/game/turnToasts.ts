@@ -1,0 +1,123 @@
+import type { GameState } from "../domain/types";
+import type { ToastItem } from "./EventToasts";
+
+type Draft = Omit<ToastItem, "id">;
+
+const key = (name: string) => name.trim().toLowerCase();
+
+function inventoryOf(state: GameState): Map<string, { name: string; quantity: number }> {
+  const map = new Map<string, { name: string; quantity: number }>();
+  for (const item of state.players[0]?.inventory ?? []) {
+    const k = key(item.name);
+    const known = map.get(k);
+    map.set(k, { name: item.name, quantity: (known?.quantity ?? 0) + item.quantity });
+  }
+  return map;
+}
+
+function itemDetail(name: string, amount: number): string {
+  return amount > 1 ? `${name} ×${amount}` : name;
+}
+
+/**
+ * Toasts for one turn, computed from what actually changed between the
+ * previous and the applied state, so changes the referee rejected never
+ * show up. Combat and healing have no state to diff and come from events.
+ */
+export function buildTurnToasts(
+  prev: GameState,
+  next: GameState,
+  events: readonly string[],
+  stamp: number,
+): ToastItem[] {
+  const drafts: Draft[] = [];
+
+  if (events.includes("damage_taken")) {
+    drafts.push({
+      kind: "damage",
+      title: "¡Daño recibido!",
+      detail: "Hubo un impacto en combate o peligro del entorno.",
+    });
+  }
+  if (events.includes("healing")) {
+    drafts.push({
+      kind: "healing",
+      title: "Recuperación",
+      detail: "Te recuperaste o recibiste curación.",
+    });
+  }
+  if (events.includes("combat_start")) {
+    drafts.push({
+      kind: "combat",
+      title: "¡Iniciativa!",
+      detail: "Comenzó un enfrentamiento en la escena.",
+    });
+  } else if (events.includes("combat_end")) {
+    drafts.push({
+      kind: "info",
+      title: "Fin del combate",
+      detail: "La calma regresa al entorno.",
+    });
+  }
+
+  const prevLevel = prev.players[0]?.level ?? 0;
+  const nextLevel = next.players[0]?.level ?? 0;
+  if (nextLevel > prevLevel) {
+    drafts.push({
+      kind: "level",
+      title: "¡Subiste de nivel!",
+      detail: "Tu personaje se ha vuelto más poderoso.",
+    });
+  }
+
+  const before = inventoryOf(prev);
+  const after = inventoryOf(next);
+  for (const [k, item] of after) {
+    const gained = item.quantity - (before.get(k)?.quantity ?? 0);
+    if (gained > 0) {
+      drafts.push({
+        kind: "item",
+        title: "Objeto obtenido",
+        detail: itemDetail(item.name, gained),
+      });
+    }
+  }
+  for (const [k, item] of before) {
+    const lost = item.quantity - (after.get(k)?.quantity ?? 0);
+    if (lost > 0) {
+      drafts.push({
+        kind: "item",
+        title: "Objeto usado o perdido",
+        detail: itemDetail(item.name, lost),
+      });
+    }
+  }
+
+  const prevQuests = new Map(prev.quests.map((q) => [key(q.title), q]));
+  for (const quest of next.quests) {
+    const old = prevQuests.get(key(quest.title));
+    if (quest.status === "completed" && old?.status !== "completed") {
+      drafts.push({ kind: "quest", title: "¡Misión completada!", detail: quest.title });
+    } else if (quest.status === "active" && !old) {
+      drafts.push({ kind: "quest", title: "Nueva misión", detail: quest.title });
+    }
+  }
+
+  const knownNpcs = new Set(prev.npcs.map((n) => key(n.name)));
+  for (const npc of next.npcs) {
+    if (!knownNpcs.has(key(npc.name))) {
+      drafts.push({
+        kind: "npc",
+        title: "Nuevo personaje",
+        detail: `${npc.name} está presente en la historia.`,
+      });
+    }
+  }
+
+  return drafts.map((draft, index) => ({ ...draft, id: `${draft.kind}-${stamp}-${index}` }));
+}
+
+/** Whether the screen should shake: a player took damage. */
+export function tookDamage(events: readonly string[]): boolean {
+  return events.includes("damage_taken");
+}

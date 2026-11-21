@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { shakeScreen } from "../animations/motion";
 import { castOf, speakingNow } from "../domain/dialogue";
 import { formatDice } from "../domain/dice";
-import type { GameState, PlayerRoll, StateChange, TurnInput } from "../domain/types";
+import type { GameState, PlayerRoll, TurnInput } from "../domain/types";
 import { TurnEngine, type TurnFailure } from "../engine/TurnEngine";
 import { GeminiClient } from "../llm/GeminiClient";
 import { describeLLMError } from "../llm/errorMessages";
@@ -16,6 +16,7 @@ import { RollDialog } from "./RollDialog";
 import { SceneDrawer } from "./SceneDrawer";
 import { ScenePanel } from "./ScenePanel";
 import { expandSlashCommands } from "./slashCommands";
+import { buildTurnToasts, tookDamage } from "./turnToasts";
 import { InputEntry, Narration, TurnLog } from "./TurnLog";
 import { useStickToBottom } from "./useStickToBottom";
 import { createTypewriter } from "./typewriter";
@@ -66,106 +67,6 @@ export default function Game() {
 
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  const handleTurnEvents = useCallback((events: string[], stateChanges: StateChange[]) => {
-    const newToasts: ToastItem[] = [];
-    const timestamp = Date.now();
-
-    if (events.includes("damage_taken")) {
-      if (gameRef.current) {
-        shakeScreen(gameRef.current);
-        gameRef.current.classList.add("game--damage-flash");
-        setTimeout(() => {
-          gameRef.current?.classList.remove("game--damage-flash");
-        }, 400);
-      }
-      newToasts.push({
-        id: `dmg-${timestamp}`,
-        kind: "damage",
-        title: "¡Daño recibido!",
-        detail: "Hubo un impacto en combate o peligro del entorno.",
-      });
-    }
-
-    if (events.includes("healing")) {
-      newToasts.push({
-        id: `heal-${timestamp}`,
-        kind: "healing",
-        title: "Recuperación",
-        detail: "Te recuperaste o recibiste curación.",
-      });
-    }
-
-    if (events.includes("combat_start")) {
-      newToasts.push({
-        id: `cbt-${timestamp}`,
-        kind: "combat",
-        title: "¡Iniciativa!",
-        detail: "Comenzó un enfrentamiento en la escena.",
-      });
-    } else if (events.includes("combat_end")) {
-      newToasts.push({
-        id: `cbt-end-${timestamp}`,
-        kind: "info",
-        title: "Fin del combate",
-        detail: "La calma regresa al entorno.",
-      });
-    }
-
-    if (events.includes("level_up")) {
-      newToasts.push({
-        id: `lvl-${timestamp}`,
-        kind: "level",
-        title: "¡Subiste de nivel!",
-        detail: "Tu personaje se ha vuelto más poderoso.",
-      });
-    }
-
-    for (const change of stateChanges) {
-      if (change.type === "inventory_add") {
-        newToasts.push({
-          id: `item-add-${change.item}-${timestamp}`,
-          kind: "item",
-          title: "Objeto obtenido",
-          detail: change.quantity > 1 ? `${change.item} ×${change.quantity}` : change.item,
-        });
-      } else if (change.type === "inventory_remove") {
-        newToasts.push({
-          id: `item-rem-${change.item}-${timestamp}`,
-          kind: "item",
-          title: "Objeto usado o perdido",
-          detail: change.quantity > 1 ? `${change.item} ×${change.quantity}` : change.item,
-        });
-      } else if (change.type === "quest") {
-        if (change.status === "completed") {
-          newToasts.push({
-            id: `quest-done-${change.title}-${timestamp}`,
-            kind: "quest",
-            title: "¡Misión completada!",
-            detail: change.title,
-          });
-        } else if (change.status === "active" && events.includes("new_quest")) {
-          newToasts.push({
-            id: `quest-new-${change.title}-${timestamp}`,
-            kind: "quest",
-            title: "Nueva misión",
-            detail: change.title,
-          });
-        }
-      } else if (change.type === "npc" && events.includes("new_npc")) {
-        newToasts.push({
-          id: `npc-${change.name}-${timestamp}`,
-          kind: "npc",
-          title: "Nuevo personaje",
-          detail: `${change.name} está presente en la historia.`,
-        });
-      }
-    }
-
-    if (newToasts.length > 0) {
-      setToasts((prev) => [...prev, ...newToasts]);
-    }
   }, []);
 
   // Grow the textarea with its content: one line when empty, capped by CSS max-height.
@@ -229,7 +130,14 @@ export default function Game() {
         return;
       }
       setInFlight(null);
-      handleTurnEvents(outcome.response.events, outcome.response.stateChanges);
+      const toasts = buildTurnToasts(state, outcome.state, outcome.response.events, Date.now());
+      if (toasts.length > 0) setToasts((prev) => [...prev, ...toasts]);
+      if (tookDamage(outcome.response.events) && gameRef.current) {
+        const el = gameRef.current;
+        shakeScreen(el);
+        el.classList.add("game--damage-flash");
+        setTimeout(() => el.classList.remove("game--damage-flash"), 400);
+      }
       setScreen((previous) => ({
         status: "playing",
         engine,
@@ -240,7 +148,7 @@ export default function Game() {
         setWarning("El turno se jugó pero no se pudo guardar. Si recargás, lo perdés.");
       }
     },
-    [scrollToBottom, handleTurnEvents],
+    [scrollToBottom],
   );
 
   // Turns the app takes on its own, with no player input:
