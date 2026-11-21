@@ -278,6 +278,30 @@ export default function Game() {
     [screen.status, busy, inFlight, enemyRollsPending],
   );
 
+  // Focus the composer whenever it is the player's turn, unless they are
+  // already in another field. Skipped on touch screens, where focusing
+  // would pop the on-screen keyboard over the story.
+  useEffect(() => {
+    if (!canAct || !matchMedia("(pointer: fine)").matches) return;
+    if (isEditable(document.activeElement)) return;
+    draftRef.current?.focus();
+  }, [canAct]);
+
+  // Typing anywhere on the page goes into the composer: focusing it on
+  // keydown makes the browser deliver that same keystroke to it.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const el = draftRef.current;
+      if (!el || el.disabled || event.defaultPrevented) return;
+      if (event.key.length !== 1 || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (isEditable(event.target as Element | null)) return;
+      if (document.querySelector("dialog[open]")) return;
+      el.focus();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   if (screen.status === "loading") return <p>Cargando partida…</p>;
 
   if (screen.status === "load_error") {
@@ -491,4 +515,11 @@ export default function Game() {
       <ScenePanel state={state} dmActing={busy} speaking={speaking} />
     </section>
   );
+}
+
+/** Whether keystrokes on this element already go somewhere useful. */
+function isEditable(el: Element | null): boolean {
+  if (!el) return false;
+  if (el instanceof HTMLElement && el.isContentEditable) return true;
+  return el.matches("input, textarea, select");
 }
