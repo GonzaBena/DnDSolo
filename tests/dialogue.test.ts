@@ -24,6 +24,13 @@ describe("splitDialogue", () => {
     ]);
   });
 
+  it("gives a marker with a portrait archetype to the NPC's Spanish name", () => {
+    const withInnkeeper: Cast = { npcs: [npc("Tabernero")], playerNames: [] };
+    expect(splitDialogue("[[innkeeper-male]] —Pasá.", withInnkeeper)).toEqual([
+      { speaker: "Tabernero", paragraphs: ["—Pasá."] },
+    ]);
+  });
+
   it("joins consecutive paragraphs of the same NPC", () => {
     expect(splitDialogue("[[Brena]] Uno.\n\n[[Brena]] Dos.", cast)).toEqual([
       { speaker: "Brena", paragraphs: ["Uno.", "Dos."] },

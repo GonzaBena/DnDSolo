@@ -92,3 +92,43 @@ export function portraitUrl(id: string, npcName: string): string | null {
   const variant = (hash(npcName.trim().toLowerCase()) % count) + 1;
   return `/portraits/${folder}/${variant}.webp`;
 }
+
+/** Spanish names for the archetypes, male and female (the same when the
+    archetype has no gender). */
+const ARCHETYPE_NAMES: Readonly<Record<string, readonly [string, string]>> = {
+  bandit: ["Bandido", "Bandida"],
+  cleric: ["Sacerdote", "Sacerdotisa"],
+  cultist: ["Cultista", "Cultista"],
+  dwarf: ["Enano", "Enana"],
+  elder: ["Anciano", "Anciana"],
+  elf: ["Elfo", "Elfa"],
+  guard: ["Guardia", "Guardia"],
+  innkeeper: ["Tabernero", "Tabernera"],
+  noble: ["Noble", "Noble"],
+  orc: ["Orco", "Orca"],
+  sailor: ["Marinero", "Marinera"],
+  soldier: ["Soldado", "Soldado"],
+  thief: ["Ladrón", "Ladrona"],
+  wizard: ["Mago", "Maga"],
+  child: ["Niño", "Niño"],
+  dragon: ["Dragón", "Dragón"],
+  drowned: ["Ahogado", "Ahogado"],
+  goblin: ["Goblin", "Goblin"],
+  hooded: ["Encapuchado", "Encapuchado"],
+  kobold: ["Kobold", "Kobold"],
+  skeleton: ["Esqueleto", "Esqueleto"],
+  wolf: ["Lobo", "Lobo"],
+  zombie: ["Zombi", "Zombi"],
+};
+
+/** The model sometimes names an NPC after their portrait archetype
+    ("innkeeper-male"). Such a name becomes the archetype in Spanish
+    ("Tabernero"), keeping a trailing number ("goblin-2" -> "Goblin 2");
+    any other name is returned as is. */
+export function npcNameFromArchetype(name: string): string {
+  const match = /^([a-z]+)(?:[-_ ](male|female))?(?:[-_ ](\d+))?$/.exec(name.trim().toLowerCase());
+  const names = match ? ARCHETYPE_NAMES[match[1]!] : undefined;
+  if (!match || !names) return name;
+  const spanish = names[match[2] === "female" ? 1 : 0];
+  return match[3] ? `${spanish} ${match[3]}` : spanish;
+}

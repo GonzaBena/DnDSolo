@@ -90,6 +90,14 @@ describe("applyStateChanges", () => {
     expect(later.npcs[0]!.portrait).toBe("guard-female");
   });
 
+  it("names an NPC called after their portrait archetype in Spanish", () => {
+    const change = { type: "npc", name: "innkeeper-male", description: "", attitude: "neutral", present: true, voice: "", portrait: "innkeeper-male" } as const;
+    const first = applyStateChanges(newGame(), [change]).state;
+    const later = applyStateChanges(first, [{ ...change, present: false }]).state;
+    expect(later.npcs).toHaveLength(1);
+    expect(later.npcs[0]).toMatchObject({ name: "Tabernero", present: false });
+  });
+
   it("gives a new NPC without a portrait null", () => {
     const change = { type: "npc", name: "Berta", description: "", attitude: "neutral", present: true, voice: "", portrait: null } as const;
     expect(applyStateChanges(newGame(), [change]).state.npcs[0]!.portrait).toBeNull();

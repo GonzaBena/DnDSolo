@@ -1,3 +1,4 @@
+import { npcNameFromArchetype } from "./portraits";
 import type { GameState, Npc } from "./types";
 
 // The DM marks each line an NPC says with "[[Name]]" at the start of its
@@ -41,7 +42,9 @@ export function castOf(state: GameState): Cast {
     (the DM never speaks for them, so such a line is plain narration). */
 function resolveSpeaker(name: string, cast: Cast): string | null {
   if (cast.playerNames.some((p) => sameName(p, name))) return null;
-  return findNpc(cast.npcs, name)?.name ?? name.trim();
+  // The NPC was saved under the Spanish name (see applyChanges).
+  const npc = findNpc(cast.npcs, name) ?? findNpc(cast.npcs, npcNameFromArchetype(name));
+  return npc?.name ?? npcNameFromArchetype(name.trim());
 }
 
 export function splitDialogue(narration: string, cast: Cast): DialogueSegment[] {

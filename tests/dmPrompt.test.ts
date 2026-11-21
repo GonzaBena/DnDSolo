@@ -29,3 +29,10 @@ describe("buildTurnPrompt", () => {
     expect(buildTurnPrompt({ ...game, npcs }, { type: "start" }, 6)).toContain("Seca, frases cortas");
   });
 });
+
+describe("NPC names", () => {
+  it("asks for Spanish names, never the portrait archetype", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('"Tabernero"');
+    expect(DM_SYSTEM_PROMPT).toContain('"innkeeper-male"');
+  });
+});

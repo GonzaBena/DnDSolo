@@ -1,4 +1,5 @@
 import { findClass } from "../rules";
+import { npcNameFromArchetype } from "./portraits";
 import type { Character, GameState, StateChange, StoryItem } from "./types";
 
 export interface RejectedChange {
@@ -140,9 +141,10 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
         next = { ...next, location: { name: change.name, description: change.description } };
         break;
       case "npc": {
-        const existing = next.npcs.find((n) => sameName(n.name, change.name));
+        const name = npcNameFromArchetype(change.name);
+        const existing = next.npcs.find((n) => sameName(n.name, name));
         const npc = {
-          name: change.name,
+          name,
           description: change.description,
           attitude: change.attitude,
           present: change.present,
@@ -150,11 +152,17 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
           // The first portrait sticks: an NPC keeps their face for the whole game.
           portrait: existing?.portrait ?? change.portrait ?? null,
         };
-        next = { ...next, npcs: upsert(next.npcs, npc, (n) => sameName(n.name, change.name)) };
+        next = { ...next, npcs: upsert(next.npcs, npc, (n) => sameName(n.name, name)) };
         break;
       }
       case "scene":
-        next = { ...next, scene: { inCombat: change.inCombat, turnOf: change.turnOf } };
+        next = {
+          ...next,
+          scene: {
+            inCombat: change.inCombat,
+            turnOf: change.turnOf === null ? null : npcNameFromArchetype(change.turnOf),
+          },
+        };
         break;
       case "quest": {
         const quest = {

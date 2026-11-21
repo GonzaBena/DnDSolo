@@ -73,3 +73,15 @@ describe("v6 -> v7", () => {
     expect(migrated?.npcs[0]?.portrait).toBeNull();
   });
 });
+
+describe("v7 -> v8", () => {
+  it("renames NPCs named after their portrait archetype", () => {
+    const game = newGame();
+    const npc = { description: "", attitude: "neutral", present: true, voice: "", portrait: "innkeeper-male" };
+    const npcs = [{ ...npc, name: "innkeeper-male" }, { ...npc, name: "Berta" }];
+    const scene = { inCombat: false, turnOf: "innkeeper-male" };
+    const migrated = migrateSave({ ...game, version: 7, npcs, scene });
+    expect(migrated?.npcs.map((n) => n.name)).toEqual(["Tabernero", "Berta"]);
+    expect(migrated?.scene.turnOf).toBe("Tabernero");
+  });
+});

@@ -205,4 +205,4 @@ export interface GameState {
   pendingEnemyRolls: EnemyRollRequest[];
 }
 
-export const GAME_STATE_VERSION = 7;
+export const GAME_STATE_VERSION = 8;
