@@ -1,6 +1,8 @@
 // Core domain types. Everything here is plain data: it is what gets saved,
 // what the engine transforms and (in part) what the model sees.
 
+import type { PortraitId } from "./portraits";
+
 export const DICE = ["d4", "d6", "d8", "d10", "d12", "d20", "d100"] as const;
 export type Die = (typeof DICE)[number];
 
@@ -85,6 +87,10 @@ export interface Npc {
   present: boolean;
   /** How they talk: tone, pet phrases, register. "" when the DM gave none. */
   voice: string;
+  /** Portrait archetype (see domain/portraits.ts), null for initials. A
+      string, not PortraitId, so an archetype dropped later keeps old saves
+      loading. */
+  portrait: string | null;
 }
 
 /** What is happening right now, for the scene drawer. */
@@ -125,8 +131,16 @@ export type StateChange =
   /** The SRD subclass of the player's class, once its level is reached. */
   | { type: "subclass"; playerId: string; subclassId: string }
   | { type: "location"; name: string; description: string }
-  /** An empty `voice` keeps the one the NPC already had. */
-  | { type: "npc"; name: string; description: string; attitude: Attitude; present: boolean; voice: string }
+  /** An empty `voice` and a null `portrait` keep what the NPC already had. */
+  | {
+      type: "npc";
+      name: string;
+      description: string;
+      attitude: Attitude;
+      present: boolean;
+      voice: string;
+      portrait: PortraitId | null;
+    }
   | { type: "scene"; inCombat: boolean; turnOf: string | null }
   | { type: "quest"; title: string; description: string; status: QuestStatus }
   /** An object the narration put within reach, or that stopped being there.
@@ -191,4 +205,4 @@ export interface GameState {
   pendingEnemyRolls: EnemyRollRequest[];
 }
 
-export const GAME_STATE_VERSION = 6;
+export const GAME_STATE_VERSION = 7;
