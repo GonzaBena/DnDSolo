@@ -1,4 +1,4 @@
-import { describePlayerRoll as describeRolledDie, formatDice } from "../domain/dice";
+import { describePlayerRoll as describeRolledDie, formatDice, resolveRollMode, rollModeLabel } from "../domain/dice";
 import { describeArchetypes } from "../domain/portraits";
 import { COMBAT_RULES } from "./combatRules";
 import { describeCharacterRules } from "./rulesBlock";
@@ -30,7 +30,7 @@ DIÁLOGO DE LOS NPCS
 
 TIRADAS DEL JUGADOR
 - El jugador tira sus propios dados físicos, aplica sus modificadores y te escribe el total en el chat. Vos nunca tirás por él ni suponés su resultado.
-- Cuando una acción suya tenga resultado incierto, cortá la narración justo antes del desenlace y pedile la tirada: decile en la narración qué dado, cuántos y por qué, y completá "playerRoll" (die, count, reason, difficulty) con lo mismo. Si no hace falta, "playerRoll" es null.
+- Cuando una acción suya tenga resultado incierto, cortá la narración justo antes del desenlace y pedile la tirada: decile en la narración qué dado, cuántos y por qué, y completá "playerRoll" (die, count, reason, difficulty, mode) con lo mismo. "mode" es "advantage" o "disadvantage" (con "count": 1) cuando la tirada tenga ventaja o desventaja; si no, "normal". Si no hace falta, "playerRoll" es null.
 - La dificultad ("difficulty") es una CD que elegís según lo difícil que sea la acción en esa situación concreta, con esta escala: muy fácil 5, fácil 10, media 15, difícil 20, muy difícil 25, casi imposible 30. Podés usar valores intermedios para matizar, pero no repitas siempre la misma CD: cada tirada se piensa por separado. Las tiradas sin un éxito o fracaso fijo (daño, iniciativa, tablas) llevan "difficulty": null.
 - Un ataque no usa esa escala: su "difficulty" es la Clase de Armadura del objetivo, y si impacta le pedís la tirada de daño. Mientras haya combate tenés el detalle en REGLAS DE COMBATE.
 - Cuando te responda con un número, tomalo como el total final de la TIRADA PEDIDA AL JUGADOR, comparalo con la dificultad y narrá la consecuencia. Confiá en el número que te dice. Si su mensaje no trae un resultado claro, volvé a pedírselo.
@@ -38,7 +38,7 @@ TIRADAS DEL JUGADOR
 - No pidas tiradas para acciones triviales.
 
 TIRADAS DE ENEMIGOS Y NPCS
-- Vos nunca inventás un resultado de dados. Cuando un enemigo o NPC tenga que tirar (ataque, daño, salvación, iniciativa), cortá la narración antes del desenlace y pedí las tiradas en "enemyRolls" (die, count, modifier, reason). El sistema las tira y te las manda en el turno siguiente como TIRADAS DE ENEMIGOS; recién ahí narrás qué pasó, respetando esos totales.
+- Vos nunca inventás un resultado de dados. Cuando un enemigo o NPC tenga que tirar (ataque, daño, salvación, iniciativa), cortá la narración antes del desenlace y pedí las tiradas en "enemyRolls" (die, count, modifier, reason, mode). "mode" es "advantage" o "disadvantage" (con "count": 1) cuando la tirada del enemigo tenga ventaja o desventaja; si no, "normal". El sistema las tira y te las manda en el turno siguiente como TIRADAS DE ENEMIGOS; recién ahí narrás qué pasó, respetando esos totales.
 - Si no hay tiradas de enemigos, "enemyRolls" es [].
 - No pidas en el mismo turno una tirada al jugador y tiradas de enemigos: primero resolvé una cosa y después la otra.
 
@@ -70,7 +70,7 @@ REGLAS
 - Cuando un personaje tiene el nivel de su subclase y el jugador la elige, mandá un cambio "subclass" con el id que figura en REGLAS DE LOS PERSONAJES ("Si elige la subclase SRD"). Si el jugador quiere una subclase que no está en el SRD, respondé con la frase fija de arriba.
 
 EVENTOS
-- En "events" poné etiquetas de lo que pasó, solo de esta lista: damage, healing, scene_change, combat_start, combat_end, item_gained, new_npc, new_quest, quest_completed, level_up, death.
+- En "events" poné etiquetas de lo que pasó, solo de esta lista: damage_taken (un jugador recibe daño), damage_dealt (un enemigo o NPC recibe daño), healing, scene_change, combat_start, combat_end, item_gained, new_npc, new_quest, quest_completed, level_up, death.
 
 FORMATO
 - Respondé únicamente con el JSON del esquema indicado, sin texto afuera. Los textos de "narration", "reason" y las descripciones van en español.`;
@@ -91,16 +91,21 @@ export function describeInput(input: TurnInput): string {
     case "enemy_rolls":
       return [
         "TIRADAS DE ENEMIGOS (hechas por el sistema):",
-        ...input.results.map(
-          (r) => `- ${r.reason}: ${formatDice(r)} = ${r.total} (dados: ${r.values.join(", ")})`,
-        ),
+        ...input.results.map((r) => {
+          if (r.mode === "normal") {
+            return `- ${r.reason}: ${formatDice(r)} = ${r.total} (dados: ${r.values.join(", ")})`;
+          }
+          const kept = resolveRollMode([r.values[0]!, r.values[1]!], r.mode);
+          return `- ${r.reason}: ${formatDice(r)} con ${rollModeLabel(r.mode)} = ${r.total} (dados: ${r.values.join(", ")}; queda ${kept})`;
+        }),
       ].join("\n");
   }
 }
 
 function describePlayerRoll(request: PlayerRollRequest): string {
   const difficulty = request.difficulty === null ? "sin dificultad fija" : `CD ${request.difficulty}`;
-  return `${formatDice(request)} — ${request.reason} (${difficulty})`;
+  const mode = request.mode === "normal" ? "" : ` con ${rollModeLabel(request.mode)}`;
+  return `${formatDice(request)}${mode} — ${request.reason} (${difficulty})`;
 }
 
 function describeTurn(turn: Turn): string {
@@ -130,10 +135,20 @@ export function turnsForPrompt(state: GameState, recentTurns: number): Turn[] {
   return count > 0 ? state.turns.slice(-count) : [];
 }
 
+export interface PromptOptions {
+  /** False once the chain of enemy rolls hit its limit: the DM is told not to ask for more. */
+  enemyRollsAllowed: boolean;
+}
+
 /** Assembles the three memory layers for one call (Spec, architecture
     rule 3). The full history is never sent: only state, the running
     summary and the turns chosen by turnsForPrompt. */
-export function buildTurnPrompt(state: GameState, input: TurnInput, recentTurns: number): string {
+export function buildTurnPrompt(
+  state: GameState,
+  input: TurnInput,
+  recentTurns: number,
+  options: PromptOptions = { enemyRollsAllowed: true },
+): string {
   const recent = turnsForPrompt(state, recentTurns);
   return [
     `ESTADO\n${JSON.stringify(stateForModel(state), null, 2)}`,
@@ -146,6 +161,11 @@ export function buildTurnPrompt(state: GameState, input: TurnInput, recentTurns:
     ...(state.pendingPlayerRoll && input.type === "action"
       ? [`TIRADA PEDIDA AL JUGADOR\n${describePlayerRoll(state.pendingPlayerRoll)}`]
       : []),
+    ...(options.enemyRollsAllowed
+      ? []
+      : [
+          "LÍMITE DE TIRADAS\nEn esta respuesta no pidas tiradas de enemigos: resolvé lo que quede con las tiradas que ya tenés y devolvele el turno al jugador.",
+        ]),
     `TURNO ACTUAL\n${describeInput(input)}`,
   ].join("\n\n");
 }
@@ -164,4 +184,9 @@ export function buildSummaryPrompt(previousSummary: string, newTurns: Turn[]): s
     `RESUMEN ANTERIOR\n${previousSummary || "(Todavía no hay resumen.)"}`,
     `TURNOS NUEVOS\n${newTurns.map(describeTurn).join("\n\n")}`,
   ].join("\n\n");
+}
+
+/** Appended to the retry prompt so the model knows what was wrong with its previous reply. */
+export function buildCorrection(reason: string): string {
+  return `CORRECCIÓN\nTu respuesta anterior no respetó el esquema: ${reason}\nRespondé de nuevo, solo con el JSON válido.`;
 }

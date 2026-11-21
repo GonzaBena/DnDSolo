@@ -111,6 +111,28 @@ function fromV7(raw: Raw): Raw {
   return { ...raw, version: 8, npcs, scene };
 }
 
+/** v8 -> v9. A requested roll (the player's or an enemy's) says whether it
+    is made with advantage; every old one was a plain roll. */
+function fromV8(raw: Raw): Raw {
+  const pending = isObject(raw.pendingPlayerRoll)
+    ? { ...raw.pendingPlayerRoll, mode: "normal" }
+    : raw.pendingPlayerRoll;
+  const plain = (roll: unknown) => (isObject(roll) ? { ...roll, mode: "normal" } : roll);
+  const pendingEnemyRolls = Array.isArray(raw.pendingEnemyRolls)
+    ? raw.pendingEnemyRolls.map(plain)
+    : raw.pendingEnemyRolls;
+  const turns = Array.isArray(raw.turns)
+    ? raw.turns.map((turn: unknown) => {
+        if (!isObject(turn) || !isObject(turn.input) || turn.input.type !== "enemy_rolls") return turn;
+        const results = Array.isArray(turn.input.results)
+          ? turn.input.results.map(plain)
+          : turn.input.results;
+        return { ...turn, input: { ...turn.input, results } };
+      })
+    : raw.turns;
+  return { ...raw, version: 9, pendingPlayerRoll: pending, pendingEnemyRolls, turns };
+}
+
 /** Turns whatever was stored into a GameState of the current version, or
     null if it can't be trusted (unknown version or wrong shape). Loading
     code must go through here so the screens never see a malformed save. */
@@ -124,6 +146,7 @@ export function migrateSave(raw: unknown): GameState | null {
   if (current.version === 5) current = fromV5(current);
   if (current.version === 6) current = fromV6(current);
   if (current.version === 7) current = fromV7(current);
+  if (current.version === 8) current = fromV8(current);
   if (current.version !== GAME_STATE_VERSION) return null;
   const parsed = gameStateSchema.safeParse(current);
   return parsed.success ? parsed.data : null;

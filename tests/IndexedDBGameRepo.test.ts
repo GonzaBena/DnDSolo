@@ -70,7 +70,7 @@ describe("IndexedDBGameRepo", () => {
     const loaded = (await new IndexedDBGameRepo().load("legacy"))!;
     expect(loaded.version).toBe(GAME_STATE_VERSION);
     expect(loaded.players[0]).not.toHaveProperty("hp");
-    expect(loaded.pendingPlayerRoll).toEqual({ die: "d20", count: 1, reason: "Sigilo", difficulty: 12 });
+    expect(loaded.pendingPlayerRoll).toEqual({ die: "d20", count: 1, reason: "Sigilo", difficulty: 12, mode: "normal" });
     expect(loaded.pendingEnemyRolls).toEqual([]);
     expect(loaded.turns[1]!.input).toEqual({
       type: "action",
@@ -100,7 +100,7 @@ describe("IndexedDBGameRepo", () => {
     const first = new TurnEngine({ llm, repo: new IndexedDBGameRepo(), now });
     llm.queueStructured(
       reply({ narration: "Un guardia bloquea el puente." }),
-      reply({ enemyRolls: [{ die: "d20", count: 1, modifier: 2, reason: "Ataque del guardia" }] }),
+      reply({ enemyRolls: [{ die: "d20", count: 1, modifier: 2, reason: "Ataque del guardia", mode: "normal" }] }),
       reply({ narration: "La alabarda te pasa rozando." }),
     );
     let outcome = await first.playTurn({ ...newGame(), id: "resume" }, { type: "start" });

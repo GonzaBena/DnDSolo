@@ -29,16 +29,21 @@ export interface Character {
   inventory: InventoryItem[];
 }
 
+export const ROLL_MODES = ["normal", "advantage", "disadvantage"] as const;
+export type RollMode = (typeof ROLL_MODES)[number];
+
 /** A roll the DM asks the *player* for. The app never rolls it: the player
     rolls their own dice, applies their own modifiers and types the total
     in the chat. This only exists to show the request clearly. */
 export interface PlayerRollRequest {
   die: Die;
+  /** How many dice are added up. Advantage is a mode, not a count of 2. */
   count: number;
   /** e.g. "Sigilo para pasar al guardia" */
   reason: string;
   /** Difficulty class, when the roll has one. */
   difficulty: number | null;
+  mode: RollMode;
 }
 
 /** A roll the player made with their own dice and reported through the
@@ -52,6 +57,10 @@ export interface PlayerRoll {
   modifier: number;
   /** What it was for, when the DM had asked for it. */
   reason?: string | undefined;
+  /** Advantage or disadvantage; `value` is then the die that was kept. */
+  mode?: RollMode | undefined;
+  /** Both d20 of an advantage or disadvantage roll. */
+  rolls?: [number, number] | undefined;
 }
 
 /** A roll for an enemy or NPC. These are the only dice the app rolls. */
@@ -61,12 +70,16 @@ export interface EnemyRollRequest {
   /** Flat bonus the DM assigns to the creature, e.g. +4 to hit. */
   modifier: number;
   reason: string;
+  /** Advantage or disadvantage: two dice are rolled and one is kept. */
+  mode: RollMode;
 }
 
 export interface EnemyRollResult extends EnemyRollRequest {
-  /** Each die as rolled by code, never by the model. */
+  /** Each die as rolled by code, never by the model. With advantage or
+      disadvantage these are the two dice rolled. */
   values: number[];
-  /** Sum of values plus modifier. */
+  /** Sum of values (the kept die with advantage or disadvantage) plus
+      modifier. */
   total: number;
 }
 
@@ -147,14 +160,30 @@ export type StateChange =
       Taking it is an inventory_add with the same name. */
   | { type: "item"; name: string; description: string; status: Exclude<StoryItemStatus, "taken"> };
 
+export const TURN_EVENTS = [
+  "damage_taken",
+  "damage_dealt",
+  "healing",
+  "scene_change",
+  "combat_start",
+  "combat_end",
+  "item_gained",
+  "new_npc",
+  "new_quest",
+  "quest_completed",
+  "level_up",
+  "death",
+] as const;
+export type TurnEvent = (typeof TURN_EVENTS)[number];
+
 export interface DMResponse {
   /** Text the player reads. */
   narration: string;
   playerRoll: PlayerRollRequest | null;
   enemyRolls: EnemyRollRequest[];
   stateChanges: StateChange[];
-  /** Tags such as "damage" or "scene_change", kept to hook animations later. */
-  events: string[];
+  /** Tags such as "damage_taken" or "scene_change", kept to hook animations. */
+  events: TurnEvent[];
 }
 
 export type TurnInput =
@@ -205,4 +234,4 @@ export interface GameState {
   pendingEnemyRolls: EnemyRollRequest[];
 }
 
-export const GAME_STATE_VERSION = 8;
+export const GAME_STATE_VERSION = 9;

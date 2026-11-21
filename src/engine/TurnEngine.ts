@@ -1,5 +1,5 @@
 import { applyStateChanges, type RejectedChange } from "../domain/applyChanges";
-import { rollForEnemy } from "../domain/dice";
+import { diceRolled, rollForEnemy } from "../domain/dice";
 import { dmResponseJsonSchema, parseDMResponse } from "../domain/schemas";
 import type {
   DMResponse,
@@ -12,6 +12,7 @@ import type { LLMClient } from "../llm/LLMClient";
 import type { GameRepo } from "../persistence/GameRepo";
 import {
   buildSummaryPrompt,
+  buildCorrection,
   buildTurnPrompt,
   DM_SYSTEM_PROMPT,
   SUMMARY_SYSTEM_PROMPT,
@@ -23,6 +24,14 @@ export interface EngineConfig {
   recentTurns: number;
   /** The running summary is regenerated every this many turns. */
   summaryEveryTurns: number;
+}
+
+/** After a failed summary, how many more turns to wait before trying again. */
+export const SUMMARY_RETRY_AFTER_TURNS = 3;
+
+export interface SummaryPatch {
+  summary: string;
+  summarizedThroughTurn: number;
 }
 
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = { recentTurns: 6, summaryEveryTurns: 10 };
@@ -70,6 +79,13 @@ export class TurnEngine {
   private readonly random: () => number;
   private readonly now: () => Date;
   readonly config: EngineConfig;
+  /** Per game, `turns.length` at the last failed summary attempt. */
+  private readonly lastFailedSummaryAt = new Map<string, number>();
+  /** Newest state this engine committed or summarized, per game. */
+  private readonly latestByGame = new Map<string, GameState>();
+  /** Every save goes through here so a later call always lands last. */
+  private saveChain: Promise<void> = Promise.resolve();
+  private summaryInFlight = false;
 
   constructor(deps: EngineDeps) {
     this.llm = deps.llm;
@@ -101,7 +117,9 @@ export class TurnEngine {
       return { ok: false, state, failure: { kind: "invalid_input", message: inputProblem } };
     }
 
-    const prompt = buildTurnPrompt(state, input, this.config.recentTurns);
+    // Decided once so the prompt and the drop in commit can't disagree.
+    const enemyRollsAllowed = this.chainedEnemyRolls(state, input) < MAX_CHAINED_ENEMY_ROLLS;
+    const prompt = buildTurnPrompt(state, input, this.config.recentTurns, { enemyRollsAllowed });
 
     // One retry on malformed output, then give up cleanly (Spec, rule 2).
     let lastReason = "";
@@ -111,7 +129,7 @@ export class TurnEngine {
       try {
         raw = await this.llm.generateStructured({
           system: DM_SYSTEM_PROMPT,
-          prompt,
+          prompt: attempt > 0 ? `${prompt}\n\n${buildCorrection(lastReason)}` : prompt,
           jsonSchema: dmResponseJsonSchema,
           onChunk: (fragment) => {
             raw += fragment;
@@ -128,7 +146,7 @@ export class TurnEngine {
         lastReason = parsed.reason;
         continue;
       }
-      return this.commit(state, input, parsed.response);
+      return this.commit(state, input, parsed.response, enemyRollsAllowed);
     }
 
     return { ok: false, state, failure: { kind: "invalid_response", message: lastReason } };
@@ -154,7 +172,8 @@ export class TurnEngine {
               result.count === request.count &&
               result.modifier === request.modifier &&
               result.reason === request.reason &&
-              result.values.length === request.count
+              result.mode === request.mode &&
+              result.values.length === diceRolled(request)
             );
           });
         return matches ? null : "The rolls don't match the ones that were requested.";
@@ -166,6 +185,7 @@ export class TurnEngine {
     state: GameState,
     input: TurnInput,
     response: DMResponse,
+    enemyRollsAllowed: boolean,
   ): Promise<TurnOutcome> {
     const applied = applyStateChanges(state, response.stateChanges);
     const turn: Turn = {
@@ -174,23 +194,47 @@ export class TurnEngine {
       narration: response.narration,
       events: response.events,
     };
-    const next = await this.refreshSummary({
+    let next: GameState = {
       ...applied.state,
       turns: [...state.turns, turn],
       pendingPlayerRoll: response.playerRoll,
-      pendingEnemyRolls: this.chainedEnemyRolls(state, input) >= MAX_CHAINED_ENEMY_ROLLS
-        ? []
-        : response.enemyRolls,
+      pendingEnemyRolls: enemyRollsAllowed ? response.enemyRolls : [],
+      // Whose turn it is only matters while enemy rolls are pending.
+      ...(enemyRollsAllowed ? {} : { scene: { ...applied.state.scene, turnOf: null } }),
       updatedAt: this.now().toISOString(),
-    });
+    };
 
-    let saveError: unknown | null = null;
-    try {
-      await this.repo.save(next);
-    } catch (error) {
-      saveError = error;
+    // A summary applied while this turn was in flight must not be lost.
+    const tracked = this.latestByGame.get(state.id);
+    if (
+      tracked &&
+      tracked.summarizedThroughTurn > state.summarizedThroughTurn &&
+      tracked.summarizedThroughTurn <= next.turns.length
+    ) {
+      next = {
+        ...next,
+        summary: tracked.summary,
+        summarizedThroughTurn: tracked.summarizedThroughTurn,
+      };
     }
+    this.latestByGame.set(next.id, next);
+
+    const saveError = await this.enqueueSave(next);
     return { ok: true, state: next, response, rejectedChanges: applied.rejected, saveError };
+  }
+
+  /** Saves after every earlier save has settled; a failure doesn't break
+      the chain. Resolves to the error, or null. */
+  private enqueueSave(state: GameState): Promise<unknown | null> {
+    const run = this.saveChain.then(() => this.repo.save(state));
+    this.saveChain = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run.then(
+      () => null,
+      (error: unknown) => error,
+    );
   }
 
   /** How many enemy-roll turns in a row end with `input`. */
@@ -204,22 +248,69 @@ export class TurnEngine {
     return chained;
   }
 
-  /** Memory layer 2: every `summaryEveryTurns` turns, folds the turns the
-      summary doesn't cover yet into it. A failure here must not cost the
-      player their turn: the old summary is kept and, because the turns
-      stay unsummarized, the next turn tries again. */
-  private async refreshSummary(state: GameState): Promise<GameState> {
+  /** Memory layer 2, run after the turn so the player never waits for it.
+      Every `summaryEveryTurns` turns it folds the turns the summary doesn't
+      cover yet into it. Returns null when nothing is due, when a call is
+      already pending, when the model fails or answers with nothing, or when
+      a failure happened fewer than SUMMARY_RETRY_AFTER_TURNS turns ago. */
+  async summarizeIfDue(given: GameState): Promise<SummaryPatch | null> {
+    if (this.summaryInFlight) return null;
+    // Same rebase rule as applySummary: the caller may hold a stale state.
+    const tracked = this.latestByGame.get(given.id);
+    const state = tracked && tracked.turns.length >= given.turns.length ? tracked : given;
     const pending = state.turns.slice(state.summarizedThroughTurn);
-    if (pending.length < this.config.summaryEveryTurns) return state;
-    try {
-      const summary = await this.llm.generateText({
-        system: SUMMARY_SYSTEM_PROMPT,
-        prompt: buildSummaryPrompt(state.summary, pending),
-      });
-      if (summary.trim() === "") return state;
-      return { ...state, summary: summary.trim(), summarizedThroughTurn: state.turns.length };
-    } catch {
-      return state;
+    if (pending.length < this.config.summaryEveryTurns) return null;
+    const failedAt = this.lastFailedSummaryAt.get(state.id);
+    if (failedAt !== undefined && state.turns.length - failedAt < SUMMARY_RETRY_AFTER_TURNS) {
+      return null;
     }
+    this.summaryInFlight = true;
+    try {
+      const summary = (
+        await this.llm.generateText({
+          system: SUMMARY_SYSTEM_PROMPT,
+          prompt: buildSummaryPrompt(state.summary, pending),
+        })
+      ).trim();
+      if (summary === "") {
+        this.lastFailedSummaryAt.set(state.id, state.turns.length);
+        return null;
+      }
+      this.lastFailedSummaryAt.delete(state.id);
+      return { summary, summarizedThroughTurn: state.turns.length };
+    } catch {
+      this.lastFailedSummaryAt.set(state.id, state.turns.length);
+      return null;
+    } finally {
+      this.summaryInFlight = false;
+    }
+  }
+
+  /** Applies a patch to the newest state (the player may have played more
+      turns while the summary was being written) and saves. A patch that is
+      not ahead of the state's own summary is ignored. */
+  async applySummary(
+    latest: GameState,
+    patch: SummaryPatch,
+  ): Promise<{ state: GameState; saveError: unknown | null }> {
+    // Rebase onto the newest state this engine knows: a turn may have been
+    // committed after the one the caller still holds.
+    const tracked = this.latestByGame.get(latest.id);
+    const base = tracked && tracked.turns.length >= latest.turns.length ? tracked : latest;
+    // Already summarized further, or a patch about turns this game doesn't
+    // have (only a direct caller could build one): nothing to apply.
+    if (
+      base.summarizedThroughTurn >= patch.summarizedThroughTurn ||
+      patch.summarizedThroughTurn > base.turns.length
+    ) {
+      return { state: base, saveError: null };
+    }
+    const next: GameState = {
+      ...base,
+      summary: patch.summary,
+      summarizedThroughTurn: patch.summarizedThroughTurn,
+    };
+    this.latestByGame.set(next.id, next);
+    return { state: next, saveError: await this.enqueueSave(next) };
   }
 }

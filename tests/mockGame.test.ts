@@ -35,7 +35,6 @@ describe("docs/partida-mock.json", () => {
     const engine = new TurnEngine({ llm, repo: new InMemoryGameRepo() });
     const game = loadMockGame(now);
     llm.queueStructured(reply({ narration: "Amanece sobre los astilleros." }));
-    llm.queueText("Resumen actualizado.");
 
     const outcome = await engine.playTurn(game, { type: "action", text: "Voy a los astilleros" });
 

@@ -43,8 +43,9 @@
     background: var(--color-surface);
     box-shadow: var(--shadow-flat);
   }
-  /* The panel already shows the scene. */
-  .game:not(.game--zen) .scene-toggle {
+  /* The panel already shows the scene, so only its button goes; "Lectura"
+     and "Info" share the toggle look but stay. */
+  .game:not(.game--zen) .scene-toggle--scene {
     display: none;
   }
 }
@@ -530,7 +531,7 @@
 
 /* Roll dialog: a small centered card for die value + modifier. */
 .roll-dialog {
-  width: min(24rem, calc(100% - 2 * var(--space-3)));
+  width: min(32rem, calc(100% - 2 * var(--space-3)));
   padding: 0;
   border: var(--border);
   border-radius: var(--radius);
@@ -570,6 +571,9 @@
   font-weight: 700;
 }
 .roll-dialog__die {
+  /* Even widths, but each grows to its figure: the d100 is two d10s. */
+  flex: 1 0 auto;
+  min-width: 3rem;
   position: relative;
   display: grid;
   justify-items: center;
@@ -598,8 +602,8 @@
   display: flex;
 }
 .roll-dialog__die-svg {
-  width: 1.4rem;
-  height: 1.4rem;
+  width: 1.6rem;
+  height: 1.6rem;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
@@ -610,6 +614,56 @@
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto auto;
   align-items: end;
   gap: var(--space-2);
+}
+.roll-dialog__fields label {
+  white-space: nowrap;
+}
+/* Numbers read big and centered; the spinner arrows would eat the digits. */
+.roll-dialog__fields input {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  text-align: center;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.roll-dialog__fields input::-webkit-outer-spin-button,
+.roll-dialog__fields input::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+/* With two dice, they take the first row and the modifier the second. */
+.roll-dialog__fields--pair {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+}
+.roll-dialog__fields--pair .roll-dialog__pair {
+  grid-column: 1 / -1;
+}
+.roll-dialog__pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.roll-dialog__modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.roll-dialog__modes legend {
+  margin-bottom: var(--space-1);
+  padding: 0;
+  font-weight: 700;
+}
+.roll-dialog__mode {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.roll-dialog__kept {
+  margin: 0;
+  font-weight: 700;
 }
 .roll-dialog__op,
 .roll-dialog__total {

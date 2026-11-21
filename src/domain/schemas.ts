@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { PORTRAIT_IDS } from "./portraits";
-import { DICE, type DMResponse, type GameState } from "./types";
+import { DICE, ROLL_MODES, TURN_EVENTS, type DMResponse, type GameState } from "./types";
 
 const attitude = z.enum(["friendly", "neutral", "hostile"]);
 const questStatus = z.enum(["active", "completed", "failed"]);
@@ -13,6 +13,7 @@ const playerRollRequest = z.object({
   count: diceCount,
   reason: z.string().min(1),
   difficulty: z.number().int().nullable(),
+  mode: z.enum(ROLL_MODES),
 });
 
 const enemyRollRequest = z.object({
@@ -20,6 +21,7 @@ const enemyRollRequest = z.object({
   count: diceCount,
   modifier: z.number().int(),
   reason: z.string().min(1),
+  mode: z.enum(ROLL_MODES),
 });
 
 const stateChange = z.discriminatedUnion("type", [
@@ -81,7 +83,7 @@ export const dmResponseSchema = z.object({
   playerRoll: playerRollRequest.nullable(),
   enemyRolls: z.array(enemyRollRequest),
   stateChanges: z.array(stateChange),
-  events: z.array(z.string()),
+  events: z.array(z.enum(TURN_EVENTS)),
 });
 
 // Compile-time guarantee that the schema and the hand-written type agree.
@@ -123,9 +125,26 @@ export function parseDMResponse(raw: string): ParseResult {
   } catch {
     return { ok: false, reason: "The response is not valid JSON." };
   }
+  // Unknown tags are dropped rather than failing the whole reply.
+  if (typeof json === "object" && json !== null && "events" in json && Array.isArray(json.events)) {
+    const known: readonly unknown[] = TURN_EVENTS;
+    json = { ...json, events: json.events.filter((tag: unknown) => known.includes(tag)) };
+  }
   const parsed = dmResponseSchema.safeParse(json);
   if (!parsed.success) return { ok: false, reason: z.prettifyError(parsed.error) };
-  return { ok: true, response: parsed.data };
+  return { ok: true, response: normalizeRollCounts(parsed.data) };
+}
+
+/** Advantage and disadvantage are always two d20 of a single roll: a model
+    that also asks for "count": 2 must not leak "2d20 con ventaja" anywhere. */
+function normalizeRollCounts(response: DMResponse): DMResponse {
+  const single = <T extends { count: number; mode: string }>(roll: T): T =>
+    roll.mode === "normal" ? roll : { ...roll, count: 1 };
+  return {
+    ...response,
+    playerRoll: response.playerRoll && single(response.playerRoll),
+    enemyRolls: response.enemyRolls.map(single),
+  };
 }
 
 const turnInput = z.discriminatedUnion("type", [
@@ -141,6 +160,8 @@ const turnInput = z.discriminatedUnion("type", [
         value: z.number().int(),
         modifier: z.number().int(),
         reason: z.string().optional(),
+        mode: z.enum(ROLL_MODES).optional(),
+        rolls: z.tuple([z.number().int(), z.number().int()]).optional(),
       })
       .optional(),
   }),

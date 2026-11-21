@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { shakeScreen } from "../animations/motion";
 import { castOf, speakingNow } from "../domain/dialogue";
 import { formatDice } from "../domain/dice";
-import type { GameState, PlayerRoll, StateChange, TurnInput } from "../domain/types";
+import type { GameState, PlayerRoll, TurnInput } from "../domain/types";
 import { TurnEngine, type TurnFailure } from "../engine/TurnEngine";
 import { GeminiClient } from "../llm/GeminiClient";
 import { describeLLMError } from "../llm/errorMessages";
@@ -16,9 +16,11 @@ import { RollDialog } from "./RollDialog";
 import { SceneDrawer } from "./SceneDrawer";
 import { ScenePanel } from "./ScenePanel";
 import { expandSlashCommands } from "./slashCommands";
+import { buildTurnToasts, tookDamage } from "./turnToasts";
 import { InputEntry, Narration, TurnLog } from "./TurnLog";
 import { useStickToBottom } from "./useStickToBottom";
 import { createTypewriter } from "./typewriter";
+import { isEditable, shouldRedirectKey } from "./keyRedirect";
 import "./game.css";
 
 type Screen =
@@ -33,6 +35,8 @@ interface InFlight {
   input: TurnInput;
   narration: string;
 }
+
+const SAVE_WARNING = "El turno se jugó pero no se pudo guardar. Si recargás, lo perdés.";
 
 function describeFailure(failure: TurnFailure): string {
   switch (failure.kind) {
@@ -61,111 +65,14 @@ export default function Game() {
   const [zenMode, setZenMode] = useState(false);
   const { atBottom, scrollToBottom, follow } = useStickToBottom();
   const startedRef = useRef(false);
+  // The newest playing state, so a summary that resolves late is applied to
+  // the game as it is now and not to the one the turn started from.
+  const latestStateRef = useRef<GameState | null>(null);
   const draftRef = useRef<HTMLTextAreaElement>(null);
   const gameRef = useRef<HTMLElement>(null);
 
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  const handleTurnEvents = useCallback((events: string[], stateChanges: StateChange[]) => {
-    const newToasts: ToastItem[] = [];
-    const timestamp = Date.now();
-
-    if (events.includes("damage")) {
-      if (gameRef.current) {
-        shakeScreen(gameRef.current);
-        gameRef.current.classList.add("game--damage-flash");
-        setTimeout(() => {
-          gameRef.current?.classList.remove("game--damage-flash");
-        }, 400);
-      }
-      newToasts.push({
-        id: `dmg-${timestamp}`,
-        kind: "damage",
-        title: "¡Daño recibido!",
-        detail: "Hubo un impacto en combate o peligro del entorno.",
-      });
-    }
-
-    if (events.includes("healing")) {
-      newToasts.push({
-        id: `heal-${timestamp}`,
-        kind: "healing",
-        title: "Recuperación",
-        detail: "Te recuperaste o recibiste curación.",
-      });
-    }
-
-    if (events.includes("combat_start")) {
-      newToasts.push({
-        id: `cbt-${timestamp}`,
-        kind: "combat",
-        title: "¡Iniciativa!",
-        detail: "Comenzó un enfrentamiento en la escena.",
-      });
-    } else if (events.includes("combat_end")) {
-      newToasts.push({
-        id: `cbt-end-${timestamp}`,
-        kind: "info",
-        title: "Fin del combate",
-        detail: "La calma regresa al entorno.",
-      });
-    }
-
-    if (events.includes("level_up")) {
-      newToasts.push({
-        id: `lvl-${timestamp}`,
-        kind: "level",
-        title: "¡Subiste de nivel!",
-        detail: "Tu personaje se ha vuelto más poderoso.",
-      });
-    }
-
-    for (const change of stateChanges) {
-      if (change.type === "inventory_add") {
-        newToasts.push({
-          id: `item-add-${change.item}-${timestamp}`,
-          kind: "item",
-          title: "Objeto obtenido",
-          detail: change.quantity > 1 ? `${change.item} ×${change.quantity}` : change.item,
-        });
-      } else if (change.type === "inventory_remove") {
-        newToasts.push({
-          id: `item-rem-${change.item}-${timestamp}`,
-          kind: "item",
-          title: "Objeto usado o perdido",
-          detail: change.quantity > 1 ? `${change.item} ×${change.quantity}` : change.item,
-        });
-      } else if (change.type === "quest") {
-        if (change.status === "completed") {
-          newToasts.push({
-            id: `quest-done-${change.title}-${timestamp}`,
-            kind: "quest",
-            title: "¡Misión completada!",
-            detail: change.title,
-          });
-        } else if (change.status === "active" && events.includes("new_quest")) {
-          newToasts.push({
-            id: `quest-new-${change.title}-${timestamp}`,
-            kind: "quest",
-            title: "Nueva misión",
-            detail: change.title,
-          });
-        }
-      } else if (change.type === "npc" && events.includes("new_npc")) {
-        newToasts.push({
-          id: `npc-${change.name}-${timestamp}`,
-          kind: "npc",
-          title: "Nuevo personaje",
-          detail: `${change.name} está presente en la historia.`,
-        });
-      }
-    }
-
-    if (newToasts.length > 0) {
-      setToasts((prev) => [...prev, ...newToasts]);
-    }
   }, []);
 
   // Grow the textarea with its content: one line when empty, capped by CSS max-height.
@@ -194,12 +101,14 @@ export default function Game() {
     // /play?id=... opens a specific campaign; without it, the latest one.
     const id = new URLSearchParams(location.search).get("id");
     (id ? repo.load(id) : repo.loadLatest()).then(
-      (state) =>
+      (state) => {
+        latestStateRef.current = state;
         setScreen(
           state
             ? { status: "playing", engine, state, loadedTurns: state.turns.length }
             : { status: "no_game" },
-        ),
+        );
+      },
       () => setScreen({ status: "load_error" }),
     );
   }, []);
@@ -216,6 +125,29 @@ export default function Game() {
       const outcome = await engine.playTurn(state, input, (narration) =>
         typewriter.setTarget(narration),
       );
+      // Set before the typewriter wait so a summary that resolves meanwhile
+      // is applied on top of this turn.
+      if (outcome.ok) {
+        const held = latestStateRef.current;
+        const heldIsNewer =
+          held !== null &&
+          held.id === outcome.state.id &&
+          (held.turns.length > outcome.state.turns.length ||
+            (held.turns.length === outcome.state.turns.length &&
+              held.summarizedThroughTurn > outcome.state.summarizedThroughTurn));
+        if (!heldIsNewer) {
+          latestStateRef.current =
+            held !== null &&
+            held.id === outcome.state.id &&
+            held.summarizedThroughTurn > outcome.state.summarizedThroughTurn
+              ? {
+                  ...outcome.state,
+                  summary: held.summary,
+                  summarizedThroughTurn: held.summarizedThroughTurn,
+                }
+              : outcome.state;
+        }
+      }
       // The turn joins the log only once its narration has been fully
       // revealed, so the rest of the text doesn't pop in all at once.
       if (outcome.ok) await typewriter.finish();
@@ -229,18 +161,58 @@ export default function Game() {
         return;
       }
       setInFlight(null);
-      handleTurnEvents(outcome.response.events, outcome.response.stateChanges);
+      const turnToasts = buildTurnToasts(state, outcome.state, outcome.response.events, Date.now());
+      if (turnToasts.length > 0) setToasts((prev) => [...prev, ...turnToasts]);
+      if (tookDamage(outcome.response.events) && gameRef.current) {
+        const el = gameRef.current;
+        shakeScreen(el);
+        el.classList.add("game--damage-flash");
+        setTimeout(() => el.classList.remove("game--damage-flash"), 400);
+      }
+      // A summary may have landed during the typewriter wait; keep it.
+      const newest = latestStateRef.current;
+      const shown =
+        newest && newest.id === outcome.state.id && newest.turns.length >= outcome.state.turns.length
+          ? newest
+          : outcome.state;
+      latestStateRef.current = shown;
       setScreen((previous) => ({
         status: "playing",
         engine,
-        state: outcome.state,
+        state: shown,
         loadedTurns: previous.status === "playing" ? previous.loadedTurns : 0,
       }));
       if (outcome.saveError) {
-        setWarning("El turno se jugó pero no se pudo guardar. Si recargás, lo perdés.");
+        setWarning(SAVE_WARNING);
       }
+      // The summary is written in the background; failures stay silent.
+      void engine.summarizeIfDue(shown).then(async (patch) => {
+        const latest = latestStateRef.current;
+        if (!patch || !latest || latest.id !== shown.id) return;
+        const applied = await engine.applySummary(latest, patch);
+        const appliedState = applied.state;
+        // Nothing new to show when the ref already holds this summary.
+        if (
+          appliedState.summarizedThroughTurn <=
+          (latestStateRef.current?.summarizedThroughTurn ?? 0)
+        ) {
+          if (applied.saveError) setWarning(SAVE_WARNING);
+          return;
+        }
+        if (appliedState.turns.length >= (latestStateRef.current?.turns.length ?? 0)) {
+          latestStateRef.current = appliedState;
+        }
+        setScreen((previous) =>
+          previous.status === "playing" &&
+          previous.state.id === appliedState.id &&
+          appliedState.turns.length === previous.state.turns.length
+            ? { ...previous, state: appliedState }
+            : previous,
+        );
+        if (applied.saveError) setWarning(SAVE_WARNING);
+      });
     },
-    [scrollToBottom, handleTurnEvents],
+    [scrollToBottom],
   );
 
   // Turns the app takes on its own, with no player input:
@@ -292,9 +264,8 @@ export default function Game() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const el = draftRef.current;
-      if (!el || el.disabled || event.defaultPrevented) return;
-      if (event.key.length !== 1 || event.ctrlKey || event.metaKey || event.altKey) return;
-      if (isEditable(event.target as Element | null)) return;
+      if (!el || el.disabled) return;
+      if (!shouldRedirectKey(event, event.target as Element | null)) return;
       if (document.querySelector("dialog[open]")) return;
       el.focus();
     };
@@ -515,11 +486,4 @@ export default function Game() {
       <ScenePanel state={state} dmActing={busy} speaking={speaking} />
     </section>
   );
-}
-
-/** Whether keystrokes on this element already go somewhere useful. */
-function isEditable(el: Element | null): boolean {
-  if (!el) return false;
-  if (el instanceof HTMLElement && el.isContentEditable) return true;
-  return el.matches("input, textarea, select");
 }

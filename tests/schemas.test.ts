@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { dmResponseJsonSchema, parseDMResponse } from "../src/domain/schemas";
+import { TURN_EVENTS } from "../src/domain/types";
 import { extractPartialNarration } from "../src/engine/narrationStream";
 import { reply } from "./helpers";
 
@@ -8,8 +9,8 @@ describe("parseDMResponse", () => {
     const parsed = parseDMResponse(
       JSON.stringify(
         reply({
-          playerRoll: { die: "d20", count: 1, reason: "Sigilo", difficulty: 12 },
-          enemyRolls: [{ die: "d6", count: 2, modifier: 1, reason: "Daño" }],
+          playerRoll: { die: "d20", count: 1, reason: "Sigilo", difficulty: 12, mode: "normal" },
+          enemyRolls: [{ die: "d6", count: 2, modifier: 1, reason: "Daño", mode: "normal" }],
         }),
       ),
     );
@@ -21,9 +22,16 @@ describe("parseDMResponse", () => {
     expect(parseDMResponse(JSON.stringify({ narration: "Hola" })).ok).toBe(false);
     const badDie = {
       ...reply(),
-      playerRoll: { die: "d7", count: 1, reason: "x", difficulty: null },
+      playerRoll: { die: "d7", count: 1, reason: "x", difficulty: null, mode: "normal" },
     };
     expect(parseDMResponse(JSON.stringify(badDie)).ok).toBe(false);
+  });
+
+  it("requires a roll mode on the player's roll request", () => {
+    const request = { die: "d20", count: 1, reason: "Sigilo", difficulty: 12 } as const;
+    expect(parseDMResponse(JSON.stringify(reply({ playerRoll: request as never }))).ok).toBe(false);
+    const withMode = reply({ playerRoll: { ...request, mode: "advantage" } });
+    expect(parseDMResponse(JSON.stringify(withMode)).ok).toBe(true);
   });
 
   it("rejects state changes of an unknown type", () => {
@@ -54,13 +62,33 @@ describe("parseDMResponse", () => {
   });
 
   it("rejects absurd dice counts", () => {
-    const bad = { ...reply(), enemyRolls: [{ die: "d6", count: 500, modifier: 0, reason: "x" }] };
+    const bad = { ...reply(), enemyRolls: [{ die: "d6", count: 500, modifier: 0, reason: "x", mode: "normal" }] };
     expect(parseDMResponse(JSON.stringify(bad)).ok).toBe(false);
+  });
+});
+
+describe("event tags", () => {
+  it("drops unknown event tags instead of rejecting the reply", () => {
+    const parsed = parseDMResponse(JSON.stringify({ ...reply(), events: ["damage_taken", "explosion", "damage"] }));
+    expect(parsed.ok && parsed.response.events).toEqual(["damage_taken"]);
+  });
+  it("yields an empty list when every tag is unknown", () => {
+    const parsed = parseDMResponse(JSON.stringify({ ...reply(), events: ["foo"] }));
+    expect(parsed.ok && parsed.response.events).toEqual([]);
+  });
+  it("still rejects events that are not an array", () => {
+    expect(parseDMResponse(JSON.stringify({ ...reply(), events: "damage_taken" })).ok).toBe(false);
   });
 });
 
 describe("dmResponseJsonSchema", () => {
   const text = JSON.stringify(dmResponseJsonSchema);
+  it("offers the model only the known tags", () => {
+    const schema = dmResponseJsonSchema as { properties: { events: { items: { enum: string[] } } } };
+    const tags = schema.properties.events.items.enum;
+    expect(tags).toEqual([...TURN_EVENTS]);
+    expect(tags).not.toContain("damage");
+  });
 
   it("only uses keywords the provider documents", () => {
     expect(text).not.toContain('"const"');
@@ -90,5 +118,36 @@ describe("extractPartialNarration", () => {
   it("waits when an escape sequence is cut in half", () => {
     expect(extractPartialNarration('{"narration":"Hola\\')).toBe("Hola");
     expect(extractPartialNarration('{"narration":"Hola\\u00')).toBe("Hola");
+  });
+});
+
+describe("parseDMResponse count with advantage", () => {
+  function parse(body: object) {
+    const parsed = parseDMResponse(JSON.stringify({ ...reply(), ...body }));
+    if (!parsed.ok) throw new Error(parsed.reason);
+    return parsed.response;
+  }
+
+  it("forces count 1 on a player roll with advantage", () => {
+    const response = parse({
+      playerRoll: { die: "d20", count: 2, reason: "x", difficulty: 12, mode: "advantage" },
+    });
+    expect(response.playerRoll?.count).toBe(1);
+  });
+
+  it("forces count 1 on an enemy roll with disadvantage", () => {
+    const response = parse({
+      enemyRolls: [{ die: "d20", count: 2, modifier: 1, reason: "x", mode: "disadvantage" }],
+    });
+    expect(response.enemyRolls[0]?.count).toBe(1);
+  });
+
+  it("leaves a normal multi-dice roll alone", () => {
+    const response = parse({
+      playerRoll: { die: "d6", count: 3, reason: "x", difficulty: null, mode: "normal" },
+      enemyRolls: [{ die: "d6", count: 3, modifier: 0, reason: "x", mode: "normal" }],
+    });
+    expect(response.playerRoll?.count).toBe(3);
+    expect(response.enemyRolls[0]?.count).toBe(3);
   });
 });

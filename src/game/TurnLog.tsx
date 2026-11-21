@@ -6,7 +6,7 @@ import {
   rollIn,
 } from "../animations/motion";
 import { findNpc, splitDialogue, type Cast } from "../domain/dialogue";
-import { formatDice, naturalResult } from "../domain/dice";
+import { formatDice, naturalResult, rollModeLabel } from "../domain/dice";
 import type {
   Character,
   EnemyRollResult,
@@ -77,6 +77,7 @@ function EnemyRollCard({
   const showDice = result.values.length > 1 || result.modifier !== 0;
   const meta =
     `${result.reason} · ${formatDice(result)}` +
+    (result.mode !== "normal" ? ` con ${rollModeLabel(result.mode)}` : "") +
     (showDice ? ` · dados: ${result.values.join(", ")}` : "");
   return (
     <RollCard
@@ -103,9 +104,14 @@ function PlayerRollCard({
     count: roll.count ?? 1,
     modifier: roll.modifier,
   });
+  const kept =
+    roll.rolls && roll.mode && roll.mode !== "normal"
+      ? ` con ${rollModeLabel(roll.mode)} (${roll.rolls[0]} y ${roll.rolls[1]}, queda ${roll.value})`
+      : "";
   const meta =
     (roll.reason ? `${roll.reason} · ` : "") +
     dice +
+    kept +
     (roll.modifier !== 0
       ? ` · ${(roll.count ?? 1) > 1 ? "dados" : "dado"}: ${roll.value}`
       : "");
