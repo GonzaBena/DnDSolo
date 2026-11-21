@@ -289,16 +289,19 @@
   line-height: 1;
   transform-origin: top center;
 }
+/* Portraits are busts on white with room around them: zoom in on the
+   head and shoulders, on a white disc so every image reads the same in
+   either theme. The ring keeps the colour of what they are. */
+.avatar__face:has(img) {
+  background: #fff;
+}
 .avatar__face img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  background: var(--color-surface);
-}
-/* The DM's portrait has no background of its own. */
-.avatar[data-kind="dm"] .avatar__face img {
-  background: var(--avatar-fill);
+  transform: scale(1.3);
+  transform-origin: 50% 25%;
 }
 .avatar--sm .avatar__face {
   width: var(--speaker-width);
