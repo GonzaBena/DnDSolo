@@ -162,6 +162,62 @@ describe("TurnEngine.playTurn", () => {
     expect(prompt).toContain(`dados: ${results[0]!.values.join(", ")}; queda ${Math.max(...results[0]!.values)}`);
   });
 
+  describe("enemy rolls with advantage", () => {
+    const request = {
+      die: "d20" as const,
+      count: 1,
+      modifier: 4,
+      reason: "Ataque",
+      mode: "advantage" as const,
+    };
+
+    async function asked(ctx: ReturnType<typeof setup>) {
+      const game = await started(ctx);
+      ctx.llm.queueStructured(reply({ enemyRolls: [request] }));
+      const outcome = await ctx.engine.playTurn(game, { type: "action", text: "Avanzo" });
+      if (!outcome.ok) throw new Error("expected ok");
+      return outcome.state;
+    }
+
+    async function refused(result: object) {
+      const ctx = setup();
+      const state = await asked(ctx);
+      const calls = ctx.llm.structuredRequests.length;
+      const outcome = await ctx.engine.playTurn(state, {
+        type: "enemy_rolls",
+        results: [result as never],
+      });
+      expect(outcome.ok).toBe(false);
+      if (outcome.ok) return;
+      expect(outcome.failure.kind).toBe("invalid_input");
+      expect(ctx.llm.structuredRequests).toHaveLength(calls);
+    }
+
+    it("refuses a result that lost the mode", async () => {
+      await refused({ ...request, mode: "normal", values: [3, 19], total: 23 });
+    });
+
+    it("refuses a result with a single value", async () => {
+      await refused({ ...request, values: [19], total: 23 });
+    });
+
+    it("refuses a result with three values", async () => {
+      await refused({ ...request, values: [3, 19, 7], total: 23 });
+    });
+
+    it("rolls two dice with the injected random and the result passes validation", async () => {
+      const seq = [0.1, 0.9];
+      const ctx = setup(() => seq.shift() ?? 0.5);
+      const state = await asked(ctx);
+      const results = ctx.engine.rollEnemyDice(state);
+      expect(results[0]!.values).toEqual([3, 19]);
+      expect(results[0]!.total).toBe(23);
+      ctx.llm.queueStructured(reply({ narration: "Acierta." }));
+      const outcome = await ctx.engine.playTurn(state, { type: "enemy_rolls", results });
+      expect(outcome.ok).toBe(true);
+    });
+  });
+
   it("refuses a player action while enemy rolls are waiting to be sent", async () => {
     const ctx = setup();
     const game = await started(ctx);

@@ -70,6 +70,30 @@ describe("combat rules", () => {
   });
 });
 
+describe("advantage in the turn prompt", () => {
+  it("spells out both d20 of the player's roll", () => {
+    const prompt = buildTurnPrompt(
+      newGame(),
+      {
+        type: "action",
+        text: "Ataco",
+        roll: { die: "d20", count: 1, value: 17, modifier: 3, mode: "advantage", rolls: [12, 17] },
+      },
+      6,
+    );
+    expect(prompt).toContain("1d20 con ventaja (12 y 17, queda 17): 17 + 3 = 20");
+  });
+
+  it("tells the DM the requested player roll has disadvantage", () => {
+    const state = {
+      ...newGame(),
+      pendingPlayerRoll: { die: "d20" as const, count: 1, reason: "Sigilo", difficulty: 12, mode: "disadvantage" as const },
+    };
+    const prompt = buildTurnPrompt(state, { type: "action", text: "17" }, 6);
+    expect(prompt).toMatch(/TIRADA PEDIDA AL JUGADOR\n.*con desventaja/);
+  });
+});
+
 describe("advantage", () => {
   it("is asked for with a mode, never as two dice", () => {
     expect(DM_SYSTEM_PROMPT).toContain('"mode"');

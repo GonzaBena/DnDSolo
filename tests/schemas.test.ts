@@ -99,3 +99,34 @@ describe("extractPartialNarration", () => {
     expect(extractPartialNarration('{"narration":"Hola\\u00')).toBe("Hola");
   });
 });
+
+describe("parseDMResponse count with advantage", () => {
+  function parse(body: object) {
+    const parsed = parseDMResponse(JSON.stringify({ ...reply(), ...body }));
+    if (!parsed.ok) throw new Error(parsed.reason);
+    return parsed.response;
+  }
+
+  it("forces count 1 on a player roll with advantage", () => {
+    const response = parse({
+      playerRoll: { die: "d20", count: 2, reason: "x", difficulty: 12, mode: "advantage" },
+    });
+    expect(response.playerRoll?.count).toBe(1);
+  });
+
+  it("forces count 1 on an enemy roll with disadvantage", () => {
+    const response = parse({
+      enemyRolls: [{ die: "d20", count: 2, modifier: 1, reason: "x", mode: "disadvantage" }],
+    });
+    expect(response.enemyRolls[0]?.count).toBe(1);
+  });
+
+  it("leaves a normal multi-dice roll alone", () => {
+    const response = parse({
+      playerRoll: { die: "d6", count: 3, reason: "x", difficulty: null, mode: "normal" },
+      enemyRolls: [{ die: "d6", count: 3, modifier: 0, reason: "x", mode: "normal" }],
+    });
+    expect(response.playerRoll?.count).toBe(3);
+    expect(response.enemyRolls[0]?.count).toBe(3);
+  });
+});

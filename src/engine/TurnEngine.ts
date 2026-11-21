@@ -1,5 +1,5 @@
 import { applyStateChanges, type RejectedChange } from "../domain/applyChanges";
-import { rollForEnemy } from "../domain/dice";
+import { diceRolled, rollForEnemy } from "../domain/dice";
 import { dmResponseJsonSchema, parseDMResponse } from "../domain/schemas";
 import type {
   DMResponse,
@@ -155,7 +155,7 @@ export class TurnEngine {
               result.modifier === request.modifier &&
               result.reason === request.reason &&
               result.mode === request.mode &&
-              result.values.length === (request.mode === "normal" ? request.count : 2)
+              result.values.length === diceRolled(request)
             );
           });
         return matches ? null : "The rolls don't match the ones that were requested.";

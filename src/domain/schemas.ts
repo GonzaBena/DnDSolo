@@ -127,7 +127,19 @@ export function parseDMResponse(raw: string): ParseResult {
   }
   const parsed = dmResponseSchema.safeParse(json);
   if (!parsed.success) return { ok: false, reason: z.prettifyError(parsed.error) };
-  return { ok: true, response: parsed.data };
+  return { ok: true, response: normalizeRollCounts(parsed.data) };
+}
+
+/** Advantage and disadvantage are always two d20 of a single roll: a model
+    that also asks for "count": 2 must not leak "2d20 con ventaja" anywhere. */
+function normalizeRollCounts(response: DMResponse): DMResponse {
+  const single = <T extends { count: number; mode: string }>(roll: T): T =>
+    roll.mode === "normal" ? roll : { ...roll, count: 1 };
+  return {
+    ...response,
+    playerRoll: response.playerRoll && single(response.playerRoll),
+    enemyRolls: response.enemyRolls.map(single),
+  };
 }
 
 const turnInput = z.discriminatedUnion("type", [

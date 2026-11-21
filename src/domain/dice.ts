@@ -47,6 +47,12 @@ export function rollForEnemy(
   return { ...request, values, total };
 }
 
+/** How many dice a request physically rolls: two for advantage or
+    disadvantage, `count` otherwise. */
+export function diceRolled(request: { count: number; mode: RollMode }): number {
+  return request.mode === "normal" ? request.count : 2;
+}
+
 /** "ventaja" or "desventaja", for texts like "con ventaja". */
 export function rollModeLabel(mode: Exclude<RollMode, "normal">): string {
   return mode === "advantage" ? "ventaja" : "desventaja";
