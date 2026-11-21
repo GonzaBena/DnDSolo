@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { dieSides, formatDice, resolveRollMode } from "../domain/dice";
+import { dieSides, formatDice, resolveRollMode, rollModeLabel } from "../domain/dice";
 import { DICE, type Die, type PlayerRollRequest, type RollMode } from "../domain/types";
 import { DieShape } from "./DieShape";
 
@@ -40,6 +40,7 @@ export function RollDialog({ open, request, onClose, onSubmit }: Props) {
     if (open && !dialog.open) {
       setValue("");
       setSecondValue("");
+      setChosenMode("normal");
       dialog.showModal();
     } else if (!open && dialog.open) {
       dialog.close();
@@ -90,8 +91,7 @@ export function RollDialog({ open, request, onClose, onSubmit }: Props) {
         {request && (
           <p className="roll-dialog__request">
             {formatDice(request)}
-            {request.mode === "advantage" && " con ventaja"}
-            {request.mode === "disadvantage" && " con desventaja"}
+            {request.mode !== "normal" && ` con ${rollModeLabel(request.mode)}`}
             {request.difficulty !== null &&
               ` · CD ${request.difficulty}`} — {request.reason}
           </p>
@@ -213,7 +213,7 @@ export function RollDialog({ open, request, onClose, onSubmit }: Props) {
         </div>
         {twoDice && valid && (
           <p className="roll-dialog__kept">
-            Con {mode === "advantage" ? "ventaja" : "desventaja"} queda el {kept}.
+            Con {rollModeLabel(mode)} queda el {kept}.
           </p>
         )}
         <div className="actions">

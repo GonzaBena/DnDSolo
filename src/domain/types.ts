@@ -29,12 +29,12 @@ export interface Character {
   inventory: InventoryItem[];
 }
 
-/** A roll the DM asks the *player* for. The app never rolls it: the player
-    rolls their own dice, applies their own modifiers and types the total
-    in the chat. This only exists to show the request clearly. */
 export const ROLL_MODES = ["normal", "advantage", "disadvantage"] as const;
 export type RollMode = (typeof ROLL_MODES)[number];
 
+/** A roll the DM asks the *player* for. The app never rolls it: the player
+    rolls their own dice, applies their own modifiers and types the total
+    in the chat. This only exists to show the request clearly. */
 export interface PlayerRollRequest {
   die: Die;
   /** How many dice are added up. Advantage is a mode, not a count of 2. */

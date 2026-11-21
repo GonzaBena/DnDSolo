@@ -73,7 +73,7 @@ git switch -c fix/arbitraje-y-ui
 - Modify: `src/persistence/migrations.ts` (`fromV8`)
 - Modify: `src/game/RollDialog.tsx`, `src/game/Game.tsx` (`submitRoll`)
 - Modify: `src/engine/dmPrompt.ts`, `src/engine/combatRules.ts` (texto de ventaja)
-- Modify: `docs/partida-mock.json` (versión 9, `mode` en `pendingPlayerRoll` si existe)
+- Modify: `docs/partida-mock.json` (queda en v3 a propósito para ejercitar toda la cadena de migración; `mode` en `pendingPlayerRoll` si existe)
 - Test: `tests/dice.test.ts`, `tests/schemas.test.ts`, `tests/memory.test.ts` o el test de migraciones que ya exista (`grep -l migrateSave tests`), `tests/dmPrompt.test.ts`
 
 **Interfaces:**
@@ -119,7 +119,7 @@ git switch -c fix/arbitraje-y-ui
   - `RollDialog.tsx`: con `request.mode !== "normal"` muestra dos campos ("Dado 1", "Dado 2", cada uno de 1 a 20) en lugar de "Resultado", y muestra cuál queda. `onSubmit` recibe `value` = dado elegido, `mode` y `rolls`. Sin pedido, la tirada libre agrega un selector Normal / Ventaja / Desventaja solo para el d20.
   - `Game.tsx` `submitRoll`: pasa `mode` y `rolls` dentro de `roll`.
   - `dmPrompt.ts`: en TIRADAS DEL JUGADOR, `"mode"` es parte del pedido: `"advantage"` o `"disadvantage"` con `count: 1` cuando corresponda, si no `"normal"`. `combatRules.ts`: el bloque VENTAJA Y DESVENTAJA reemplaza "pedile count: 2…" por "pedile `mode: "advantage"` (o `"disadvantage"`) con `count: 1`; el sistema elige el dado".
-  - `docs/partida-mock.json`: pasar a `"version": 9` y agregar `mode` donde haga falta.
+  - `docs/partida-mock.json`: queda en `"version": 3` a propósito, para que ejercite toda la cadena de migración; no se sube a 9.
 
 - [ ] **Step 4: Run all tests**
   Run: `pnpm test && pnpm check`
