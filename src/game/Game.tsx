@@ -130,8 +130,8 @@ export default function Game() {
         return;
       }
       setInFlight(null);
-      const toasts = buildTurnToasts(state, outcome.state, outcome.response.events, Date.now());
-      if (toasts.length > 0) setToasts((prev) => [...prev, ...toasts]);
+      const turnToasts = buildTurnToasts(state, outcome.state, outcome.response.events, Date.now());
+      if (turnToasts.length > 0) setToasts((prev) => [...prev, ...turnToasts]);
       if (tookDamage(outcome.response.events) && gameRef.current) {
         const el = gameRef.current;
         shakeScreen(el);

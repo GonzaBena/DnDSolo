@@ -93,14 +93,16 @@ describe("buildTurnToasts", () => {
     expect(buildTurnToasts(base, base, ["combat_end"], 1).map((t) => t.title)).toEqual(["Fin del combate"]);
   });
 
-  it("gives distinct ids to same-named items in one turn", () => {
+  it("gives distinct, indexed ids to several toasts of the same kind", () => {
     const next = withInventory(base, [
       { name: "Antorcha", quantity: 1 },
-      { name: "antorcha", quantity: 1 },
+      { name: "Cuerda", quantity: 1 },
     ]);
-    const ids = buildTurnToasts(base, next, ["damage_taken"], 7).map((t) => t.id);
-    expect(ids.length).toBeGreaterThan(1);
-    expect(new Set(ids).size).toBe(ids.length);
+    const toasts = buildTurnToasts(base, next, [], 7);
+    expect(toasts).toHaveLength(2);
+    expect(toasts.map((t) => t.kind)).toEqual(["item", "item"]);
+    expect(toasts.map((t) => t.id)).toEqual(["item-7-0", "item-7-1"]);
+    expect(new Set(toasts.map((t) => t.id)).size).toBe(toasts.length);
   });
 });
 
