@@ -531,7 +531,7 @@
 
 /* Roll dialog: a small centered card for die value + modifier. */
 .roll-dialog {
-  width: min(28rem, calc(100% - 2 * var(--space-3)));
+  width: min(32rem, calc(100% - 2 * var(--space-3)));
   padding: 0;
   border: var(--border);
   border-radius: var(--radius);
@@ -558,8 +558,8 @@
   color: var(--color-ink-soft);
 }
 .roll-dialog__dice {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(3rem, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-1);
   margin: 0;
   padding: 0;
@@ -571,6 +571,9 @@
   font-weight: 700;
 }
 .roll-dialog__die {
+  /* Even widths, but each grows to its figure: the d100 is two d10s. */
+  flex: 1 0 auto;
+  min-width: 3rem;
   position: relative;
   display: grid;
   justify-items: center;
