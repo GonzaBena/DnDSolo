@@ -61,7 +61,7 @@ export function CharacterPanel({
         )}
         <button
           type="button"
-          className="button scene-toggle"
+          className="button scene-toggle scene-toggle--scene"
           data-mode={inCombat ? "combat" : "calm"}
           onClick={onOpenScene}
           aria-haspopup="dialog"

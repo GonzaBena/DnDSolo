@@ -43,8 +43,9 @@
     background: var(--color-surface);
     box-shadow: var(--shadow-flat);
   }
-  /* The panel already shows the scene. */
-  .game:not(.game--zen) .scene-toggle {
+  /* The panel already shows the scene, so only its button goes; "Lectura"
+     and "Info" share the toggle look but stay. */
+  .game:not(.game--zen) .scene-toggle--scene {
     display: none;
   }
 }
