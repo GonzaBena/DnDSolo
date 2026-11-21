@@ -36,3 +36,10 @@ describe("NPC names", () => {
     expect(DM_SYSTEM_PROMPT).toContain('"innkeeper-male"');
   });
 });
+
+describe("portraits", () => {
+  it("tells the DM what each archetype shows", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('"guard-male" / "guard-female": con armadura');
+    expect(DM_SYSTEM_PROMPT).toContain("una vendedora no es una guardia");
+  });
+});
