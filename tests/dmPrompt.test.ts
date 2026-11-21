@@ -49,3 +49,23 @@ describe("difficulty", () => {
     expect(DM_SYSTEM_PROMPT).toContain("muy fácil 5, fácil 10, media 15, difícil 20, muy difícil 25, casi imposible 30");
   });
 });
+
+describe("combat rules", () => {
+  it("are sent only while in combat", () => {
+    const game = newGame();
+    const calm = buildTurnPrompt(game, { type: "start" }, 6);
+    const fight = buildTurnPrompt({ ...game, scene: { inCombat: true, turnOf: null } }, { type: "start" }, 6);
+    expect(calm).not.toContain("REGLAS DE COMBATE\n");
+    expect(fight).toContain("REGLAS DE COMBATE\n");
+  });
+
+  it("resolve an attack against the target's AC, then ask for damage", () => {
+    const fight = buildTurnPrompt({ ...newGame(), scene: { inCombat: true, turnOf: null } }, { type: "start" }, 6);
+    expect(fight).toContain("Clase de Armadura (CA) del objetivo");
+    expect(fight).toContain("pedile la tirada de daño");
+  });
+
+  it("tell the DM that attacks use AC even outside the combat block", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('Un ataque no usa esa escala');
+  });
+});

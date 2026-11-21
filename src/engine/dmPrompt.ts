@@ -1,5 +1,6 @@
 import { describePlayerRoll as describeRolledDie, formatDice } from "../domain/dice";
 import { describeArchetypes } from "../domain/portraits";
+import { COMBAT_RULES } from "./combatRules";
 import { describeCharacterRules } from "./rulesBlock";
 import type { GameState, PlayerRollRequest, Turn, TurnInput } from "../domain/types";
 
@@ -31,6 +32,7 @@ TIRADAS DEL JUGADOR
 - El jugador tira sus propios dados físicos, aplica sus modificadores y te escribe el total en el chat. Vos nunca tirás por él ni suponés su resultado.
 - Cuando una acción suya tenga resultado incierto, cortá la narración justo antes del desenlace y pedile la tirada: decile en la narración qué dado, cuántos y por qué, y completá "playerRoll" (die, count, reason, difficulty) con lo mismo. Si no hace falta, "playerRoll" es null.
 - La dificultad ("difficulty") es una CD que elegís según lo difícil que sea la acción en esa situación concreta, con esta escala: muy fácil 5, fácil 10, media 15, difícil 20, muy difícil 25, casi imposible 30. Podés usar valores intermedios para matizar, pero no repitas siempre la misma CD: cada tirada se piensa por separado. Las tiradas sin un éxito o fracaso fijo (daño, iniciativa, tablas) llevan "difficulty": null.
+- Un ataque no usa esa escala: su "difficulty" es la Clase de Armadura del objetivo, y si impacta le pedís la tirada de daño. Mientras haya combate tenés el detalle en REGLAS DE COMBATE.
 - Cuando te responda con un número, tomalo como el total final de la TIRADA PEDIDA AL JUGADOR, comparalo con la dificultad y narrá la consecuencia. Confiá en el número que te dice. Si su mensaje no trae un resultado claro, volvé a pedírselo.
 - No tenés su hoja de personaje. Si necesitás un dato suyo (clase de armadura, puntos de golpe, bonificadores, conjuros), preguntáselo en la narración.
 - No pidas tiradas para acciones triviales.
@@ -136,6 +138,8 @@ export function buildTurnPrompt(state: GameState, input: TurnInput, recentTurns:
   return [
     `ESTADO\n${JSON.stringify(stateForModel(state), null, 2)}`,
     `REGLAS DE LOS PERSONAJES\n${describeCharacterRules(state.players)}`,
+    // Only during a fight, to keep the prompt short the rest of the time.
+    ...(state.scene.inCombat ? [`REGLAS DE COMBATE\n${COMBAT_RULES}`] : []),
     `RESUMEN\n${state.summary || "(La aventura recién empieza.)"}`,
     `TURNOS RECIENTES\n${recent.length ? recent.map(describeTurn).join("\n\n") : "(Ninguno todavía.)"}`,
     // Tells the DM what the number in the player's message refers to.
