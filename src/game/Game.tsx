@@ -169,15 +169,22 @@ export default function Game() {
         const latest = latestStateRef.current;
         if (!patch || !latest || latest.id !== outcome.state.id) return;
         const applied = await engine.applySummary(latest, patch);
-        if (applied.state === latest) return;
         const appliedState = applied.state;
+        // Nothing new to show when the ref already holds this summary.
+        if (
+          appliedState.summarizedThroughTurn <=
+          (latestStateRef.current?.summarizedThroughTurn ?? 0)
+        ) {
+          if (applied.saveError) setWarning(SAVE_WARNING);
+          return;
+        }
         if (appliedState.turns.length >= (latestStateRef.current?.turns.length ?? 0)) {
           latestStateRef.current = appliedState;
         }
         setScreen((previous) =>
           previous.status === "playing" &&
           previous.state.id === appliedState.id &&
-          appliedState.turns.length >= previous.state.turns.length
+          appliedState.turns.length === previous.state.turns.length
             ? { ...previous, state: appliedState }
             : previous,
         );

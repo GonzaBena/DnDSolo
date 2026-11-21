@@ -489,6 +489,8 @@ describe("TurnEngine summary ordering", () => {
     expect(turn.state.turns).toHaveLength(11);
     expect(turn.state.summarizedThroughTurn).toBe(10);
     expect(turn.state.summary).toBe("RESUMEN");
+    // The carried summary means nothing is due, so no further model call.
+    expect(await ctx.engine.summarizeIfDue(turn.state)).toBeNull();
     expect(ctx.llm.textRequests).toHaveLength(1);
     expect((await ctx.repo.load(state10.id))!.summary).toBe("RESUMEN");
   });
