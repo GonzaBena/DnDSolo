@@ -135,14 +135,14 @@ export function turnsForPrompt(state: GameState, recentTurns: number): Turn[] {
   return count > 0 ? state.turns.slice(-count) : [];
 }
 
-/** Assembles the three memory layers for one call (Spec, architecture
-    rule 3). The full history is never sent: only state, the running
-    summary and the turns chosen by turnsForPrompt. */
 export interface PromptOptions {
   /** False once the chain of enemy rolls hit its limit: the DM is told not to ask for more. */
   enemyRollsAllowed: boolean;
 }
 
+/** Assembles the three memory layers for one call (Spec, architecture
+    rule 3). The full history is never sent: only state, the running
+    summary and the turns chosen by turnsForPrompt. */
 export function buildTurnPrompt(
   state: GameState,
   input: TurnInput,
