@@ -223,6 +223,14 @@
   flex-shrink: 0;
   transition: transform 200ms ease-out;
 }
+.avatar--speaking {
+  transform: scale(1.1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .avatar {
+    transition: none;
+  }
+}
 .avatar[data-kind="hostile"] {
   --avatar-fill: var(--color-hostile);
   --avatar-ink: var(--color-primary-ink);

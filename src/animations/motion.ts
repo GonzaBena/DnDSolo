@@ -57,6 +57,24 @@ export function leaveDrawer(element: Element, onDone: () => void): () => void {
   return () => animation.cancel();
 }
 
+/** The face of whoever is talking swinging like a pendulum (pivot on the
+    element's transform-origin). Returns `stop`, which eases it back to
+    upright. */
+export function startSwing(element: Element): () => void {
+  if (!motionAllowed()) return () => {};
+  const swing = animate(element, {
+    rotate: [-3, 3],
+    duration: 800,
+    ease: "inOutSine",
+    loop: true,
+    alternate: true,
+  });
+  return () => {
+    swing.pause();
+    animate(element, { rotate: 0, duration: 300, ease: "outQuad" });
+  };
+}
+
 /** Subtle screen shake when damage or impact happens. */
 export function shakeScreen(element: Element): void {
   if (!motionAllowed()) return;

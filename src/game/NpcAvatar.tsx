@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { startSwing } from "../animations/motion";
 import { portraitUrl } from "../domain/portraits";
 import type { Attitude, Npc } from "../domain/types";
 
@@ -34,6 +35,13 @@ export function NpcAvatar({
   const url = npc?.portrait ? portraitUrl(npc.portrait, npc.name) : null;
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const showImage = url !== null && url !== failedUrl;
+  // The container grows (CSS) and the face swings, so the two transforms
+  // live on different elements.
+  const faceRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!speaking || !faceRef.current) return;
+    return startSwing(faceRef.current);
+  }, [speaking]);
   return (
     <span
       className={`avatar avatar--${size}${speaking ? " avatar--speaking" : ""}`}
@@ -41,7 +49,7 @@ export function NpcAvatar({
       title={name}
       aria-hidden="true"
     >
-      <span className="avatar__face">
+      <span ref={faceRef} className="avatar__face">
         {showImage ? (
           <img src={url} alt="" loading="lazy" decoding="async" onError={() => setFailedUrl(url)} />
         ) : (

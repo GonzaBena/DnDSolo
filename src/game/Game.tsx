@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { shakeScreen } from "../animations/motion";
-import { castOf } from "../domain/dialogue";
+import { castOf, speakingNow } from "../domain/dialogue";
 import { formatDice } from "../domain/dice";
 import type { GameState, PlayerRoll, StateChange, TurnInput } from "../domain/types";
 import { TurnEngine, type TurnFailure } from "../engine/TurnEngine";
@@ -298,6 +298,9 @@ export default function Game() {
 
   const { engine, state } = screen;
   const cast = castOf(state);
+  // Whose line the typewriter is writing: their face swings in the panel.
+  // A retry restarts the narration, which brings it back to null.
+  const speaking = busy && inFlight ? speakingNow(inFlight.narration, cast) : null;
 
   const submitAction = (event: { preventDefault(): void }) => {
     event.preventDefault();
@@ -483,7 +486,7 @@ export default function Game() {
           </div>
         </form>
       </div>
-      <ScenePanel state={state} dmActing={busy} speaking={null} />
+      <ScenePanel state={state} dmActing={busy} speaking={speaking} />
     </section>
   );
 }
