@@ -160,14 +160,30 @@ export type StateChange =
       Taking it is an inventory_add with the same name. */
   | { type: "item"; name: string; description: string; status: Exclude<StoryItemStatus, "taken"> };
 
+export const TURN_EVENTS = [
+  "damage_taken",
+  "damage_dealt",
+  "healing",
+  "scene_change",
+  "combat_start",
+  "combat_end",
+  "item_gained",
+  "new_npc",
+  "new_quest",
+  "quest_completed",
+  "level_up",
+  "death",
+] as const;
+export type TurnEvent = (typeof TURN_EVENTS)[number];
+
 export interface DMResponse {
   /** Text the player reads. */
   narration: string;
   playerRoll: PlayerRollRequest | null;
   enemyRolls: EnemyRollRequest[];
   stateChanges: StateChange[];
-  /** Tags such as "damage" or "scene_change", kept to hook animations later. */
-  events: string[];
+  /** Tags such as "damage_taken" or "scene_change", kept to hook animations. */
+  events: TurnEvent[];
 }
 
 export type TurnInput =

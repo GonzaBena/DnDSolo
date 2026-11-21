@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { PORTRAIT_IDS } from "./portraits";
-import { DICE, ROLL_MODES, type DMResponse, type GameState } from "./types";
+import { DICE, ROLL_MODES, TURN_EVENTS, type DMResponse, type GameState } from "./types";
 
 const attitude = z.enum(["friendly", "neutral", "hostile"]);
 const questStatus = z.enum(["active", "completed", "failed"]);
@@ -83,7 +83,7 @@ export const dmResponseSchema = z.object({
   playerRoll: playerRollRequest.nullable(),
   enemyRolls: z.array(enemyRollRequest),
   stateChanges: z.array(stateChange),
-  events: z.array(z.string()),
+  events: z.array(z.enum(TURN_EVENTS)),
 });
 
 // Compile-time guarantee that the schema and the hand-written type agree.
@@ -124,6 +124,11 @@ export function parseDMResponse(raw: string): ParseResult {
     json = JSON.parse(raw);
   } catch {
     return { ok: false, reason: "The response is not valid JSON." };
+  }
+  // Unknown tags are dropped rather than failing the whole reply.
+  if (typeof json === "object" && json !== null && "events" in json && Array.isArray(json.events)) {
+    const known: readonly unknown[] = TURN_EVENTS;
+    json = { ...json, events: json.events.filter((tag: unknown) => known.includes(tag)) };
   }
   const parsed = dmResponseSchema.safeParse(json);
   if (!parsed.success) return { ok: false, reason: z.prettifyError(parsed.error) };

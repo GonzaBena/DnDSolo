@@ -66,8 +66,18 @@ describe("parseDMResponse", () => {
   });
 });
 
+describe("event tags", () => {
+  it("drops unknown event tags instead of rejecting the reply", () => {
+    const parsed = parseDMResponse(JSON.stringify({ ...reply(), events: ["damage_taken", "explosion", "damage"] }));
+    expect(parsed.ok && parsed.response.events).toEqual(["damage_taken"]);
+  });
+});
+
 describe("dmResponseJsonSchema", () => {
   const text = JSON.stringify(dmResponseJsonSchema);
+  it("offers the model only the known tags", () => {
+    expect(text).toContain("damage_dealt");
+  });
 
   it("only uses keywords the provider documents", () => {
     expect(text).not.toContain('"const"');

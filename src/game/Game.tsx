@@ -72,7 +72,7 @@ export default function Game() {
     const newToasts: ToastItem[] = [];
     const timestamp = Date.now();
 
-    if (events.includes("damage")) {
+    if (events.includes("damage_taken")) {
       if (gameRef.current) {
         shakeScreen(gameRef.current);
         gameRef.current.classList.add("game--damage-flash");

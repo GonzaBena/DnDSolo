@@ -70,7 +70,7 @@ REGLAS
 - Cuando un personaje tiene el nivel de su subclase y el jugador la elige, mandá un cambio "subclass" con el id que figura en REGLAS DE LOS PERSONAJES ("Si elige la subclase SRD"). Si el jugador quiere una subclase que no está en el SRD, respondé con la frase fija de arriba.
 
 EVENTOS
-- En "events" poné etiquetas de lo que pasó, solo de esta lista: damage, healing, scene_change, combat_start, combat_end, item_gained, new_npc, new_quest, quest_completed, level_up, death.
+- En "events" poné etiquetas de lo que pasó, solo de esta lista: damage_taken (un jugador recibe daño), damage_dealt (un enemigo o NPC recibe daño), healing, scene_change, combat_start, combat_end, item_gained, new_npc, new_quest, quest_completed, level_up, death.
 
 FORMATO
 - Respondé únicamente con el JSON del esquema indicado, sin texto afuera. Los textos de "narration", "reason" y las descripciones van en español.`;

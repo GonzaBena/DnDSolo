@@ -3,6 +3,11 @@ import { buildTurnPrompt, DM_SYSTEM_PROMPT } from "../src/engine/dmPrompt";
 import { newGame } from "./helpers";
 
 describe("DM_SYSTEM_PROMPT", () => {
+  it("distinguishes damage taken from damage dealt", () => {
+    expect(DM_SYSTEM_PROMPT).toContain("damage_taken");
+    expect(DM_SYSTEM_PROMPT).toContain("damage_dealt");
+    expect(DM_SYSTEM_PROMPT).not.toContain("damage,");
+  });
   it("tells the DM how to mark what each NPC says", () => {
     expect(DM_SYSTEM_PROMPT).toContain("[[Nombre]]");
   });
