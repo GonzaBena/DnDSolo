@@ -116,11 +116,12 @@ a { color: var(--color-accent); text-underline-offset: 0.15em; }
 .game-shell .page { padding-bottom: 0; }
 .game-shell[data-header="hidden"] { --header-offset: 0px; }
 .game-shell[data-header="hidden"] .site-header { transform: translateY(-100%); }
-/* Wide screens fit the scene panel beside the log, so the game page grows
-   by the panel; the log keeps its reading width. Zen mode hides the panel. */
+/* Wide screens show the scene panel in the right margin: the game page
+   spans the window so the log can stay centred, at its reading width,
+   under the header. Zen mode hides the panel. */
 @media (min-width: 64rem) {
-  .game-shell:has(.game:not(.game--zen)) {
-    --content-width: calc(var(--reading-width) + var(--scene-panel-width) + var(--space-4));
+  .game-shell:has(.game:not(.game--zen)) .page {
+    max-width: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {

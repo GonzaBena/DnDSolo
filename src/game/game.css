@@ -14,11 +14,22 @@
   display: none;
 }
 @media (min-width: 64rem) {
+  /* The log in the middle, exactly as wide as before; the panel in the
+     right margin, as wide as the margin allows. */
   .game:not(.game--zen) {
-    grid-template-columns: minmax(0, 1fr) var(--scene-panel-width);
+    grid-template-columns:
+      minmax(0, 1fr)
+      minmax(0, calc(var(--reading-width) - 2 * var(--space-3)))
+      minmax(0, 1fr);
     align-items: start;
   }
+  .game:not(.game--zen) .game__main {
+    grid-column: 2;
+  }
   .game:not(.game--zen) .scene-panel {
+    grid-column: 3;
+    justify-self: start;
+    width: min(var(--scene-panel-width), 100%);
     position: sticky;
     top: calc(var(--header-offset, 0px) + var(--space-2));
     transition: top 200ms ease;
@@ -86,6 +97,25 @@
   align-self: start;
   font-size: var(--text-xs);
   color: var(--color-ink-soft);
+}
+/* A narrow margin (a window just over 64rem) stacks each card: face on
+   top, name and tag under it. */
+.scene-panel {
+  container-type: inline-size;
+}
+@container (max-width: 11rem) {
+  .scene-panel__member {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    row-gap: var(--space-1);
+    text-align: center;
+  }
+  .scene-panel__member .avatar {
+    grid-row: auto;
+  }
+  .scene-panel__name {
+    max-width: 100%;
+  }
 }
 
 .sheet {
