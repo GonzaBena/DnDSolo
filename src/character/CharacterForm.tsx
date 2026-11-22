@@ -3,7 +3,7 @@ import type { CharacterInput } from "../domain/character";
 import { BACKGROUND_OPTIONS, CLASSES, MAX_LEVEL, MIN_LEVEL, SPECIES_OPTIONS, createGame } from "../domain/character";
 import { statsFromForm } from "../domain/stats";
 import { applyBuildChange, levelTextFor, mergeReviewedStats, parseLevel, parseWholeNumber } from "./buildChange";
-import { IndexedDBGameRepo } from "../persistence/IndexedDBGameRepo";
+import { createGameRepo } from "../sync/runtime";
 import { findClass } from "../rules";
 
 interface Props {
@@ -60,7 +60,7 @@ export function CharacterForm({ values, onChange }: Props) {
             : statsFromForm(toNumber(manualHp), toNumber(manualAc), values.speciesId);
       const game = createGame({ ...values, stats, subclassId: subclassOption ? values.subclassId : null });
       // The new game becomes the latest save, which is what /play opens.
-      await new IndexedDBGameRepo().save(game);
+      await createGameRepo().save(game);
       location.href = "/play";
     } catch {
       setError("No se pudo guardar la partida en este navegador.");

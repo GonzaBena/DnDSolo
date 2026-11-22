@@ -7,7 +7,9 @@ import { TurnEngine, type TurnOutcome } from "../engine/TurnEngine";
 import { GeminiClient } from "../llm/GeminiClient";
 import { describeLLMError } from "../llm/errorMessages";
 import { describeFailure, type FailureNotice } from "./failureNotice";
-import { IndexedDBGameRepo } from "../persistence/IndexedDBGameRepo";
+import { mountSyncIndicator } from "../sync/indicator";
+import { syncBeforeOpen } from "../sync/openGame";
+import { createGameRepo, getSyncRuntime, withRenewal } from "../sync/runtime";
 import { isConfigured, loadSettings } from "../persistence/settings";
 import { CharacterPanel } from "./CharacterPanel";
 import { EventToasts, type ToastItem } from "./EventToasts";
@@ -44,6 +46,7 @@ interface InFlight {
 }
 
 const SAVE_WARNING = "El turno se jugó pero no se pudo guardar. Si recargás, lo perdés.";
+const DRIVE_NEWER_NOTICE = "Se cargó la versión más reciente de Drive";
 
 // The whole game screen is this single React island; every other page is
 // plain Astro.
@@ -72,6 +75,13 @@ export default function Game() {
   const latestStateRef = useRef<GameState | null>(null);
   const draftRef = useRef<HTMLTextAreaElement>(null);
   const gameRef = useRef<HTMLElement>(null);
+  const indicatorRef = useRef<HTMLDivElement>(null);
+  // Null when sync is off: then nothing below talks to Google.
+  const [sync] = useState(getSyncRuntime);
+  // Set once this session changed the game (a turn, even one still waiting
+  // on the Google window, or an HP fix): from then on a newer Drive copy is
+  // a conflict for the dialog, not a silent swap.
+  const changedRef = useRef(false);
 
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -96,33 +106,59 @@ export default function Game() {
       return;
     }
     setShowSuggestions(settings.showSuggestions);
-    const repo = new IndexedDBGameRepo();
-    const engine = new TurnEngine({
-      llm: new GeminiClient(settings.apiKey, settings.model, {
-        fastNarration: settings.fastNarration,
-      }),
-      repo,
-    });
+    const repo = createGameRepo();
+    const createEngine = () =>
+      new TurnEngine({
+        llm: new GeminiClient(settings.apiKey, settings.model, {
+          fastNarration: settings.fastNarration,
+        }),
+        repo,
+      });
     // /play?id=... opens a specific campaign; without it, the latest one.
     const id = new URLSearchParams(location.search).get("id");
-    (id ? repo.load(id) : repo.loadLatest()).then(
-      (state) => {
-        latestStateRef.current = state;
-        setScreen(
-          state
-            ? { status: "playing", engine, state, loadedTurns: state.turns.length }
-            : { status: "no_game" },
-        );
-      },
-      () => setScreen({ status: "load_error" }),
+    const load = () => (id ? repo.load(id) : repo.loadLatest());
+    // A reconcile that outlived the budget: show what it brought, unless the
+    // player already changed the game, which makes it a conflict.
+    const applyLate = (outcome: "downloaded" | "unchanged", opened: GameState | null) => {
+      if (id && outcome !== "downloaded") return;
+      if (changedRef.current) {
+        if (opened) void sync?.engine.syncGame(opened.id);
+        return;
+      }
+      load().then(
+        (fresh) => {
+          if (!fresh || changedRef.current) return;
+          if (opened && fresh.id === opened.id && fresh.updatedAt === opened.updatedAt) return;
+          // TurnEngine caches the latest state per game: a fresh one forgets it.
+          latestStateRef.current = fresh;
+          setScreen({ status: "playing", engine: createEngine(), state: fresh, loadedTurns: fresh.turns.length });
+          setWarning(DRIVE_NEWER_NOTICE);
+        },
+        () => undefined,
+      );
+    };
+    void syncBeforeOpen(sync, id).then(({ late }) =>
+      load().then(
+        (state) => {
+          latestStateRef.current = state;
+          setScreen(
+            state
+              ? { status: "playing", engine: createEngine(), state, loadedTurns: state.turns.length }
+              : { status: "no_game" },
+          );
+          if (late) void late.then((outcome) => applyLate(outcome, state));
+        },
+        () => setScreen({ status: "load_error" }),
+      ),
     );
-  }, []);
+  }, [sync]);
 
   const send = useCallback(
     async (engine: TurnEngine, shownState: GameState, input: TurnInput, typed?: string) => {
       // A manual HP fix may be newer than the rendered state: start from it,
       // so the model sees it and the toasts don't announce it again.
       const state = freshest(shownState, latestStateRef.current);
+      changedRef.current = true;
       setBusy(true);
       // Whoever sends wants to see the reply, even if they had scrolled up.
       scrollToBottom();
@@ -279,6 +315,11 @@ export default function Game() {
     follow();
   }, [playing, turnCount, streamed, error, busy, follow]);
 
+  useEffect(() => {
+    const host = indicatorRef.current;
+    return host ? mountSyncIndicator(host) : undefined;
+  }, [playing]);
+
   const playerRoll = screen.status === "playing" ? screen.state.pendingPlayerRoll : null;
   const enemyRollsPending =
     screen.status === "playing" && screen.state.pendingEnemyRolls.length > 0;
@@ -347,8 +388,12 @@ export default function Game() {
 
     const text = expandSlashCommands(raw);
     setDraft("");
-    // Solo game: the one player is always the author.
-    void send(engine, state, { type: "action", text, playerId: state.players[0]?.id }, raw);
+    // Solo game: the one player is always the author. withRenewal opens the
+    // Google window (if due) before any await, inside this gesture.
+    changedRef.current = true;
+    void withRenewal(sync, () =>
+      send(engine, state, { type: "action", text, playerId: state.players[0]?.id }, raw),
+    );
   };
 
   const adjustHp = async (delta: number) => {
@@ -356,6 +401,7 @@ export default function Game() {
     const held = latestStateRef.current ?? state;
     const playerId = held.players[0]?.id;
     if (!playerId) return;
+    changedRef.current = true;
     // While a fix is saving no turn may start on the screen's older state.
     setHpPending((count) => count + 1);
     let applied: Awaited<ReturnType<TurnEngine["adjustHp"]>>;
@@ -390,24 +436,31 @@ export default function Game() {
     if (!canAct) return;
     const raw = draft.trim();
     setDraft("");
-    void send(engine, state, {
-      type: "action",
-      text: raw === "" ? "" : expandSlashCommands(raw),
-      playerId: state.players[0]?.id,
-      roll: { ...roll, reason: playerRoll?.reason },
-    });
+    changedRef.current = true;
+    void withRenewal(sync, () =>
+      send(engine, state, {
+        type: "action",
+        text: raw === "" ? "" : expandSlashCommands(raw),
+        playerId: state.players[0]?.id,
+        roll: { ...roll, reason: playerRoll?.reason },
+      }),
+    );
   };
 
   const submitDeathSave = (roll: { value: number }) => {
     setDeathSaveOpen(false);
     if (!canAct || !hero) return;
-    void send(engine, state, { type: "death_save", playerId: hero.id, natural: roll.value });
+    changedRef.current = true;
+    void withRenewal(sync, () =>
+      send(engine, state, { type: "death_save", playerId: hero.id, natural: roll.value }),
+    );
   };
 
   return (
     <section ref={gameRef} className={`game${zenMode ? " game--zen" : ""}`}>
       <div className="game__main">
         <EventToasts toasts={toasts} onDismiss={dismissToast} />
+        <div ref={indicatorRef} hidden />
         <CharacterPanel
           state={state}
           zenMode={zenMode}
