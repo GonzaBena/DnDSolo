@@ -104,7 +104,9 @@ export default function Game() {
     }
     const repo = new IndexedDBGameRepo();
     const engine = new TurnEngine({
-      llm: new GeminiClient(settings.apiKey, settings.model),
+      llm: new GeminiClient(settings.apiKey, settings.model, {
+        fastNarration: settings.fastNarration,
+      }),
       repo,
     });
     // /play?id=... opens a specific campaign; without it, the latest one.

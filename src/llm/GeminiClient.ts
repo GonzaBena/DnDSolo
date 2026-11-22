@@ -1,4 +1,5 @@
 import { ApiError, GoogleGenAI } from "@google/genai";
+import { thinkingConfigFor } from "./thinking";
 import { LLMError, type LLMClient, type StructuredRequest, type TextRequest } from "./LLMClient";
 
 function toLLMError(error: unknown): LLMError {
@@ -34,9 +35,12 @@ export class GeminiClient implements LLMClient {
   private readonly ai: GoogleGenAI;
   private readonly model: string;
 
-  constructor(apiKey: string, model: string) {
+  private readonly fastNarration: boolean;
+
+  constructor(apiKey: string, model: string, options: { fastNarration?: boolean } = {}) {
     this.ai = new GoogleGenAI({ apiKey });
     this.model = model;
+    this.fastNarration = options.fastNarration ?? false;
   }
 
   async generateStructured(request: StructuredRequest): Promise<string> {
@@ -49,6 +53,8 @@ export class GeminiClient implements LLMClient {
           responseMimeType: "application/json",
           responseJsonSchema: request.jsonSchema,
           abortSignal: request.signal,
+          // Only the turn call: the summary keeps the model's default thinking.
+          thinkingConfig: thinkingConfigFor(this.model, this.fastNarration),
         },
       });
       let full = "";
