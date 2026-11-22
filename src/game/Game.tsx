@@ -501,13 +501,20 @@ export default function Game() {
               >
                 <DieShape die="d20" className="action-roll__die" />
               </button>
+              {/* Distinct keys plus preventDefault: otherwise React reuses this
+                  same <button> and turns it into the submit one before the
+                  click finishes, so the click would send the form again. */}
               {busy && abortable ? (
                 <button
+                  key="stop"
                   type="button"
                   className="button button--primary action-send"
                   aria-label="Detener respuesta"
                   title="Detener"
-                  onClick={() => abortRef.current?.abort()}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    abortRef.current?.abort();
+                  }}
                 >
                   <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
                     <rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor" />
@@ -515,6 +522,7 @@ export default function Game() {
                 </button>
               ) : (
                 <button
+                  key="send"
                   type="submit"
                   className="button button--primary action-send"
                   aria-label="Enviar"
