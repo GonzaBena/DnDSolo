@@ -1022,6 +1022,19 @@ describe("replaceRepeatedSpells", () => {
     expect(buildSheet(fixed).ok).toBe(true);
   });
 
+  it("swaps a species cantrip that the class list does not even offer", () => {
+    // Wood elf wizard: druidcraft comes from the lineage and is not a wizard cantrip.
+    const c = repeat(greedyChoices("elf", "wizard", "sage", 1), {
+      "species.elf.lineage": ["wood_elf"], "class.wizard.cantrips": ["druidcraft", "minor_illusion", "true_strike"],
+    });
+    expect(buildSheet(c).ok).toBe(false);
+    const fixed = replaceRepeatedSpells(c);
+    const cantrips = fixed.picks["class.wizard.cantrips"]!;
+    expect(cantrips).not.toContain("druidcraft");
+    expect(cantrips).toEqual(expect.arrayContaining(["minor_illusion", "true_strike"]));
+    expect(buildSheet(fixed).ok).toBe(true);
+  });
+
   it("replaces a wizard's repeated prepared spell with another one from the spellbook", () => {
     const base = greedyChoices("elf", "wizard", "sage", 1);
     const c = repeat(base, {
@@ -1033,6 +1046,18 @@ describe("replaceRepeatedSpells", () => {
     const prepared = fixed.picks["class.wizard.prepared"]!;
     expect(prepared).not.toContain("mage_armor");
     expect(base.picks["class.wizard.spellbook"]).toEqual(expect.arrayContaining(prepared));
+    expect(buildSheet(fixed).ok).toBe(true);
+  });
+
+  it("replaces a wizard's prepared spell that is not in the spellbook with one that is", () => {
+    const base = greedyChoices("elf", "wizard", "sage", 1);
+    const book = base.picks["class.wizard.spellbook"]!;
+    const spec = requiredChoices(base).find((s) => s.id === "class.wizard.prepared")!;
+    const outside = spec.options.find((o) => !book.includes(o.id))!.id;
+    const c = repeat(base, { "class.wizard.prepared": [outside, ...base.picks["class.wizard.prepared"]!.slice(1)] });
+    expect(buildSheet(c).ok).toBe(false);
+    const fixed = replaceRepeatedSpells(c);
+    expect(book).toEqual(expect.arrayContaining(fixed.picks["class.wizard.prepared"]!));
     expect(buildSheet(fixed).ok).toBe(true);
   });
 

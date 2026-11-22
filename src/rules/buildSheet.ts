@@ -196,7 +196,7 @@ function speciesSpells(c: CharacterChoices, specs: ChoiceSpec[]): Map<string, st
 }
 
 /** The generator's fix for the model's most common slip: picking again a spell that the species, a feat or an
-    earlier choice already gives. Each repeat becomes the first free option of the same choice (for the wizard's
+    earlier choice already gives, even when that choice does not offer it. Each repeat becomes the first free option of the same choice (for the wizard's
     prepared spells, one from the spellbook), in the order validateSpells reads them. A repeat with no free option
     left stays, and validation reports it. */
 export function replaceRepeatedSpells(c: CharacterChoices): CharacterChoices {
@@ -213,7 +213,10 @@ export function replaceRepeatedSpells(c: CharacterChoices): CharacterChoices {
     const book = spec.id === "class.wizard.prepared" ? new Set(picks["class.wizard.spellbook"] ?? []) : null;
     const result: string[] = [];
     for (const id of current) {
-      if (!optionOf(spec, id) || !blocked.has(id)) {
+      // A spell already known is replaced even when this choice does not offer it (a wood elf wizard
+      // picking druidcraft again as a class cantrip): the model meant a repeat, not some other option.
+      // So is a wizard's prepared spell that is not in the spellbook.
+      if (!blocked.has(id) && (!book || book.has(id))) {
         result.push(id);
         continue;
       }
