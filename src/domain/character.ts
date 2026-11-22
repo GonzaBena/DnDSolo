@@ -1,3 +1,4 @@
+import type { CharacterChoices } from "../rules/buildSheet";
 import { BACKGROUNDS, CLASSES_DATA, SPECIES, findBackground, findClass, findSpecies } from "../rules";
 import { GAME_STATE_VERSION, type Character, type CharacterStats, type GameState, type InventoryItem, type StoryItem } from "./types";
 
@@ -26,6 +27,8 @@ export interface CharacterInput {
   stats?: CharacterStats | null;
   /** Gear the character starts with, from a generated sheet. */
   startingInventory?: InventoryItem[];
+  /** The generator's choices, so the form can rebuild the sheet when the species changes. */
+  choices?: CharacterChoices;
 }
 
 interface CreateOptions {

@@ -26,6 +26,7 @@ describe("formValuesFromOption", () => {
       background: "Una soldado retirada.",
       stats: statsFromSheet(optionAt(1).sheet),
       startingInventory: inventoryFromSheet(optionAt(1).sheet),
+      choices: fighterChoices({ level: 1 }),
     });
   });
 

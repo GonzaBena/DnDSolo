@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { CharacterInput } from "../domain/character";
 import { BACKGROUND_OPTIONS, CLASSES, MAX_LEVEL, MIN_LEVEL, SPECIES_OPTIONS, createGame } from "../domain/character";
 import { statsFromForm } from "../domain/stats";
+import { applyBuildChange } from "./buildChange";
 import { IndexedDBGameRepo } from "../persistence/IndexedDBGameRepo";
 import { findClass } from "../rules";
 
@@ -17,13 +18,21 @@ export function CharacterForm({ values, onChange }: Props) {
   const subclass = findClass(values.classId)?.subclass;
   const subclassOption = subclass && values.level >= subclass.level ? subclass : null;
   // Numbers that came with a generated sheet are shown, not edited.
-  const fromSheet = values.stats != null && values.startingInventory !== undefined;
+  const [review, setReview] = useState(false);
+  const fromSheet = values.stats != null && !review;
   const [manualHp, setManualHp] = useState("");
   const [manualAc, setManualAc] = useState("");
   const set = (patch: Partial<CharacterInput>) => onChange({ ...values, ...patch });
-  // The generated stats and gear describe one exact build, so changing it makes them stale.
-  const setBuild = (patch: Partial<CharacterInput>) =>
-    set({ ...patch, ...(fromSheet ? { stats: null, startingInventory: undefined } : {}) });
+  // The generated stats and gear describe one exact build: see applyBuildChange.
+  const setBuild = (patch: Partial<CharacterInput>) => {
+    const result = applyBuildChange(values, patch);
+    if (result.review && !review && values.stats) {
+      setManualHp(String(values.stats.maxHp));
+      setManualAc(String(values.stats.armorClass));
+    }
+    setReview(result.review);
+    onChange(result.values);
+  };
   const toNumber = (text: string) => (text.trim() === "" || !Number.isFinite(Number(text)) ? null : Math.trunc(Number(text)));
 
   async function submit(event: { preventDefault(): void }) {
@@ -31,7 +40,16 @@ export function CharacterForm({ values, onChange }: Props) {
     setSaving(true);
     setError(null);
     try {
-      const stats = fromSheet ? values.stats : statsFromForm(toNumber(manualHp), toNumber(manualAc));
+      const stats =
+        values.stats && review
+          ? {
+              ...values.stats,
+              maxHp: toNumber(manualHp) ?? values.stats.maxHp,
+              armorClass: toNumber(manualAc) ?? values.stats.armorClass,
+            }
+          : fromSheet
+            ? values.stats
+            : statsFromForm(toNumber(manualHp), toNumber(manualAc));
       const game = createGame({ ...values, stats, subclassId: subclassOption ? values.subclassId : null });
       // The new game becomes the latest save, which is what /play opens.
       await new IndexedDBGameRepo().save(game);
@@ -161,7 +179,9 @@ export function CharacterForm({ values, onChange }: Props) {
         <small>
           {fromSheet
             ? "De la ficha generada"
-            : "Si los completás, la app lleva tus PG (hacen falta los dos)."}
+            : review
+              ? "Cambiaste la especie: revisá los PG y la CA."
+              : "Si los completás, la app lleva tus PG (hacen falta los dos)."}
         </small>
       </label>
 

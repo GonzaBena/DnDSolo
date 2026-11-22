@@ -17,5 +17,6 @@ export function formValuesFromOption(option: GeneratedOption): CharacterInput {
     background: option.story,
     stats: statsFromSheet(option.sheet),
     startingInventory: inventoryFromSheet(option.sheet),
+    choices: option.choices,
   };
 }
