@@ -94,12 +94,14 @@ export function startSyncRuntime(auth: DriveAuth): SyncRuntime {
       if (document.visibilityState === "hidden") void runtime?.engine.flush();
     });
   }
+  runtime?.engine.retire();
   runtime = { auth, engine, repo: new SyncedGameRepo(local, engine), accountId: () => remote.accountId() };
   return runtime;
 }
 
 /** Forgets the page's runtime (after a disconnect); the next getSyncRuntime reads the config again. */
 export function resetSyncRuntime(): void {
+  runtime?.engine.retire();
   runtime = null;
   syncStatus.set({ state: "off", lastSyncedAt: null });
 }

@@ -61,8 +61,15 @@ export class SyncEngine {
   private readonly guards = new Map<string, LocalGuard>();
   /** A full sync failed before reconciling: `flush` owes one, since no id is pending for it. */
   private fullSyncOwed = false;
+  /** Replaced by another runtime: tasks still in flight must not overwrite its status. */
+  private retired = false;
 
   constructor(private readonly deps: Deps) {}
+
+  /** The page moved to another engine (mode switch, disconnect): from now on this one stays quiet. */
+  retire(): void {
+    this.retired = true;
+  }
 
   syncAll(): Promise<void> {
     return this.enqueue(async () => {
@@ -142,14 +149,14 @@ export class SyncEngine {
       the task's result, or undefined when it failed (status already set). */
   private enqueue<T>(task: () => Promise<T>): Promise<T | undefined> {
     const run = this.chain.then(async () => {
-      setStatus({ state: "syncing" });
+      this.setStatus({ state: "syncing" });
       try {
         const result = await task();
         this.settleStatus();
         return result;
       } catch (error) {
         this.lastFailure = failureState(error);
-        setStatus({ state: this.lastFailure });
+        this.setStatus({ state: this.lastFailure });
         return undefined;
       }
     });
@@ -162,11 +169,11 @@ export class SyncEngine {
   private settleStatus(): void {
     if (this.pending.size === 0) {
       this.lastFailure = null;
-      setStatus({ state: "idle", lastSyncedAt: new Date().toISOString() });
+      this.setStatus({ state: "idle", lastSyncedAt: new Date().toISOString() });
     } else if (this.queued.size > 0) {
-      setStatus({ state: "syncing" });
+      this.setStatus({ state: "syncing" });
     } else {
-      setStatus({ state: this.lastFailure ?? "error" });
+      this.setStatus({ state: this.lastFailure ?? "error" });
     }
   }
 
@@ -293,6 +300,10 @@ export class SyncEngine {
   private async localUnchangedSince(id: string, seen: GameState | null): Promise<boolean> {
     const now = await this.deps.local.load(id);
     return (now?.updatedAt ?? null) === (seen?.updatedAt ?? null);
+  }
+
+  private setStatus(patch: Partial<SyncStatus>): void {
+    if (!this.retired) setStatus(patch);
   }
 }
 

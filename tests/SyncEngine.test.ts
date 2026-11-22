@@ -173,6 +173,23 @@ describe("SyncEngine", () => {
     expect(syncStatus.get().state).toBe("idle");
   });
 
+  it("a retired engine no longer writes the status (the runtime that replaced it owns it)", async () => {
+    const remote = new InMemoryRemoteGameStore();
+    const old = device("A", remote);
+    let fail!: (error: Error) => void;
+    vi.spyOn(remote, "accountId").mockReturnValue(new Promise<string>((_, reject) => (fail = reject)));
+
+    const inFlight = old.engine.syncAll();
+    await vi.waitFor(() => expect(syncStatus.get().state).toBe("syncing"));
+    old.engine.retire();
+    syncStatus.set({ state: "idle", lastSyncedAt: "2026-01-01T00:00:00Z" }); // the new engine's word
+
+    fail(new AuthExpiredError());
+    await inFlight;
+    await old.engine.flush();
+    expect(syncStatus.get()).toEqual({ state: "idle", lastSyncedAt: "2026-01-01T00:00:00Z" });
+  });
+
   it("flush redoes a full sync that failed before reconciling, with nothing pending", async () => {
     const remote = new InMemoryRemoteGameStore();
     const a = device("A", remote);

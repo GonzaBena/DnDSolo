@@ -83,6 +83,19 @@ describe("sync runtime lifecycle", () => {
   });
 });
 
+describe("replacing the runtime", () => {
+  it("retires the old engine when a new runtime replaces it, and on reset", () => {
+    const first = startSyncRuntime(fakeAuth());
+    const firstRetire = vi.spyOn(first.engine, "retire");
+    const second = startSyncRuntime(fakeAuth());
+    expect(firstRetire).toHaveBeenCalledTimes(1);
+
+    const secondRetire = vi.spyOn(second.engine, "retire");
+    resetSyncRuntime();
+    expect(secondRetire).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("disconnectSync", () => {
   it("disconnects, forgets this account's bases only, and turns sync off", async () => {
     saveSyncConfig({ enabled: true, autoRenew: true });
