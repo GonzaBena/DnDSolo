@@ -273,3 +273,10 @@ describe("levels in the prompt", () => {
     expect(DM_SYSTEM_PROMPT).not.toContain("o el jugador lo pida");
   });
 });
+
+describe("rests in the prompt", () => {
+  it("explains short and long rests", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('mandá "rest" "long" (el sistema restaura los PG)');
+    expect(DM_SYSTEM_PROMPT).toContain("No se descansa en combate.");
+  });
+});

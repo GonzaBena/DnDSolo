@@ -470,3 +470,47 @@ describe("milestones", () => {
     expect(result.state.players[0]).toMatchObject({ level: 4, milestonesSinceLevel: 0 });
   });
 });
+
+describe("rests", () => {
+  const stats = {
+    maxHp: 20, armorClass: 14, initiative: 3, speed: 30, hitDice: "3d8",
+    attacks: [], spellSaveDc: null, spellAttackBonus: null,
+  };
+  const hurt = (currentHp: number, condition: "ok" | "dying" | "stable" | "dead" = "ok") => {
+    const game = newGame();
+    return {
+      ...game,
+      players: game.players.map((p) => ({
+        ...p, stats, currentHp, condition, deathSaves: { successes: 1, failures: 1 },
+      })),
+    };
+  };
+  const long = { type: "rest" as const, kind: "long" as const };
+
+  it("a long rest restores HP and clears death saves", () => {
+    const player = applyStateChanges(hurt(0, "stable"), [long]).state.players[0]!;
+    expect(player).toMatchObject({ currentHp: 20, condition: "ok", deathSaves: { successes: 0, failures: 0 } });
+    expect(applyStateChanges(hurt(7), [long]).state.players[0]!.currentHp).toBe(20);
+  });
+
+  it("no long rest in combat", () => {
+    const game = { ...hurt(7), scene: { inCombat: true, turnOf: null } };
+    const result = applyStateChanges(game, [long]);
+    expect(result.rejected[0]!.reason).toBe("Can't rest during combat.");
+    expect(result.state).toEqual(game);
+  });
+
+  it("a short rest changes nothing by itself and is not rejected", () => {
+    const game = hurt(7);
+    const result = applyStateChanges(game, [{ type: "rest", kind: "short" }]);
+    expect(result.rejected).toEqual([]);
+    expect(result.state).toEqual(game);
+  });
+
+  it("the dead don't rest", () => {
+    const game = hurt(0, "dead");
+    const result = applyStateChanges(game, [long]);
+    expect(result.rejected).toHaveLength(1);
+    expect(result.state).toEqual(game);
+  });
+});

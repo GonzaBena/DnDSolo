@@ -173,6 +173,9 @@ export type StateChange =
   | { type: "level"; playerId: string; level: number }
   /** A big achievement (a boss beaten, a central mystery solved); one per reply. */
   | { type: "milestone"; playerId: string; reason: string }
+  /** A long rest restores every player's HP; a short one changes nothing by
+      itself (hit dice come as "hp" changes). */
+  | { type: "rest"; kind: "short" | "long" }
   /** Hit points gained (+) or lost (-). `target` is a player id or name. */
   | { type: "hp"; target: string; delta: number }
   /** The SRD subclass of the player's class, once its level is reached. */

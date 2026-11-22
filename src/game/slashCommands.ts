@@ -2,10 +2,13 @@
 export function expandSlashCommands(text: string): string {
   const trimmed = text.trim();
   if (trimmed === "/descanso" || trimmed.startsWith("/descanso ")) {
-    return trimmed.replace(
-      "/descanso",
-      "Me tomo un descanso para recuperar energías y curar heridas.",
-    );
+    // "/descanso [corto|largo] [lo que sigue]"; a bare one is a short rest.
+    const [, kind = "", rest = ""] = /^\/descanso(?:\s+(corto|largo)\b)?\s*(.*)$/s.exec(trimmed) ?? [];
+    const intent =
+      kind === "largo"
+        ? "Armo campamento para un descanso largo de ocho horas."
+        : "Me tomo un descanso corto (una hora) para recuperar el aliento y vendar heridas.";
+    return rest === "" ? intent : `${intent} ${rest}`;
   }
   if (trimmed === "/resumen" || trimmed.startsWith("/resumen ")) {
     return trimmed.replace(

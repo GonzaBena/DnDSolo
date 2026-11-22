@@ -170,6 +170,31 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
         });
         break;
       }
+      case "rest": {
+        if (change.kind === "short") break;
+        if (next.scene.inCombat) {
+          rejected.push({ change, reason: "Can't rest during combat." });
+          break;
+        }
+        if (next.players.some((p) => p.condition === "dead")) {
+          rejected.push({ change, reason: "The character is dead." });
+          break;
+        }
+        if (next.players.some((p) => p.condition === "dying")) {
+          rejected.push({ change, reason: "Can't rest while dying." });
+          break;
+        }
+        next = {
+          ...next,
+          players: next.players.map((p) => ({
+            ...p,
+            currentHp: p.stats === null ? p.currentHp : p.stats.maxHp,
+            condition: "ok",
+            deathSaves: { successes: 0, failures: 0 },
+          })),
+        };
+        break;
+      }
       case "subclass": {
         const index = findPlayerIndex(next.players, change.playerId);
         if (index === -1) {

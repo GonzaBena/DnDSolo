@@ -47,6 +47,7 @@ const stateChange = z.discriminatedUnion("type", [
     playerId: z.string(),
     reason: z.string().min(1),
   }),
+  z.object({ type: z.literal("rest"), kind: z.enum(["short", "long"]) }),
   z.object({
     type: z.literal("hp"),
     target: z.string().min(1),
