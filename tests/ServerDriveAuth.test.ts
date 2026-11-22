@@ -3,6 +3,7 @@ import { DRIVE_SCOPE } from "../src/sync/DriveAuth";
 import type { GisCodeApi, GisCodeClientConfig } from "../src/sync/gis";
 import { ServerNotConfiguredError } from "../src/sync/errors";
 import { AuthExpiredError, OfflineError } from "../src/sync/RemoteGameStore";
+import { withRenewal, type SyncRuntime } from "../src/sync/runtime";
 import { ServerDriveAuth } from "../src/sync/ServerDriveAuth";
 
 const MIN = 60_000;
@@ -52,7 +53,7 @@ async function connected(minutes: number, more: Array<() => Response | Promise<R
 afterEach(() => vi.useRealTimers());
 
 describe("ServerDriveAuth", () => {
-  it("never needs a gesture", () => {
+  it("needs no gesture while the server can renew", () => {
     expect(setup([]).auth.needsGesture()).toBe(false);
   });
 
@@ -172,5 +173,89 @@ describe("ServerDriveAuth", () => {
   it("disconnect does not throw when the server is unreachable", async () => {
     const { auth } = await connected(60, [() => Promise.reject(new TypeError("Failed to fetch"))]);
     await expect(auth.disconnect()).resolves.toBeUndefined();
+  });
+
+  describe("after the server answers 401 (cookie gone, grant revoked or expired)", () => {
+    async function expired(more: Array<() => Response | Promise<Response>> = []) {
+      const ctx = setup([() => jsonResponse(401), ...more]);
+      await expect(ctx.auth.getAccessToken()).rejects.toBeInstanceOf(AuthExpiredError);
+      return ctx;
+    }
+
+    it("needs a gesture", async () => {
+      const { auth } = await expired();
+      expect(auth.needsGesture()).toBe(true);
+    });
+
+    it("renewWithGesture opens the code window synchronously and posts the code to /api/drive/connect", async () => {
+      const { gis, fetchFn, auth } = await expired([
+        () => jsonResponse(200, { accessToken: "at9", expiresAt: Date.now() + 60 * MIN }),
+      ]);
+      const done = auth.renewWithGesture();
+      expect(gis.requestCode).toHaveBeenCalledTimes(1); // before any await: popups need the live gesture
+      gis.answer("code-9");
+      expect(await done).toBe(true);
+      const [url, init] = fetchFn.mock.calls[1]!;
+      expect(url).toBe("/api/drive/connect");
+      expect(JSON.parse(String(init?.body))).toEqual({ code: "code-9" });
+
+      expect(auth.needsGesture()).toBe(false);
+      expect(await auth.getAccessToken()).toBe("at9");
+      expect(fetchFn).toHaveBeenCalledTimes(2);
+    });
+
+    it("renewWithGesture resolves false and still needs a gesture when the window is closed", async () => {
+      const { gis, fetchFn, auth } = await expired();
+      const done = auth.renewWithGesture();
+      gis.deny();
+      expect(await done).toBe(false);
+      expect(auth.needsGesture()).toBe(true);
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+    });
+
+    it("renewWithGesture resolves false (never rejects) when the server is not configured", async () => {
+      const { gis, auth } = await expired([() => jsonResponse(500, { error: "not_configured" })]);
+      const done = auth.renewWithGesture();
+      gis.answer("code");
+      await expect(done).resolves.toBe(false);
+      expect(auth.needsGesture()).toBe(true);
+    });
+
+    it("renewWithGesture resolves false when no code arrives in time", async () => {
+      vi.useFakeTimers();
+      const { auth } = await expired();
+      let result: boolean | undefined;
+      void auth.renewWithGesture().then((r) => (result = r));
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect(result).toBe(false);
+    });
+
+    it("«Reconectar» and «Sincronizar ahora» (withRenewal) reconnect, then run", async () => {
+      const { gis, auth } = await expired([
+        () => jsonResponse(200, { accessToken: "at9", expiresAt: Date.now() + 60 * MIN }),
+      ]);
+      const run = vi.fn(async () => auth.getAccessToken());
+      const result = withRenewal({ auth } as SyncRuntime, run);
+      expect(gis.requestCode).toHaveBeenCalledTimes(1);
+      expect(run).not.toHaveBeenCalled();
+      gis.answer("code-9");
+      expect(await result).toBe("at9");
+    });
+
+    it("a successful connect also clears it", async () => {
+      const { gis, auth } = await expired([
+        () => jsonResponse(200, { accessToken: "at3", expiresAt: Date.now() + 60 * MIN }),
+      ]);
+      const done = auth.connect();
+      gis.answer("code-3");
+      expect(await done).toBe(true);
+      expect(auth.needsGesture()).toBe(false);
+    });
+  });
+
+  it("renewWithGesture renews silently through the server while no 401 was seen", async () => {
+    const { gis, auth } = setup([() => jsonResponse(200, { accessToken: "at", expiresAt: Date.now() + 60 * MIN })]);
+    expect(await auth.renewWithGesture()).toBe(true);
+    expect(gis.requestCode).not.toHaveBeenCalled();
   });
 });

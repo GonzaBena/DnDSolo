@@ -28,6 +28,8 @@ export class ServerDriveAuth implements DriveAuth {
   private client: GisCodeClient | null = null;
   private token: { value: string; expiresAt: number } | null = null;
   private refreshing: Promise<string> | null = null;
+  /** The server answered 401: no cookie, or Google no longer honours its refresh token. */
+  private lostGrant = false;
   /** Settles the consent in flight; GIS has one callback per client. */
   private settle: ((code: string | null) => void) | null = null;
 
@@ -42,13 +44,19 @@ export class ServerDriveAuth implements DriveAuth {
     return this.refreshing;
   }
 
+  /** True once the server could not renew (401): only a new consent brings the connection back. */
   needsGesture(): boolean {
-    return false;
+    return this.lostGrant;
   }
 
-  /** Never needed (needsGesture is false); a silent renewal keeps the contract. */
+  /**
+   * After a 401, opens the consent window synchronously (inside the click,
+   * like `connect`) and exchanges the code; otherwise renews silently through
+   * the server. Resolves false on close, deny, timeout or any failure.
+   */
   async renewWithGesture(): Promise<boolean> {
     try {
+      if (this.lostGrant) return await this.connect();
       await this.getAccessToken();
       return true;
     } catch {
@@ -111,6 +119,7 @@ export class ServerDriveAuth implements DriveAuth {
     }
     if (response.status === 401) {
       this.token = null;
+      this.lostGrant = true;
       throw new AuthExpiredError("Drive connection expired");
     }
     if (!response.ok) return this.fallback(new Error(`Token renewal answered ${response.status}`));
@@ -126,6 +135,7 @@ export class ServerDriveAuth implements DriveAuth {
 
   private store(grant: AccessGrant): void {
     this.token = { value: grant.accessToken, expiresAt: grant.expiresAt };
+    this.lostGrant = false;
   }
 
   private post(url: string, body: unknown): Promise<Response> {

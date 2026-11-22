@@ -4,9 +4,12 @@ export const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.appdata";
 export interface DriveAuth {
   /** Valid token or rejects AuthExpiredError; never opens UI. */
   getAccessToken(): Promise<string>;
-  /** True when the next action should renew via a user gesture (browser: no token or < 10 min left). */
+  /** True when the next action should renew via a user gesture (browser: no token or < 10 min left; server: after a 401). */
   needsGesture(): boolean;
-  /** MUST be called synchronously inside a click/submit handler. Resolves false on close/deny/20 s timeout. */
+  /**
+   * MUST be called synchronously inside a click/submit handler. Resolves false on close/deny/timeout
+   * (20 s for the browser's silent renewal; 120 s for the server's full consent after a 401).
+   */
   renewWithGesture(): Promise<boolean>;
   /** First consent; false if closed/denied. */
   connect(): Promise<boolean>;

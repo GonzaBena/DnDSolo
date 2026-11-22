@@ -203,7 +203,10 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     void firstPaint
       .then(() => sync.engine.syncAll())
       .catch(() => undefined)
-      .then(() => refresh().catch(showRefreshError));
+      .then(() => {
+        updateGesture(); // auto-renewal learns only now whether the server lost the grant
+        return refresh().catch(showRefreshError);
+      });
 
     gestureButton?.addEventListener("click", () => {
       // Synchronous inside the click, before any await: browsers block the popup otherwise.
