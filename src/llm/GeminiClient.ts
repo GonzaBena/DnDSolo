@@ -26,6 +26,10 @@ function toLLMError(error: unknown): LLMError {
   return new LLMError("unknown", message, { cause: error });
 }
 
+function abortedError(): LLMError {
+  return new LLMError("aborted", "The request was aborted.");
+}
+
 export class GeminiClient implements LLMClient {
   private readonly ai: GoogleGenAI;
   private readonly model: string;
@@ -49,11 +53,14 @@ export class GeminiClient implements LLMClient {
       });
       let full = "";
       for await (const chunk of stream) {
+        if (request.signal?.aborted) throw abortedError();
         const fragment = chunk.text;
         if (!fragment) continue;
         full += fragment;
         request.onChunk?.(fragment);
       }
+      // The stream can end quietly when cut: don't return the partial text.
+      if (request.signal?.aborted) throw abortedError();
       if (!full) throw new LLMError("empty", "The model returned no text.");
       return full;
     } catch (error) {
@@ -68,6 +75,7 @@ export class GeminiClient implements LLMClient {
         contents: request.prompt,
         config: { systemInstruction: request.system, abortSignal: request.signal },
       });
+      if (request.signal?.aborted) throw abortedError();
       const text = response.text;
       if (!text) throw new LLMError("empty", "The model returned no text.");
       return text;

@@ -133,6 +133,7 @@ export class TurnEngine {
     let lastReason = "";
     for (let attempt = 0; attempt < 2; attempt += 1) {
       let raw = "";
+      if (signal?.aborted) return { ok: false, state, failure: { kind: "aborted" } };
       if (attempt > 0) onNarration?.("");
       try {
         raw = await this.llm.generateStructured({
@@ -153,6 +154,10 @@ export class TurnEngine {
         const message = cause instanceof Error ? cause.message : String(cause);
         return { ok: false, state, failure: { kind: "llm", message, cause } };
       }
+
+      // A stream cut by the abort may end without throwing and hand back
+      // partial text: that is not a malformed reply, so don't retry it.
+      if (signal?.aborted) return { ok: false, state, failure: { kind: "aborted" } };
 
       const parsed = parseDMResponse(raw);
       if (!parsed.ok) {

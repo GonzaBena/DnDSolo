@@ -483,7 +483,8 @@ describe("TurnEngine abort", () => {
 
     expect(outcome).toEqual({ ok: false, state: game, failure: { kind: "aborted" } });
     expect(await ctx.repo.load(game.id)).toBeNull();
-    expect(ctx.llm.structuredRequests[0]!.signal).toBe(controller.signal);
+    // Already aborted: the model is never called.
+    expect(ctx.llm.structuredRequests).toHaveLength(0);
   });
 
   it("does not retry when the abort happens mid-stream", async () => {
@@ -562,6 +563,52 @@ describe("TurnEngine abort", () => {
     const outcome = await ctx.engine.playTurn(game, { type: "start" }, undefined, controller.signal);
 
     expect(outcome).toEqual({ ok: false, state: game, failure: { kind: "aborted" } });
+  });
+});
+
+describe("TurnEngine abort when the SDK stream ends without throwing", () => {
+  it("does not retry when an abort mid-stream returns truncated text", async () => {
+    const ctx = setup();
+    const game = newGame();
+    const controller = new AbortController();
+    let calls = 0;
+    ctx.llm.generateStructured = async (request) => {
+      calls += 1;
+      expect(request.signal).toBe(controller.signal);
+      request.onChunk?.('{"narration":"El goblin se');
+      controller.abort();
+      return '{"narration":"El goblin se';
+    };
+    const narrations: string[] = [];
+
+    const outcome = await ctx.engine.playTurn(
+      game,
+      { type: "start" },
+      (text) => narrations.push(text),
+      controller.signal,
+    );
+
+    expect(outcome).toEqual({ ok: false, state: game, failure: { kind: "aborted" } });
+    expect(calls).toBe(1);
+    expect(narrations).not.toContain("");
+    expect(ctx.repo.saveCount).toBe(0);
+  });
+
+  it("does not make a second attempt when the signal fires after an unparseable first reply", async () => {
+    const ctx = setup();
+    const game = newGame();
+    const controller = new AbortController();
+    let calls = 0;
+    ctx.llm.generateStructured = async () => {
+      calls += 1;
+      controller.abort();
+      return "no es json";
+    };
+
+    const outcome = await ctx.engine.playTurn(game, { type: "start" }, undefined, controller.signal);
+
+    expect(outcome).toEqual({ ok: false, state: game, failure: { kind: "aborted" } });
+    expect(calls).toBe(1);
   });
 });
 
