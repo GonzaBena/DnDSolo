@@ -198,6 +198,15 @@ export function InputEntry({
           )}
         </>
       );
+    case "death_save":
+      return (
+        <div className="roll-cards roll-cards--player">
+          <PlayerRollCard
+            roll={{ die: "d20", value: input.natural, modifier: 0, reason: "Salvación contra la muerte" }}
+            animated={animated}
+          />
+        </div>
+      );
     case "enemy_rolls":
       return (
         <div className="roll-cards">

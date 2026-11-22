@@ -2,7 +2,7 @@ import { describePlayerRoll as describeRolledDie, formatDice, resolveRollMode, r
 import { describeArchetypes } from "../domain/portraits";
 import { COMBAT_RULES } from "./combatRules";
 import { describeCharacterRules } from "./rulesBlock";
-import type { GameState, PlayerRollRequest, Turn, TurnInput } from "../domain/types";
+import type { Character, GameState, PlayerRollRequest, Turn, TurnInput } from "../domain/types";
 
 // The prompt is in Spanish because it is content, not code: it sets the
 // language and voice the DM narrates in. Field names match the schema.
@@ -46,6 +46,7 @@ ESTADO
 - Vos no modificás el estado: proponés cambios en "stateChanges" y el sistema los aplica. Todo lo que la narración afirme sobre objetos que aparecen, se ganan o se pierden, cambio de lugar, NPCs nuevos o misiones tiene que tener su cambio correspondiente. Las misiones cerradas figuran en el ESTADO solo con título y estado; si mandás una de nuevo con la descripción vacía, el sistema conserva la que tenía. Si no pasa nada de eso, mandá [].
 - En los cambios de inventario usá el "id" del jugador tal como figura en ESTADO. El inventario del ESTADO arranca con el equipo inicial del personaje y después cambia solo con tus cambios.
 - Cuando un jugador recibe daño o curación, mandá un cambio "hp" con "target" (su id) y "delta" (negativo para daño), y decí la cantidad en la narración. Si "stats" es null, no mandes "hp": decile la cantidad para que la anote. El cambio "hp" es solo para jugadores: los PG de enemigos y NPCs los llevás vos en la narración.
+- "players[].condition" dice cómo está cada jugador: "ok", "dying" (a 0 PG, inconsciente, tirando salvaciones contra la muerte), "stable" (a 0 PG, inconsciente pero sin tirar) o "dead". Al llegar a 0 PG el sistema lo pone "dying" solo. Las salvaciones contra la muerte las pide y las resuelve el sistema y te llegan como SALVACIÓN CONTRA LA MUERTE: narrá el resultado, no las pidas en "playerRoll" ni cambies sus contadores. Mientras está "dying" o "stable" el personaje no actúa; cualquier curación lo levanta. Si está "dead", su historia terminó: narrá un cierre.
 - No apliques consecuencias que dependan de una tirada todavía no resuelta.
 - En el primer turno, definí siempre el lugar inicial con un cambio de tipo "location".
 
@@ -75,7 +76,26 @@ EVENTOS
 FORMATO
 - Respondé únicamente con el JSON del esquema indicado, sin texto afuera. Los textos de "narration", "reason" y las descripciones van en español.`;
 
-export function describeInput(input: TurnInput): string {
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+function deathSaveRoll(natural: number): string {
+  if (natural >= 20) return "20 natural: recupera 1 PG y se levanta.";
+  if (natural <= 1) return `${natural}, dos fallos.`;
+  return natural >= 10 ? `${natural}, éxito.` : `${natural}, fallo.`;
+}
+
+/** What a death save did, read from the player once it was resolved. */
+function deathSaveOutcome(natural: number, player: Character | undefined): string {
+  if (!player || natural >= 20) return "";
+  if (player.condition === "dead") return " Tercer fallo: el personaje muere.";
+  if (player.condition === "stable") return " Tercer éxito: se estabiliza, sigue inconsciente a 0 PG.";
+  const { successes, failures } = player.deathSaves;
+  return ` Van ${plural(successes, "éxito", "éxitos")} y ${plural(failures, "fallo", "fallos")}.`;
+}
+
+/** `state`, when given, is the game with this input already resolved: a
+    death save then also says where the counters stand. */
+export function describeInput(input: TurnInput, state?: GameState): string {
   switch (input.type) {
     case "start":
       return "INICIO DE LA AVENTURA: presentá la escena inicial, el lugar y un gancho para que el personaje actúe.";
@@ -99,8 +119,11 @@ export function describeInput(input: TurnInput): string {
           return `- ${r.reason}: ${formatDice(r)} con ${rollModeLabel(r.mode)} = ${r.total} (dados: ${r.values.join(", ")}; queda ${kept})`;
         }),
       ].join("\n");
-    case "death_save":
-      return `SALVACIÓN CONTRA LA MUERTE: ${input.natural}`;
+    case "death_save": {
+      const player = state?.players.find((p) => p.id === input.playerId) ??
+        (state?.players.length === 1 ? state.players[0] : undefined);
+      return `SALVACIÓN CONTRA LA MUERTE (resuelta por el sistema): ${deathSaveRoll(input.natural)}${deathSaveOutcome(input.natural, player)}`;
+    }
   }
 }
 
@@ -171,7 +194,7 @@ export function buildTurnPrompt(
       : [
           "LÍMITE DE TIRADAS\nEn esta respuesta no pidas tiradas de enemigos: resolvé lo que quede con las tiradas que ya tenés y devolvele el turno al jugador.",
         ]),
-    `TURNO ACTUAL\n${describeInput(input)}`,
+    `TURNO ACTUAL\n${describeInput(input, state)}`,
   ].join("\n\n");
 }
 

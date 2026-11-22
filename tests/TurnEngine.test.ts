@@ -1041,3 +1041,69 @@ describe("TurnEngine.adjustHp", () => {
 function started0(state: GameState): GameState {
   return { ...state, turns: [{ number: 1, input: { type: "start" }, narration: "Hola", events: [] }] };
 }
+
+describe("death saves", () => {
+  const withCondition = (state: GameState, condition: "ok" | "dying" | "stable" | "dead", failures = 0): GameState => ({
+    ...state,
+    players: state.players.map((p) => ({ ...p, currentHp: 0, condition, deathSaves: { successes: 0, failures } })),
+  });
+  const save = (natural: number) => ({ type: "death_save" as const, playerId: PLAYER_ID, natural });
+
+  it("rejects a death save from a player who is not dying", async () => {
+    const ctx = setup();
+    const game = await started(ctx);
+    const outcome = await ctx.engine.playTurn(game, save(8));
+    expect(outcome).toMatchObject({ ok: false, failure: { kind: "invalid_input" } });
+  });
+
+  it("rejects a natural outside 1-20", async () => {
+    const ctx = setup();
+    const game = withCondition(await started(setup()), "dying");
+    for (const natural of [0, 21]) {
+      const outcome = await ctx.engine.playTurn(game, save(natural));
+      expect(outcome).toMatchObject({ ok: false, failure: { kind: "invalid_input" } });
+    }
+  });
+
+  it("rejects any action from a dead player", async () => {
+    const ctx = setup();
+    const game = withCondition(await started(setup()), "dead", 3);
+    const outcome = await ctx.engine.playTurn(game, { type: "action", text: "Me levanto" });
+    expect(outcome).toMatchObject({ ok: false, failure: { kind: "invalid_input" } });
+  });
+
+  it("resolves the save before the prompt and keeps it even if the DM proposes nothing", async () => {
+    const ctx = setup();
+    const game = withCondition(await started(setup()), "dying");
+    ctx.llm.queueStructured(reply({ narration: "La oscuridad te tira hacia abajo." }));
+    const outcome = await ctx.engine.playTurn(game, save(8));
+    expect(ctx.llm.structuredRequests.at(-1)!.prompt).toContain(
+      "SALVACIÓN CONTRA LA MUERTE (resuelta por el sistema): 8, fallo. Van 0 éxitos y 1 fallo.",
+    );
+    if (!outcome.ok) throw new Error("turn failed");
+    expect(outcome.state.players[0]!.deathSaves).toEqual({ successes: 0, failures: 1 });
+    expect((await ctx.repo.load(game.id))?.players[0]!.deathSaves.failures).toBe(1);
+  });
+
+  it("tells the DM about a natural 20 and a third failure", async () => {
+    const ctx = setup();
+    const game = withCondition(await started(setup()), "dying", 2);
+    ctx.llm.queueStructured(reply({}));
+    await ctx.engine.playTurn(game, save(20));
+    expect(ctx.llm.structuredRequests.at(-1)!.prompt).toContain("20 natural: recupera 1 PG y se levanta.");
+    ctx.llm.queueStructured(reply({}));
+    const outcome = await ctx.engine.playTurn(game, save(4));
+    expect(ctx.llm.structuredRequests.at(-1)!.prompt).toContain("Tercer fallo: el personaje muere.");
+    expect(outcome.ok && outcome.state.players[0]!.condition).toBe("dead");
+  });
+
+  it("a failed turn leaves the save unresolved", async () => {
+    const ctx = setup();
+    const game = withCondition(await started(setup()), "dying");
+    ctx.llm.queueStructured("no es json");
+    ctx.llm.queueStructured("tampoco");
+    const outcome = await ctx.engine.playTurn(game, save(8));
+    expect(outcome.ok).toBe(false);
+    expect(outcome.state.players[0]!.deathSaves.failures).toBe(0);
+  });
+});

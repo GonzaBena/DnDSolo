@@ -7,6 +7,8 @@ interface Props {
   open: boolean;
   /** The roll the DM asked for, if any, shown as a reminder. */
   request: PlayerRollRequest | null;
+  /** A death save: a bare d20 with no modifier, resolved by code. */
+  deathSave?: boolean;
   onClose: () => void;
   onSubmit: (roll: {
     die: Die;
@@ -20,7 +22,16 @@ interface Props {
 
 /** Quick way to report a roll made with the player's own dice: the value
     shown on the die plus the modifier, instead of typing it out. */
-export function RollDialog({ open, request, onClose, onSubmit }: Props) {
+const DEATH_SAVE: PlayerRollRequest = {
+  die: "d20",
+  count: 1,
+  reason: "Salvación contra la muerte",
+  difficulty: 10,
+  mode: "normal",
+};
+
+export function RollDialog({ open, request: asked, deathSave = false, onClose, onSubmit }: Props) {
+  const request = deathSave ? DEATH_SAVE : asked;
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [value, setValue] = useState("");
   // The modifier survives between rolls: the same check often repeats.
@@ -48,7 +59,7 @@ export function RollDialog({ open, request, onClose, onSubmit }: Props) {
   }, [open]);
 
   const parsedValue = Number.parseInt(value, 10);
-  const parsedModifier = Number.parseInt(modifier, 10) || 0;
+  const parsedModifier = deathSave ? 0 : Number.parseInt(modifier, 10) || 0;
   const parsedSecond = Number.parseInt(secondValue, 10);
   const twoDice = mode !== "normal";
   // With advantage the system picks the die, so the count is always 1.
@@ -86,7 +97,7 @@ export function RollDialog({ open, request, onClose, onSubmit }: Props) {
         }}
       >
         <h2 id="roll-dialog-title" className="roll-dialog__title">
-          Tu tirada
+          {deathSave ? "Salvación contra la muerte" : "Tu tirada"}
         </h2>
         {request && (
           <p className="roll-dialog__request">
@@ -94,6 +105,11 @@ export function RollDialog({ open, request, onClose, onSubmit }: Props) {
             {request.mode !== "normal" && ` con ${rollModeLabel(request.mode)}`}
             {request.difficulty !== null &&
               ` · CD ${request.difficulty}`} — {request.reason}
+          </p>
+        )}
+        {deathSave && (
+          <p className="roll-dialog__kept">
+            Sin modificadores. 10 o más es un éxito; 20 natural te levanta con 1 PG.
           </p>
         )}
         {!request && (
@@ -188,28 +204,32 @@ export function RollDialog({ open, request, onClose, onSubmit }: Props) {
               />
             </div>
           )}
-          <span className="roll-dialog__op" aria-hidden="true">
-            +
-          </span>
-          <div className="field">
-            <label htmlFor="roll-modifier">Modificador</label>
-            <input
-              id="roll-modifier"
-              type="number"
-              inputMode="numeric"
-              value={modifier}
-              onChange={(event) => setModifier(event.target.value)}
-            />
-          </div>
-          <span className="roll-dialog__op" aria-hidden="true">
-            =
-          </span>
-          <output
-            className="roll-dialog__total"
-            htmlFor="roll-value roll-value-2 roll-modifier"
-          >
-            {valid ? kept + parsedModifier : "—"}
-          </output>
+          {!deathSave && (
+            <>
+              <span className="roll-dialog__op" aria-hidden="true">
+                +
+              </span>
+              <div className="field">
+                <label htmlFor="roll-modifier">Modificador</label>
+                <input
+                  id="roll-modifier"
+                  type="number"
+                  inputMode="numeric"
+                  value={modifier}
+                  onChange={(event) => setModifier(event.target.value)}
+                />
+              </div>
+              <span className="roll-dialog__op" aria-hidden="true">
+                =
+              </span>
+              <output
+                className="roll-dialog__total"
+                htmlFor="roll-value roll-value-2 roll-modifier"
+              >
+                {valid ? kept + parsedModifier : "—"}
+              </output>
+            </>
+          )}
         </div>
         {twoDice && valid && (
           <p className="roll-dialog__kept">
