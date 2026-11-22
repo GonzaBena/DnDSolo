@@ -3,9 +3,10 @@ import { shakeScreen } from "../animations/motion";
 import { castOf, speakingNow } from "../domain/dialogue";
 import { formatDice } from "../domain/dice";
 import type { GameState, PlayerRoll, TurnInput } from "../domain/types";
-import { TurnEngine, type TurnFailure, type TurnOutcome } from "../engine/TurnEngine";
+import { TurnEngine, type TurnOutcome } from "../engine/TurnEngine";
 import { GeminiClient } from "../llm/GeminiClient";
 import { describeLLMError } from "../llm/errorMessages";
+import { describeFailure, type FailureNotice } from "./failureNotice";
 import { IndexedDBGameRepo } from "../persistence/IndexedDBGameRepo";
 import { isConfigured, loadSettings } from "../persistence/settings";
 import { CharacterPanel } from "./CharacterPanel";
@@ -40,19 +41,6 @@ interface InFlight {
 
 const SAVE_WARNING = "El turno se jugó pero no se pudo guardar. Si recargás, lo perdés.";
 
-function describeFailure(failure: TurnFailure): string {
-  switch (failure.kind) {
-    case "llm":
-      return describeLLMError(failure.cause);
-    case "invalid_response":
-      return "El DM respondió algo que no se pudo interpretar. Tu partida está intacta: probá de nuevo.";
-    case "invalid_input":
-      return "Esa acción no se puede hacer en este momento.";
-    case "aborted":
-      return "Cortaste la respuesta del DM.";
-  }
-}
-
 // The whole game screen is this single React island; every other page is
 // plain Astro.
 export default function Game() {
@@ -60,11 +48,8 @@ export default function Game() {
   const [inFlight, setInFlight] = useState<InFlight | null>(null);
   const [busy, setBusy] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-  // True only while the model call can still be cut; after that the
-  // typewriter is just finishing the reveal.
-  const [abortable, setAbortable] = useState(false);
   useEffect(() => () => abortRef.current?.abort(), []);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<FailureNotice | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [sceneOpen, setSceneOpen] = useState(false);
@@ -137,7 +122,6 @@ export default function Game() {
       );
       const controller = new AbortController();
       abortRef.current = controller;
-      setAbortable(true);
       const aborted = new Promise<void>((resolve) =>
         controller.signal.addEventListener("abort", () => resolve(), { once: true }),
       );
@@ -158,12 +142,11 @@ export default function Game() {
       } finally {
         if (abortRef.current === controller) abortRef.current = null;
         typewriter.cancel();
-        setAbortable(false);
         setBusy(false);
       }
       if (outcome === null) {
         setInFlight({ input, narration: "", draft: typed });
-        setError(describeLLMError(null));
+        setError({ message: describeLLMError(null), suggestSettings: false });
         return;
       }
       // Set right away so a summary that resolves meanwhile is applied on top
@@ -414,7 +397,7 @@ export default function Game() {
 
         {error && (
           <div className="notice notice--error" role="alert">
-            <p>{error}</p>
+            <p>{error.message}</p>
             <div className="actions">
               {inFlight && (
                 <button
@@ -425,9 +408,11 @@ export default function Game() {
                   Reintentar
                 </button>
               )}
-              <a className="button" href="/settings">
-                Revisar configuración
-              </a>
+              {error.suggestSettings && (
+                <a className="button" href="/settings">
+                  Revisar configuración
+                </a>
+              )}
             </div>
           </div>
         )}
@@ -506,7 +491,7 @@ export default function Game() {
               {/* Distinct keys plus preventDefault: otherwise React reuses this
                   same <button> and turns it into the submit one before the
                   click finishes, so the click would send the form again. */}
-              {busy && abortable ? (
+              {busy ? (
                 <button
                   key="stop"
                   type="button"

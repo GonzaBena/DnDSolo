@@ -53,6 +53,17 @@ describe("applyStateChanges", () => {
     expect(result.rejected).toHaveLength(1);
   });
 
+  it("keeps the stored quest description when a closed quest is re-sent without one", () => {
+    const game = newGame();
+    const state = applyStateChanges(game, [
+      { type: "quest", title: "El anillo", description: "Encontrarlo", status: "active" },
+      { type: "quest", title: "El anillo", description: "  ", status: "completed" },
+    ]).state;
+    expect(state.quests).toEqual([
+      { title: "El anillo", description: "Encontrarlo", status: "completed" },
+    ]);
+  });
+
   it("updates NPCs and quests in place instead of duplicating them", () => {
     const state = applyStateChanges(newGame(), [
       { type: "npc", name: "Berta", description: "Posadera", attitude: "neutral", present: true, voice: "", portrait: null },
