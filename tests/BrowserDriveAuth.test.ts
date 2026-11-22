@@ -157,6 +157,23 @@ describe("BrowserDriveAuth", () => {
     await expect(auth.getAccessToken()).rejects.toBeInstanceOf(AuthExpiredError);
   });
 
+  it("disconnect gives up waiting on a revoke that never calls back after 5 s", async () => {
+    vi.useFakeTimers();
+    const { gis, auth } = setup();
+    const done = auth.connect();
+    gis.grant({ access_token: "abc" });
+    await done;
+    gis.revoke.mockImplementation(() => undefined); // GIS never answers
+
+    let finished = false;
+    void auth.disconnect().then(() => (finished = true));
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(finished).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(finished).toBe(true);
+    expect(auth.needsGesture()).toBe(true);
+  });
+
   it("forget drops the token locally without revoking at Google", async () => {
     const { gis, auth } = setup();
     const done = auth.connect();

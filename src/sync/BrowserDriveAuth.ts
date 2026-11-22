@@ -8,6 +8,8 @@ const RENEW_MARGIN_MS = 10 * 60_000;
 const RENEW_TIMEOUT_MS = 20_000;
 /** The first consent screen takes reading; still never wait forever. */
 const CONNECT_TIMEOUT_MS = 120_000;
+/** GIS may never call back from a revoke; disconnecting must still finish. */
+const REVOKE_TIMEOUT_MS = 5_000;
 
 export type TokenStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
@@ -75,11 +77,17 @@ export class BrowserDriveAuth implements DriveAuth {
     const token = this.token?.value;
     this.setToken(null);
     if (!token) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const gis = this.deps.gis();
-      await new Promise<void>((resolve) => gis.revoke(token, resolve));
+      await new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, REVOKE_TIMEOUT_MS);
+        gis.revoke(token, resolve);
+      });
     } catch {
       // GIS unavailable: the token is dropped locally and expires within the hour.
+    } finally {
+      clearTimeout(timer);
     }
   }
 
