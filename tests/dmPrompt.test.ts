@@ -213,6 +213,21 @@ describe("compact prompt", () => {
     expect(DM_SYSTEM_PROMPT).toContain('Si "stats" es null');
   });
 
+  it("limits the hp change to players and keeps enemy HP in the narration", () => {
+    expect(DM_SYSTEM_PROMPT).toContain("Cuando un jugador recibe daño o curación");
+    expect(DM_SYSTEM_PROMPT).not.toContain("Cuando un personaje recibe daño");
+    expect(DM_SYSTEM_PROMPT).toContain("los PG de enemigos y NPCs los llevás vos en la narración");
+  });
+
+  it("combat rules tie enemy attacks to the AC and hp change, and spell saves to stats", () => {
+    const fight = buildTurnPrompt({ ...newGame(), scene: { inCombat: true, turnOf: null } }, { type: "start" }, 6);
+    expect(fight).toContain('Compará el ataque con la CA de "stats" del jugador');
+    expect(fight).toContain('con un cambio "hp"');
+    expect(fight).toContain('"spellSaveDc" de "stats"');
+    expect(fight).toContain('preguntásela solo si "stats" es null');
+    expect(fight).not.toContain("preguntásela si no la sabés");
+  });
+
   it("shows the DM a player's stats and current hp", () => {
     const state = newGame();
     const stats = { maxHp: 12, armorClass: 16, initiative: 1, speed: 30, hitDice: "1d10", attacks: [], spellSaveDc: null, spellAttackBonus: null };

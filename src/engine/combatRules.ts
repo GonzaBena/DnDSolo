@@ -14,7 +14,7 @@ ATAQUES DEL JUGADOR (en dos pasos, siempre en este orden)
 2. Si el total iguala o supera la CA, impacta: en ese mismo turno no narres el golpe todavía; pedile la tirada de daño en "playerRoll" con el dado de su arma o conjuro (por ejemplo 1d8 para una espada larga), "difficulty": null, y aclarale en la narración que sume el modificador que corresponda. Recién con ese total narrás el daño y restale los puntos de golpe al enemigo.
 - Si falla, narrá el fallo y seguí con el turno siguiente. No pidas daño.
 - 20 natural en el d20 de ataque: impacta siempre y es crítico; pedile el doble de dados de daño (count × 2), el modificador se suma una sola vez. 1 natural: falla siempre.
-- Conjuros con tirada de ataque funcionan igual. Conjuros con salvación: el objetivo enemigo tira la salvación en "enemyRolls" contra la CD de conjuros del jugador (preguntásela si no la sabés); si falla, pedile al jugador el daño.
+- Conjuros con tirada de ataque funcionan igual. Conjuros con salvación: el objetivo enemigo tira la salvación en "enemyRolls" contra la CD de conjuros del jugador ("spellSaveDc" de "stats"; preguntásela solo si "stats" es null); si falla, pedile al jugador el daño.
 
 ATAQUES DE ENEMIGOS
 - Pedí en "enemyRolls" el 1d20 + bonificador de ataque del enemigo y, en el mismo pedido, su daño. Compará el ataque con la CA de "stats" del jugador (preguntásela si "stats" es null) y solo aplicá el daño si impacta, con un cambio "hp". Con 20 natural, crítico: en el turno siguiente pedí los dados de daño extra.
