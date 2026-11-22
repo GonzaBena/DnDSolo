@@ -471,7 +471,7 @@ export default function Game() {
         )}
         {warning && <p className="notice">{warning}</p>}
 
-        {playerRoll && !inFlight && (
+        {playerRoll && !inFlight && !dying && (
           <div className="roll-request">
             <p>
               <strong>El DM te pide una tirada: {formatDice(playerRoll)}</strong>

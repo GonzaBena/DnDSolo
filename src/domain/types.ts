@@ -177,7 +177,13 @@ export type StateChange =
       itself (hit dice come as "hp" changes). */
   | { type: "rest"; kind: "short" | "long" }
   /** Hit points gained (+) or lost (-). `target` is a player id or name. */
-  | { type: "hp"; target: string; delta: number }
+  | {
+      type: "hp";
+      target: string;
+      delta: number;
+      /** Damage from a critical hit: at 0 HP it is two failed death saves. */
+      critical?: boolean | undefined;
+    }
   /** The SRD subclass of the player's class, once its level is reached. */
   | { type: "subclass"; playerId: string; subclassId: string }
   | { type: "location"; name: string; description: string }

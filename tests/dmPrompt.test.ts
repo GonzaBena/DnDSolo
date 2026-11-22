@@ -280,3 +280,10 @@ describe("rests in the prompt", () => {
     expect(DM_SYSTEM_PROMPT).toContain("No se descansa en combate.");
   });
 });
+
+describe("critical hits at 0 HP in the prompt", () => {
+  it("asks for critical on hp changes and keeps the rule in combat", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('"critical": true');
+    expect(COMBAT_RULES).toContain("un crítico, dos");
+  });
+});

@@ -52,6 +52,7 @@ const stateChange = z.discriminatedUnion("type", [
     type: z.literal("hp"),
     target: z.string().min(1),
     delta: z.number().int().refine((d) => d !== 0, "delta must not be 0"),
+    critical: z.boolean().optional(),
   }),
   z.object({
     type: z.literal("subclass"),

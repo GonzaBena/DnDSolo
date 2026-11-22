@@ -489,7 +489,7 @@ describe("rests", () => {
 
   it("a long rest restores HP and clears death saves", () => {
     const player = applyStateChanges(hurt(0, "stable"), [long]).state.players[0]!;
-    expect(player).toMatchObject({ currentHp: 20, condition: "ok", deathSaves: { successes: 0, failures: 0 } });
+    expect(player).toMatchObject({ currentHp: 1, condition: "ok", deathSaves: { successes: 0, failures: 0 } });
     expect(applyStateChanges(hurt(7), [long]).state.players[0]!.currentHp).toBe(20);
   });
 
@@ -512,5 +512,52 @@ describe("rests", () => {
     const result = applyStateChanges(game, [long]);
     expect(result.rejected).toHaveLength(1);
     expect(result.state).toEqual(game);
+  });
+});
+
+describe("review details", () => {
+  const stats = {
+    maxHp: 20, armorClass: 14, initiative: 3, speed: 30, hitDice: "3d8",
+    attacks: [], spellSaveDc: null, spellAttackBonus: null,
+  };
+  const at = (currentHp: number, condition: "ok" | "dying" | "stable" = "ok", failures = 0) => {
+    const game = newGame();
+    return {
+      ...game,
+      players: game.players.map((p) => ({ ...p, stats, currentHp, condition, deathSaves: { successes: 0, failures } })),
+    };
+  };
+
+  it("a critical hit at 0 HP is two failed saves", () => {
+    const player = applyStateChanges(at(0, "dying"), [{ type: "hp", target: PLAYER_ID, delta: -4, critical: true }])
+      .state.players[0]!;
+    expect(player.deathSaves.failures).toBe(2);
+    const dead = applyStateChanges(at(0, "dying", 1), [{ type: "hp", target: PLAYER_ID, delta: -4, critical: true }])
+      .state.players[0]!;
+    expect(dead.condition).toBe("dead");
+  });
+
+  it("a long rest while stable wakes them with 1 HP, not full", () => {
+    const player = applyStateChanges(at(0, "stable"), [{ type: "rest", kind: "long" }]).state.players[0]!;
+    expect(player).toMatchObject({ currentHp: 1, condition: "ok", deathSaves: { successes: 0, failures: 0 } });
+  });
+
+  it("a completed quest can't be reopened to earn another milestone", () => {
+    const game = newGame();
+    const done = { ...game, quests: [{ title: "El faro", description: "x", status: "completed" as const }] };
+    const result = applyStateChanges(done, [{ type: "quest", title: "el faro", description: "", status: "active" }]);
+    expect(result.rejected[0]!.reason).toBe("A completed quest can't be reopened.");
+    expect(result.state.quests[0]!.status).toBe("completed");
+  });
+
+  it("a level listed before the milestone that pays for it still applies", () => {
+    const game = newGame();
+    const one = { ...game, players: game.players.map((p) => ({ ...p, milestonesSinceLevel: 1 })) };
+    const result = applyStateChanges(one, [
+      { type: "level", playerId: PLAYER_ID, level: 4 },
+      { type: "milestone", playerId: PLAYER_ID, reason: "Venció al jefe" },
+    ]);
+    expect(result.rejected).toEqual([]);
+    expect(result.state.players[0]).toMatchObject({ level: 4, milestonesSinceLevel: 0 });
   });
 });
