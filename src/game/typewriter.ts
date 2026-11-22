@@ -17,7 +17,11 @@ export interface Typewriter {
 
 /** Reveals `target` gradually through `onReveal`, one animation frame at a
     time. With reduced motion the text is shown as it arrives. */
-export function createTypewriter(onReveal: (shown: string) => void): Typewriter {
+export function createTypewriter(
+  onReveal: (shown: string) => void,
+  doc: Pick<Document, "visibilityState" | "addEventListener" | "removeEventListener"> | undefined =
+    typeof document === "undefined" ? undefined : document,
+): Typewriter {
   const instant =
     typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
   let target = "";
@@ -30,6 +34,20 @@ export function createTypewriter(onReveal: (shown: string) => void): Typewriter 
   const settle = () => {
     for (const resolve of waiters) resolve();
     waiters = [];
+  };
+
+  const isHidden = () => doc?.visibilityState === "hidden";
+
+  /** Animation frames pause in a hidden tab, so a waiting turn would never
+      be saved: reveal everything at once instead. */
+  const revealAll = () => {
+    if (frame !== null) cancelAnimationFrame(frame);
+    frame = null;
+    if (shown < target.length) {
+      shown = target.length;
+      onReveal(target);
+    }
+    settle();
   };
 
   const tick = (time: number) => {
@@ -75,7 +93,20 @@ export function createTypewriter(onReveal: (shown: string) => void): Typewriter 
     },
     finish() {
       if (shown >= target.length) return Promise.resolve();
-      return new Promise((resolve) => waiters.push(resolve));
+      if (isHidden()) {
+        revealAll();
+        return Promise.resolve();
+      }
+      return new Promise((resolve) => {
+        const onVisibility = () => {
+          if (isHidden()) revealAll();
+        };
+        doc?.addEventListener("visibilitychange", onVisibility);
+        waiters.push(() => {
+          doc?.removeEventListener("visibilitychange", onVisibility);
+          resolve();
+        });
+      });
     },
     cancel() {
       if (frame !== null) cancelAnimationFrame(frame);

@@ -139,7 +139,7 @@ export default function Game() {
       const aborted = new Promise<void>((resolve) =>
         controller.signal.addEventListener("abort", () => resolve(), { once: true }),
       );
-      let outcome: TurnOutcome;
+      let outcome: TurnOutcome | null = null;
       try {
         outcome = await engine.playTurn(
           state,
@@ -150,11 +150,19 @@ export default function Game() {
           // Stop meanwhile doesn't wait for the typewriter.
           () => Promise.race([typewriter.finish(), aborted]),
         );
+      } catch (error) {
+        // Not a failure playTurn reports; keep the input so the player can retry.
+        console.error(error);
       } finally {
         if (abortRef.current === controller) abortRef.current = null;
         typewriter.cancel();
         setAbortable(false);
         setBusy(false);
+      }
+      if (outcome === null) {
+        setInFlight({ input, narration: "", draft: typed });
+        setError(describeLLMError(null));
+        return;
       }
       // Set right away so a summary that resolves meanwhile is applied on top
       // of this turn.
@@ -206,13 +214,8 @@ export default function Game() {
         el.classList.add("game--damage-flash");
         setTimeout(() => el.classList.remove("game--damage-flash"), 400);
       }
-      // A summary may have landed during the typewriter wait; keep it.
-      const newest = latestStateRef.current;
-      const shown =
-        newest && newest.id === outcome.state.id && newest.turns.length >= outcome.state.turns.length
-          ? newest
-          : outcome.state;
-      latestStateRef.current = shown;
+      // The ref was just reconciled with any summary that landed meanwhile.
+      const shown = latestStateRef.current ?? outcome.state;
       setScreen((previous) => ({
         status: "playing",
         engine,
