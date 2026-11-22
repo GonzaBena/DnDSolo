@@ -43,20 +43,20 @@ TIRADAS DE ENEMIGOS Y NPCS
 - No pidas en el mismo turno una tirada al jugador y tiradas de enemigos: primero resolvé una cosa y después la otra.
 
 ESTADO
-- Vos no modificás el estado: proponés cambios en "stateChanges" y el sistema los aplica. Todo lo que la narración afirme sobre objetos que aparecen, se ganan o se pierden, cambio de lugar, NPCs nuevos o misiones tiene que tener su cambio correspondiente. Si no pasa nada de eso, mandá [].
+- Vos no modificás el estado: proponés cambios en "stateChanges" y el sistema los aplica. Todo lo que la narración afirme sobre objetos que aparecen, se ganan o se pierden, cambio de lugar, NPCs nuevos o misiones tiene que tener su cambio correspondiente. Las misiones cerradas figuran en el ESTADO solo con título y estado; si mandás una de nuevo con la descripción vacía, el sistema conserva la que tenía. Si no pasa nada de eso, mandá [].
 - En los cambios de inventario usá el "id" del jugador tal como figura en ESTADO. El inventario del ESTADO son solo los objetos que entregaste vos en la historia.
 - Los puntos de golpe los lleva el jugador en su hoja: cuando reciba daño o curación, decile la cantidad exacta en la narración para que la anote. No hay cambio de estado para eso.
 - No apliques consecuencias que dependan de una tirada todavía no resuelta.
 - En el primer turno, definí siempre el lugar inicial con un cambio de tipo "location".
 
 OBJETOS
-- "storyItems" del ESTADO son los objetos que aparecieron en la historia: "available" (a la vista, se pueden agarrar), "taken" (los tiene un personaje) y "gone" (ya no están).
+- "storyItems" del ESTADO son los objetos que aparecieron en la historia: "available" (a la vista, se pueden agarrar) y "taken" (los tiene un personaje). Los objetos que ya no están por ahí no figuran en el ESTADO.
 - Cuando la narración ponga al alcance del jugador un objeto que podría agarrar o usar (un arma caída, una llave, un pergamino, el contenido de un cofre, una recompensa ofrecida), registralo con un cambio "item" con "status": "available" y una descripción breve. Solo objetos con interés para la historia, no muebles ni decorado.
 - Cuando un personaje lo agarre, mandá "inventory_add" con exactamente el mismo nombre; el sistema lo marca como suyo. No mandes "item" con "taken".
 - Si un objeto disponible se destruye, alguien más se lo lleva o deja de estar al alcance, mandá "item" con "status": "gone". Si el jugador suelta o deja algo en un lugar, mandá "inventory_remove" y después "item" con "status": "available".
 
 ESCENA
-- Cada NPC tiene "present": si está en la escena actual. Cuando un NPC aparece, se acerca o se va, mandá su cambio "npc" con "present" actualizado. Al cambiar de lugar, el sistema saca a todos de la escena: volvé a marcar con "present": true a los que estén en el nuevo lugar. Los enemigos con los que se pelea también son NPCs (con actitud "hostile"); si son varios iguales, numeralos ("Goblin 1", "Goblin 2").
+- Cada NPC tiene "present": si está en la escena actual. Cuando un NPC aparece, se acerca o se va, mandá su cambio "npc" con "present" actualizado. Al cambiar de lugar, el sistema saca a todos de la escena: volvé a marcar con "present": true a los que estén en el nuevo lugar. Los NPCs ausentes figuran solo con nombre y actitud; si vuelven, mandá su cambio "npc" completo (si no sabés su descripción, mandala vacía y el sistema conserva la que tenía; lo mismo vale para "voice"). Los enemigos con los que se pelea también son NPCs (con actitud "hostile"); si son varios iguales, numeralos ("Goblin 1", "Goblin 2").
 - El "name" de un NPC va siempre en español. Si no tiene nombre propio (o el jugador todavía no lo sabe), usá lo que es, en español y con mayúscula: "Tabernero", "Anciana", "Guardia del portón". Nunca uses como nombre un arquetipo de "portrait" ni palabras en inglés ("innkeeper-male", "oldman"). Si más adelante el jugador se entera de su nombre propio, seguí usando el nombre que tiene en ESTADO.
 - Cuando aparece un NPC nuevo, elegí en "portrait" el arquetipo que corresponda a lo que el NPC ES (su oficio y su aspecto), con su género cuando la opción lo tiene; es el retrato que ve el jugador. El género solo no alcanza: una vendedora no es una guardia. Si ningún arquetipo corresponde de verdad, mandá null y el jugador ve sus iniciales. En cambios posteriores mandá null: el retrato no cambia nunca. Si un NPC del ESTADO tiene "portrait": null y le queda algún arquetipo, elegíselo en su próximo cambio "npc". Arquetipos y a quién representan:
 ${describeArchetypes()}
@@ -114,14 +114,17 @@ function describeTurn(turn: Turn): string {
 
 /** Memory layer 1: the structured state, without the fields that are
     already covered by the other layers or are bookkeeping. */
-function stateForModel(state: GameState) {
+export function stateForModel(state: GameState): unknown {
   return {
     players: state.players,
     location: state.location,
-    npcs: state.npcs,
+    // Absent NPCs shrink to name and attitude; the full record stays in the save.
+    npcs: state.npcs.map((n) => (n.present ? n : { name: n.name, attitude: n.attitude, present: false })),
     scene: state.scene,
-    quests: state.quests,
-    storyItems: state.storyItems,
+    // Closed quests keep only title and status.
+    quests: state.quests.map((q) => (q.status === "active" ? q : { title: q.title, status: q.status })),
+    // Items that are gone no longer matter to the DM.
+    storyItems: state.storyItems.filter((i) => i.status !== "gone"),
   };
 }
 
@@ -151,7 +154,7 @@ export function buildTurnPrompt(
 ): string {
   const recent = turnsForPrompt(state, recentTurns);
   return [
-    `ESTADO\n${JSON.stringify(stateForModel(state), null, 2)}`,
+    `ESTADO\n${JSON.stringify(stateForModel(state))}`,
     `REGLAS DE LOS PERSONAJES\n${describeCharacterRules(state.players)}`,
     // Only during a fight, to keep the prompt short the rest of the time.
     ...(state.scene.inCombat ? [`REGLAS DE COMBATE\n${COMBAT_RULES}`] : []),

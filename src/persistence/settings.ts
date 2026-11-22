@@ -4,6 +4,8 @@
 export interface Settings {
   apiKey: string;
   model: string;
+  /** Lower the model's thinking to answer sooner. */
+  fastNarration: boolean;
 }
 
 const STORAGE_KEY = "dnsolo.settings";
@@ -14,9 +16,9 @@ export function loadSettings(): Settings | null {
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== "object" || parsed === null) return null;
-    const { apiKey, model } = parsed as Record<string, unknown>;
+    const { apiKey, model, fastNarration } = parsed as Record<string, unknown>;
     if (typeof apiKey !== "string" || typeof model !== "string") return null;
-    return { apiKey, model };
+    return { apiKey, model, fastNarration: fastNarration === true };
   } catch {
     // Blocked storage or corrupt JSON both mean "not configured".
     return null;

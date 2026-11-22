@@ -25,7 +25,7 @@ export interface LLMClient {
   generateText(request: TextRequest): Promise<string>;
 }
 
-export type LLMErrorKind = "auth" | "rate_limit" | "network" | "empty" | "unknown";
+export type LLMErrorKind = "auth" | "rate_limit" | "network" | "empty" | "aborted" | "unknown";
 
 /** Vendor errors are translated to this so the UI can explain them
     without knowing which provider is behind the client. */

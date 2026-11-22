@@ -145,7 +145,8 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
         const existing = next.npcs.find((n) => sameName(n.name, name));
         const npc = {
           name,
-          description: change.description,
+          // Like voice: an empty description keeps the stored one (absent NPCs reach the model without it).
+          description: change.description.trim() || existing?.description || "",
           attitude: change.attitude,
           present: change.present,
           voice: change.voice.trim() || existing?.voice || "",
@@ -165,9 +166,12 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
         };
         break;
       case "quest": {
+        const existing = next.quests.find((q) => sameName(q.title, change.title));
         const quest = {
           title: change.title,
-          description: change.description,
+          // Closed quests are sent back to the DM without a description, so an
+          // empty one keeps what is stored.
+          description: change.description.trim() || existing?.description || "",
           status: change.status,
         };
         next = {

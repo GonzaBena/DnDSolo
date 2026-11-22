@@ -46,7 +46,9 @@ export function CharacterGenerator({ onUse }: Props) {
     setPhase({ status: "generating" });
     try {
       const result = await generateOptions(
-        new GeminiClient(settings.apiKey, settings.model),
+        new GeminiClient(settings.apiKey, settings.model, {
+          fastNarration: settings.fastNarration,
+        }),
         story,
         Number(level),
         controller.signal,

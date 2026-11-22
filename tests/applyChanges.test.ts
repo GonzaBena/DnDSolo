@@ -53,6 +53,17 @@ describe("applyStateChanges", () => {
     expect(result.rejected).toHaveLength(1);
   });
 
+  it("keeps the stored quest description when a closed quest is re-sent without one", () => {
+    const game = newGame();
+    const state = applyStateChanges(game, [
+      { type: "quest", title: "El anillo", description: "Encontrarlo", status: "active" },
+      { type: "quest", title: "El anillo", description: "  ", status: "completed" },
+    ]).state;
+    expect(state.quests).toEqual([
+      { title: "El anillo", description: "Encontrarlo", status: "completed" },
+    ]);
+  });
+
   it("updates NPCs and quests in place instead of duplicating them", () => {
     const state = applyStateChanges(newGame(), [
       { type: "npc", name: "Berta", description: "Posadera", attitude: "neutral", present: true, voice: "", portrait: null },
@@ -73,6 +84,15 @@ describe("applyStateChanges", () => {
     expect(first.npcs[0]!.voice).toBe("Seca, frases cortas");
     const later = applyStateChanges(first, [{ ...berta, present: false, voice: "" }]).state;
     expect(later.npcs[0]).toMatchObject({ present: false, voice: "Seca, frases cortas" });
+  });
+
+  it("keeps the existing description when a later npc change sends it empty", () => {
+    const berta = { type: "npc", name: "Berta", description: "Posadera", attitude: "neutral", present: true, voice: "", portrait: null } as const;
+    const first = applyStateChanges(newGame(), [berta]).state;
+    const back = applyStateChanges(first, [{ ...berta, description: "  " }]).state;
+    expect(back.npcs[0]!.description).toBe("Posadera");
+    const renewed = applyStateChanges(first, [{ ...berta, description: "Posadera cansada" }]).state;
+    expect(renewed.npcs[0]!.description).toBe("Posadera cansada");
   });
 
   it("records an NPC's portrait and keeps it when a later change sends null", () => {

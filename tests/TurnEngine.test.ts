@@ -471,6 +471,236 @@ describe("TurnEngine.playTurn", () => {
   });
 });
 
+describe("TurnEngine abort", () => {
+  it("returns an aborted failure with the state untouched and nothing saved", async () => {
+    const ctx = setup();
+    const game = newGame();
+    ctx.llm.queueStructured(reply({}));
+    const controller = new AbortController();
+    controller.abort();
+
+    const outcome = await ctx.engine.playTurn(game, { type: "start" }, undefined, controller.signal);
+
+    expect(outcome).toEqual({ ok: false, state: game, failure: { kind: "aborted" } });
+    expect(await ctx.repo.load(game.id)).toBeNull();
+    // Already aborted: the model is never called.
+    expect(ctx.llm.structuredRequests).toHaveLength(0);
+  });
+
+  it("does not retry when the abort happens mid-stream", async () => {
+    const ctx = setup();
+    const game = newGame();
+    ctx.llm.queueStructured(reply({}), reply({}));
+    const controller = new AbortController();
+
+    const outcome = await ctx.engine.playTurn(
+      game,
+      { type: "start" },
+      () => controller.abort(),
+      controller.signal,
+    );
+
+    expect(outcome).toEqual({ ok: false, state: game, failure: { kind: "aborted" } });
+    expect(ctx.llm.structuredRequests).toHaveLength(1);
+    expect(await ctx.repo.load(game.id)).toBeNull();
+  });
+
+  it("an aborted enemy_rolls turn can be resent with the same dice, without rerolling", async () => {
+    const ctx = setup();
+    const game = await started(ctx);
+    ctx.llm.queueStructured(
+      reply({
+        enemyRolls: [
+          { die: "d20", count: 1, modifier: 4, reason: "Ataque del goblin", mode: "normal" },
+        ],
+      }),
+    );
+    const asked = await ctx.engine.playTurn(game, { type: "action", text: "Avanzo" });
+    if (!asked.ok) throw new Error("expected ok");
+
+    let rolls = 0;
+    const original = ctx.engine.rollEnemyDice.bind(ctx.engine);
+    ctx.engine.rollEnemyDice = (state) => {
+      rolls += 1;
+      return original(state);
+    };
+    const results = ctx.engine.rollEnemyDice(asked.state);
+    const sentValues = results.map((r) => [...r.values]);
+    const input = { type: "enemy_rolls" as const, results };
+
+    const controller = new AbortController();
+    controller.abort();
+    const aborted = await ctx.engine.playTurn(asked.state, input, undefined, controller.signal);
+    expect(aborted.ok).toBe(false);
+    if (aborted.ok) return;
+    expect(aborted.failure.kind).toBe("aborted");
+    expect(aborted.state).toBe(asked.state);
+
+    // Retry resends the very same input.
+    ctx.llm.queueStructured(reply({ narration: "El goblin acierta." }));
+    const retried = await ctx.engine.playTurn(asked.state, input);
+    expect(retried.ok).toBe(true);
+    if (!retried.ok) return;
+    // Guards against playTurn rolling dice itself or mutating the results.
+    expect(rolls).toBe(1);
+    expect(input.results.map((r) => [...r.values])).toEqual(sentValues);
+    expect(retried.state.turns.at(-1)!.input).toEqual(input);
+    expect(ctx.llm.structuredRequests.at(-1)!.prompt).toContain(
+      `Ataque del goblin: 1d20+4 = ${results[0]!.total}`,
+    );
+  });
+
+  it("classifies as aborted whatever error the SDK throws once the signal fired", async () => {
+    const ctx = setup();
+    const game = newGame();
+    const controller = new AbortController();
+    // The SDK wrapped the abort in an error that is not an AbortError.
+    ctx.llm.generateStructured = async () => {
+      controller.abort();
+      throw new Error("exception sending request");
+    };
+
+    const outcome = await ctx.engine.playTurn(game, { type: "start" }, undefined, controller.signal);
+
+    expect(outcome).toEqual({ ok: false, state: game, failure: { kind: "aborted" } });
+  });
+});
+
+describe("TurnEngine abort when the SDK stream ends without throwing", () => {
+  it("does not retry when an abort mid-stream returns truncated text", async () => {
+    const ctx = setup();
+    const game = newGame();
+    const controller = new AbortController();
+    let calls = 0;
+    ctx.llm.generateStructured = async (request) => {
+      calls += 1;
+      expect(request.signal).toBe(controller.signal);
+      request.onChunk?.('{"narration":"El goblin se');
+      controller.abort();
+      return '{"narration":"El goblin se';
+    };
+    const narrations: string[] = [];
+
+    const outcome = await ctx.engine.playTurn(
+      game,
+      { type: "start" },
+      (text) => narrations.push(text),
+      controller.signal,
+    );
+
+    expect(outcome).toEqual({ ok: false, state: game, failure: { kind: "aborted" } });
+    expect(calls).toBe(1);
+    expect(narrations).not.toContain("");
+    expect(ctx.repo.saveCount).toBe(0);
+  });
+
+  it("does not make a second attempt when the signal fires after an unparseable first reply", async () => {
+    const ctx = setup();
+    const game = newGame();
+    const controller = new AbortController();
+    let calls = 0;
+    ctx.llm.generateStructured = async () => {
+      calls += 1;
+      controller.abort();
+      return "no es json";
+    };
+
+    const outcome = await ctx.engine.playTurn(game, { type: "start" }, undefined, controller.signal);
+
+    expect(outcome).toEqual({ ok: false, state: game, failure: { kind: "aborted" } });
+    expect(calls).toBe(1);
+  });
+});
+
+describe("TurnEngine beforeCommit", () => {
+  it("saves only after beforeCommit resolves", async () => {
+    const ctx = setup();
+    const game = newGame();
+    ctx.llm.queueStructured(reply({}));
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let called = 0;
+
+    const pending = ctx.engine.playTurn(game, { type: "start" }, undefined, undefined, async () => {
+      called += 1;
+      await gate;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(called).toBe(1);
+    expect(ctx.repo.saveCount).toBe(0);
+
+    release();
+    const outcome = await pending;
+    expect(outcome.ok).toBe(true);
+    expect(ctx.repo.saveCount).toBe(1);
+  });
+
+  it("discards the turn when aborted during beforeCommit", async () => {
+    const ctx = setup();
+    const game = newGame();
+    ctx.llm.queueStructured(reply({}), reply({}));
+    const controller = new AbortController();
+
+    const outcome = await ctx.engine.playTurn(
+      game,
+      { type: "start" },
+      undefined,
+      controller.signal,
+      async () => controller.abort(),
+    );
+
+    expect(outcome).toEqual({ ok: false, state: game, failure: { kind: "aborted" } });
+    expect(ctx.repo.saveCount).toBe(0);
+    const again = await ctx.engine.playTurn(game, { type: "start" });
+    if (!again.ok) throw new Error("expected ok");
+    expect(again.state.turns).toHaveLength(1);
+    expect(again.state.turns[0]!.number).toBe(1);
+  });
+
+  it("treats a throwing beforeCommit as aborted only when the signal fired", async () => {
+    const ctx = setup();
+    const game = newGame();
+    ctx.llm.queueStructured(reply({}), reply({}));
+    const controller = new AbortController();
+    const aborted = await ctx.engine.playTurn(game, { type: "start" }, undefined, controller.signal, async () => {
+      controller.abort();
+      throw new Error("boom");
+    });
+    expect(aborted).toEqual({ ok: false, state: game, failure: { kind: "aborted" } });
+    await expect(
+      ctx.engine.playTurn(game, { type: "start" }, undefined, undefined, async () => {
+        throw new Error("boom");
+      }),
+    ).rejects.toThrow("boom");
+  });
+
+  it("calls beforeCommit once, after the valid reply, when the first is invalid", async () => {
+    const ctx = setup();
+    ctx.llm.queueStructured("no es json", reply({}));
+    let calls = 0;
+    let requestsAtCall = 0;
+    const outcome = await ctx.engine.playTurn(newGame(), { type: "start" }, undefined, undefined, async () => {
+      calls += 1;
+      requestsAtCall = ctx.llm.structuredRequests.length;
+    });
+    expect(outcome.ok).toBe(true);
+    expect(calls).toBe(1);
+    expect(requestsAtCall).toBe(2);
+  });
+
+  it("does not call beforeCommit when generation is aborted", async () => {
+    const ctx = setup();
+    ctx.llm.queueStructured(reply({}));
+    const controller = new AbortController();
+    controller.abort();
+    let calls = 0;
+    await ctx.engine.playTurn(newGame(), { type: "start" }, undefined, controller.signal, async () => {
+      calls += 1;
+    });
+    expect(calls).toBe(0);
+  });
+});
+
 describe("message authorship", () => {
   it("keeps who said each action through save and load", async () => {
     const ctx = setup();

@@ -3,9 +3,10 @@ import { shakeScreen } from "../animations/motion";
 import { castOf, speakingNow } from "../domain/dialogue";
 import { formatDice } from "../domain/dice";
 import type { GameState, PlayerRoll, TurnInput } from "../domain/types";
-import { TurnEngine, type TurnFailure } from "../engine/TurnEngine";
+import { TurnEngine, type TurnOutcome } from "../engine/TurnEngine";
 import { GeminiClient } from "../llm/GeminiClient";
 import { describeLLMError } from "../llm/errorMessages";
+import { describeFailure, type FailureNotice } from "./failureNotice";
 import { IndexedDBGameRepo } from "../persistence/IndexedDBGameRepo";
 import { isConfigured, loadSettings } from "../persistence/settings";
 import { CharacterPanel } from "./CharacterPanel";
@@ -34,20 +35,11 @@ type Screen =
 interface InFlight {
   input: TurnInput;
   narration: string;
+  /** What the player typed, before slash commands were expanded. */
+  draft?: string;
 }
 
 const SAVE_WARNING = "El turno se jugó pero no se pudo guardar. Si recargás, lo perdés.";
-
-function describeFailure(failure: TurnFailure): string {
-  switch (failure.kind) {
-    case "llm":
-      return describeLLMError(failure.cause);
-    case "invalid_response":
-      return "El DM respondió algo que no se pudo interpretar. Tu partida está intacta: probá de nuevo.";
-    case "invalid_input":
-      return "Esa acción no se puede hacer en este momento.";
-  }
-}
 
 // The whole game screen is this single React island; every other page is
 // plain Astro.
@@ -55,7 +47,9 @@ export default function Game() {
   const [screen, setScreen] = useState<Screen>({ status: "loading" });
   const [inFlight, setInFlight] = useState<InFlight | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => abortRef.current?.abort(), []);
+  const [error, setError] = useState<FailureNotice | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [sceneOpen, setSceneOpen] = useState(false);
@@ -95,7 +89,9 @@ export default function Game() {
     }
     const repo = new IndexedDBGameRepo();
     const engine = new TurnEngine({
-      llm: new GeminiClient(settings.apiKey, settings.model),
+      llm: new GeminiClient(settings.apiKey, settings.model, {
+        fastNarration: settings.fastNarration,
+      }),
       repo,
     });
     // /play?id=... opens a specific campaign; without it, the latest one.
@@ -114,19 +110,47 @@ export default function Game() {
   }, []);
 
   const send = useCallback(
-    async (engine: TurnEngine, state: GameState, input: TurnInput) => {
+    async (engine: TurnEngine, state: GameState, input: TurnInput, typed?: string) => {
       setBusy(true);
       // Whoever sends wants to see the reply, even if they had scrolled up.
       scrollToBottom();
       setError(null);
       setWarning(null);
-      setInFlight({ input, narration: "" });
-      const typewriter = createTypewriter((narration) => setInFlight({ input, narration }));
-      const outcome = await engine.playTurn(state, input, (narration) =>
-        typewriter.setTarget(narration),
+      setInFlight({ input, narration: "", draft: typed });
+      const typewriter = createTypewriter((narration) =>
+        setInFlight({ input, narration, draft: typed }),
       );
-      // Set before the typewriter wait so a summary that resolves meanwhile
-      // is applied on top of this turn.
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const aborted = new Promise<void>((resolve) =>
+        controller.signal.addEventListener("abort", () => resolve(), { once: true }),
+      );
+      let outcome: TurnOutcome | null = null;
+      try {
+        outcome = await engine.playTurn(
+          state,
+          input,
+          (narration) => typewriter.setTarget(narration),
+          controller.signal,
+          // The turn is committed only after the text is fully shown, and a
+          // Stop meanwhile doesn't wait for the typewriter.
+          () => Promise.race([typewriter.finish(), aborted]),
+        );
+      } catch (error) {
+        // Not a failure playTurn reports; keep the input so the player can retry.
+        console.error(error);
+      } finally {
+        if (abortRef.current === controller) abortRef.current = null;
+        typewriter.cancel();
+        setBusy(false);
+      }
+      if (outcome === null) {
+        setInFlight({ input, narration: "", draft: typed });
+        setError({ message: describeLLMError(null), suggestSettings: false });
+        return;
+      }
+      // Set right away so a summary that resolves meanwhile is applied on top
+      // of this turn.
       if (outcome.ok) {
         const held = latestStateRef.current;
         const heldIsNewer =
@@ -148,15 +172,21 @@ export default function Game() {
               : outcome.state;
         }
       }
-      // The turn joins the log only once its narration has been fully
-      // revealed, so the rest of the text doesn't pop in all at once.
-      if (outcome.ok) await typewriter.finish();
-      typewriter.cancel();
-      setBusy(false);
+      if (
+        !outcome.ok &&
+        outcome.failure.kind === "aborted" &&
+        input.type === "action" &&
+        !input.roll
+      ) {
+        // Nothing happened: the text goes back to the box to edit or resend.
+        setInFlight(null);
+        setDraft(typed ?? input.text);
+        return;
+      }
       if (!outcome.ok) {
         // Keep the input on screen so "Reintentar" resends exactly this:
         // enemy dice that were already rolled must not be rolled again.
-        setInFlight({ input, narration: "" });
+        setInFlight({ input, narration: "", draft: typed });
         setError(describeFailure(outcome.failure));
         return;
       }
@@ -169,13 +199,8 @@ export default function Game() {
         el.classList.add("game--damage-flash");
         setTimeout(() => el.classList.remove("game--damage-flash"), 400);
       }
-      // A summary may have landed during the typewriter wait; keep it.
-      const newest = latestStateRef.current;
-      const shown =
-        newest && newest.id === outcome.state.id && newest.turns.length >= outcome.state.turns.length
-          ? newest
-          : outcome.state;
-      latestStateRef.current = shown;
+      // The ref was just reconciled with any summary that landed meanwhile.
+      const shown = latestStateRef.current ?? outcome.state;
       setScreen((previous) => ({
         status: "playing",
         engine,
@@ -307,7 +332,7 @@ export default function Game() {
     const text = expandSlashCommands(raw);
     setDraft("");
     // Solo game: the one player is always the author.
-    void send(engine, state, { type: "action", text, playerId: state.players[0]?.id });
+    void send(engine, state, { type: "action", text, playerId: state.players[0]?.id }, raw);
   };
 
   // Whatever was already typed goes first, so "Ataco al orco" + roll
@@ -372,20 +397,22 @@ export default function Game() {
 
         {error && (
           <div className="notice notice--error" role="alert">
-            <p>{error}</p>
+            <p>{error.message}</p>
             <div className="actions">
               {inFlight && (
                 <button
                   type="button"
                   className="button button--primary"
-                  onClick={() => void send(engine, state, inFlight.input)}
+                  onClick={() => void send(engine, state, inFlight.input, inFlight.draft)}
                 >
                   Reintentar
                 </button>
               )}
-              <a className="button" href="/settings">
-                Revisar configuración
-              </a>
+              {error.suggestSettings && (
+                <a className="button" href="/settings">
+                  Revisar configuración
+                </a>
+              )}
             </div>
           </div>
         )}
@@ -461,24 +488,46 @@ export default function Game() {
               >
                 <DieShape die="d20" className="action-roll__die" />
               </button>
-              <button
-                type="submit"
-                className="button button--primary action-send"
-                aria-label="Enviar"
-                title="Enviar"
-                disabled={!canAct || draft.trim() === ""}
-              >
-                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-                  <path
-                    d="M21 3 3 10.5l7 2.5 2.5 7L21 3Zm0 0L10 13"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
+              {/* Distinct keys plus preventDefault: otherwise React reuses this
+                  same <button> and turns it into the submit one before the
+                  click finishes, so the click would send the form again. */}
+              {busy ? (
+                <button
+                  key="stop"
+                  type="button"
+                  className="button button--primary action-send"
+                  aria-label="Detener respuesta"
+                  title="Detener"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    abortRef.current?.abort();
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                    <rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor" />
+                  </svg>
+                </button>
+              ) : (
+                <button
+                  key="send"
+                  type="submit"
+                  className="button button--primary action-send"
+                  aria-label="Enviar"
+                  title="Enviar"
+                  disabled={!canAct || draft.trim() === ""}
+                >
+                  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                    <path
+                      d="M21 3 3 10.5l7 2.5 2.5 7L21 3Zm0 0L10 13"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
         </form>

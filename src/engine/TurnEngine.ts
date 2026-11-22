@@ -8,7 +8,7 @@ import type {
   Turn,
   TurnInput,
 } from "../domain/types";
-import type { LLMClient } from "../llm/LLMClient";
+import { LLMError, type LLMClient } from "../llm/LLMClient";
 import type { GameRepo } from "../persistence/GameRepo";
 import {
   buildSummaryPrompt,
@@ -55,7 +55,9 @@ export type TurnFailure =
   /** The model answered twice with something that doesn't match the schema. */
   | { kind: "invalid_response"; message: string }
   /** The call itself failed (key, network, quota...). */
-  | { kind: "llm"; message: string; cause: unknown };
+  | { kind: "llm"; message: string; cause: unknown }
+  /** The player cut the response short; never retried, nothing saved. */
+  | { kind: "aborted" };
 
 export type TurnOutcome =
   | {
@@ -106,11 +108,17 @@ export class TurnEngine {
   /**
    * @param onNarration receives the narration read so far, in full, each
    *   time more text arrives (and "" if a retry starts over).
+   * @param signal aborts the model call, or the wait in `beforeCommit`;
+   *   an aborted turn is never retried and leaves nothing saved.
+   * @param beforeCommit awaited once a reply parses, before the turn is
+   *   committed and saved.
    */
   async playTurn(
     state: GameState,
     input: TurnInput,
     onNarration?: (narrationSoFar: string) => void,
+    signal?: AbortSignal,
+    beforeCommit?: () => Promise<void>,
   ): Promise<TurnOutcome> {
     const inputProblem = this.checkInput(state, input);
     if (inputProblem) {
@@ -125,27 +133,46 @@ export class TurnEngine {
     let lastReason = "";
     for (let attempt = 0; attempt < 2; attempt += 1) {
       let raw = "";
+      if (signal?.aborted) return { ok: false, state, failure: { kind: "aborted" } };
       if (attempt > 0) onNarration?.("");
       try {
         raw = await this.llm.generateStructured({
           system: DM_SYSTEM_PROMPT,
           prompt: attempt > 0 ? `${prompt}\n\n${buildCorrection(lastReason)}` : prompt,
           jsonSchema: dmResponseJsonSchema,
+          signal,
           onChunk: (fragment) => {
             raw += fragment;
             onNarration?.(extractPartialNarration(raw));
           },
         });
       } catch (cause) {
+        // The SDK may wrap the abort in any error, so the signal decides too.
+        if (signal?.aborted || (cause instanceof LLMError && cause.kind === "aborted")) {
+          return { ok: false, state, failure: { kind: "aborted" } };
+        }
         const message = cause instanceof Error ? cause.message : String(cause);
         return { ok: false, state, failure: { kind: "llm", message, cause } };
       }
+
+      // A stream cut by the abort may end without throwing and hand back
+      // partial text: that is not a malformed reply, so don't retry it.
+      if (signal?.aborted) return { ok: false, state, failure: { kind: "aborted" } };
 
       const parsed = parseDMResponse(raw);
       if (!parsed.ok) {
         lastReason = parsed.reason;
         continue;
       }
+      // Lets the UI finish revealing the text; a Stop in that window
+      // discards the turn, so nothing is committed or saved before it.
+      try {
+        await beforeCommit?.();
+      } catch (cause) {
+        if (signal?.aborted) return { ok: false, state, failure: { kind: "aborted" } };
+        throw cause;
+      }
+      if (signal?.aborted) return { ok: false, state, failure: { kind: "aborted" } };
       return this.commit(state, input, parsed.response, enemyRollsAllowed);
     }
 

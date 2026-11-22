@@ -1,8 +1,16 @@
 import { ApiError, GoogleGenAI } from "@google/genai";
+import { thinkingConfigFor } from "./thinking";
 import { LLMError, type LLMClient, type StructuredRequest, type TextRequest } from "./LLMClient";
 
 function toLLMError(error: unknown): LLMError {
   if (error instanceof LLMError) return error;
+  // Raised when the AbortSignal passed in the request fires.
+  if (
+    (error instanceof Error || error instanceof DOMException) &&
+    error.name === "AbortError"
+  ) {
+    return new LLMError("aborted", error.message, { cause: error });
+  }
   if (error instanceof ApiError) {
     // An invalid key comes back as 400 (API_KEY_INVALID), not 401.
     const isKeyProblem =
@@ -19,13 +27,20 @@ function toLLMError(error: unknown): LLMError {
   return new LLMError("unknown", message, { cause: error });
 }
 
+function abortedError(): LLMError {
+  return new LLMError("aborted", "The request was aborted.");
+}
+
 export class GeminiClient implements LLMClient {
   private readonly ai: GoogleGenAI;
   private readonly model: string;
 
-  constructor(apiKey: string, model: string) {
+  private readonly fastNarration: boolean;
+
+  constructor(apiKey: string, model: string, options: { fastNarration?: boolean } = {}) {
     this.ai = new GoogleGenAI({ apiKey });
     this.model = model;
+    this.fastNarration = options.fastNarration ?? false;
   }
 
   async generateStructured(request: StructuredRequest): Promise<string> {
@@ -38,15 +53,20 @@ export class GeminiClient implements LLMClient {
           responseMimeType: "application/json",
           responseJsonSchema: request.jsonSchema,
           abortSignal: request.signal,
+          // Only the turn call: the summary keeps the model's default thinking.
+          thinkingConfig: thinkingConfigFor(this.model, this.fastNarration),
         },
       });
       let full = "";
       for await (const chunk of stream) {
+        if (request.signal?.aborted) throw abortedError();
         const fragment = chunk.text;
         if (!fragment) continue;
         full += fragment;
         request.onChunk?.(fragment);
       }
+      // The stream can end quietly when cut: don't return the partial text.
+      if (request.signal?.aborted) throw abortedError();
       if (!full) throw new LLMError("empty", "The model returned no text.");
       return full;
     } catch (error) {
@@ -61,6 +81,7 @@ export class GeminiClient implements LLMClient {
         contents: request.prompt,
         config: { systemInstruction: request.system, abortSignal: request.signal },
       });
+      if (request.signal?.aborted) throw abortedError();
       const text = response.text;
       if (!text) throw new LLMError("empty", "The model returned no text.");
       return text;

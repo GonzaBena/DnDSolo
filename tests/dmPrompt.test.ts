@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { TURN_EVENTS } from "../src/domain/types";
-import { buildTurnPrompt, DM_SYSTEM_PROMPT } from "../src/engine/dmPrompt";
+import { buildTurnPrompt, DM_SYSTEM_PROMPT, stateForModel } from "../src/engine/dmPrompt";
+import type { GameState } from "../src/domain/types";
 import { newGame } from "./helpers";
 
 describe("DM_SYSTEM_PROMPT", () => {
@@ -121,5 +122,84 @@ describe("advantage", () => {
     const fight = buildTurnPrompt({ ...newGame(), scene: { inCombat: true, turnOf: null } }, { type: "start" }, 6);
     expect(fight).toContain('"mode": "advantage"');
     expect(fight).not.toContain('"count": 2');
+  });
+});
+
+describe("stateForModel", () => {
+  const present = { name: "Berta", description: "Posadera", attitude: "friendly" as const, present: true, voice: "Seca", portrait: "innkeeper-female" };
+  const absent = { name: "Corvo", description: "Mercader", attitude: "neutral" as const, present: false, voice: "Suave", portrait: "merchant-male" };
+
+  it("sends present NPCs in full and absent NPCs as name and attitude only", () => {
+    const state = stateForModel({ ...newGame(), npcs: [present, absent] }) as { npcs: unknown[] };
+    expect(state.npcs).toEqual([present, { name: "Corvo", attitude: "neutral", present: false }]);
+  });
+
+  it("leaves out story items that are gone", () => {
+    const storyItems = [
+      { name: "Llave", description: "Oxidada", location: "Sótano", status: "available" as const },
+      { name: "Daga", description: "Corta", location: "", status: "taken" as const },
+      { name: "Mapa", description: "Quemado", location: "", status: "gone" as const },
+    ];
+    const state = stateForModel({ ...newGame(), storyItems }) as { storyItems: unknown[] };
+    expect(state.storyItems).toEqual(storyItems.slice(0, 2));
+  });
+
+  it("shrinks closed quests to title and status and keeps active ones whole", () => {
+    const quests = [
+      { title: "A", description: "Larga", status: "active" as const },
+      { title: "B", description: "Larga", status: "completed" as const },
+      { title: "C", description: "Larga", status: "failed" as const },
+    ];
+    const state = stateForModel({ ...newGame(), quests }) as { quests: unknown[] };
+    expect(state.quests).toEqual([quests[0], { title: "B", status: "completed" }, { title: "C", status: "failed" }]);
+  });
+
+  it("keeps players, location and scene as they are", () => {
+    const game = newGame();
+    expect(stateForModel(game)).toMatchObject({ players: game.players, location: game.location, scene: game.scene });
+  });
+});
+
+describe("compact prompt", () => {
+  const long = (label: string, i: number) => `${label} ${i}: ` + "una descripción con bastante detalle sobre quién o qué es. ".repeat(3);
+  const big: GameState = {
+    ...newGame(),
+    npcs: Array.from({ length: 30 }, (_, i) => ({
+      name: `Aldeano ${i}`, description: long("Aldeano", i), attitude: "neutral" as const, present: false, voice: "Habla pausado, dice 'bueno' seguido", portrait: "guard-male",
+    })),
+    storyItems: Array.from({ length: 30 }, (_, i) => ({
+      name: `Objeto ${i}`, description: long("Objeto", i), location: "Taberna", status: "gone" as const,
+    })),
+  };
+
+  it("has no indentation in the state", () => {
+    const prompt = buildTurnPrompt(big, { type: "start" }, 6);
+    const section = prompt.slice("ESTADO\n".length, prompt.indexOf("\n\nREGLAS DE LOS PERSONAJES"));
+    expect(prompt.startsWith("ESTADO\n")).toBe(true);
+    expect(section.length).toBeGreaterThan(0);
+    expect(section).not.toContain('\n  "');
+    expect(section).not.toContain("\n");
+  });
+
+  it("does not claim the ESTADO lists gone items, but still asks for the gone change", () => {
+    const line = DM_SYSTEM_PROMPT.split("\n").find((l) => l.includes('"storyItems" del ESTADO'))!;
+    expect(line).not.toMatch(/"gone"/);
+    expect(DM_SYSTEM_PROMPT).toContain('"item" con "status": "gone"');
+  });
+
+  it("makes the ESTADO section at least 40% shorter than the old indented serializer", () => {
+    // Baseline: the old serializer, copied here, over the same full fields.
+    const old = JSON.stringify(
+      { players: big.players, location: big.location, npcs: big.npcs, scene: big.scene, quests: big.quests, storyItems: big.storyItems },
+      null,
+      2,
+    );
+    const section = buildTurnPrompt(big, { type: "start" }, 6).split("\n\nREGLAS DE LOS PERSONAJES")[0]!;
+    expect(section.length).toBeLessThanOrEqual(old.length * 0.6);
+  });
+
+  it("tells the DM how absent NPCs come back", () => {
+    expect(DM_SYSTEM_PROMPT).toContain("Los NPCs ausentes figuran solo con nombre y actitud");
+    expect(DM_SYSTEM_PROMPT).toContain("mandala vacía");
   });
 });
