@@ -59,6 +59,8 @@ export class SyncEngine {
   /** State of the last failed task, shown while its ids are still pending. */
   private lastFailure: SyncState | null = null;
   private readonly guards = new Map<string, LocalGuard>();
+  /** A full sync failed before reconciling: `flush` owes one, since no id is pending for it. */
+  private fullSyncOwed = false;
 
   constructor(private readonly deps: Deps) {}
 
@@ -70,6 +72,7 @@ export class SyncEngine {
         const bases = await this.basesForAccount();
         const [localGames, remoteEntries] = await Promise.all([this.deps.local.list(), this.deps.remote.list()]);
         const actions = reconcile(localGames.map(toLocalEntry), remoteEntries, bases.all());
+        this.fullSyncOwed = false;
         const localById = new Map(localGames.map((g) => [g.id, g]));
         // One failing game (an unresolved conflict, a bad file) must not stall the others.
         let failure: unknown = null;
@@ -85,6 +88,7 @@ export class SyncEngine {
         if (failure) this.lastFailure = failureState(failure);
       } catch (error) {
         for (const id of retried) this.pending.add(id);
+        this.fullSyncOwed = true;
         throw error;
       }
     }).then(() => undefined);
@@ -120,6 +124,7 @@ export class SyncEngine {
 
   /** Runs everything pending, then resolves (never rejects). */
   async flush(): Promise<void> {
+    if (this.fullSyncOwed) void this.syncAll();
     for (const id of this.pending) this.queueOne(id);
     await this.chain;
   }

@@ -173,6 +173,41 @@ describe("SyncEngine", () => {
     expect(syncStatus.get().state).toBe("idle");
   });
 
+  it("flush redoes a full sync that failed before reconciling, with nothing pending", async () => {
+    const remote = new InMemoryRemoteGameStore();
+    const a = device("A", remote);
+    const b = device("B", remote);
+    const remoteOnly = game(1);
+    const localOnly = { ...game(2), id: "local-only" };
+    await b.repo.save(remoteOnly);
+    await b.engine.flush();
+    await a.local.save(localOnly); // straight to the repo: nothing pending
+
+    const expired = vi.spyOn(remote, "accountId").mockRejectedValue(new AuthExpiredError());
+    await a.engine.syncAll();
+    expect(syncStatus.get().state).toBe("reconnect");
+
+    expired.mockRestore();
+    await a.engine.flush();
+    expect(syncStatus.get().state).toBe("idle");
+    expect(await a.local.load(remoteOnly.id)).not.toBeNull();
+    expect((await remote.list()).map((r) => r.id).sort()).toEqual([localOnly.id, remoteOnly.id].sort());
+  });
+
+  it("a completed full sync clears the debt: a later flush with nothing pending does no remote work", async () => {
+    const remote = new InMemoryRemoteGameStore();
+    const a = device("A", remote);
+    const expired = vi.spyOn(remote, "accountId").mockRejectedValue(new AuthExpiredError());
+    await a.engine.syncAll();
+    expired.mockRestore();
+    await a.engine.syncAll();
+    expect(syncStatus.get().state).toBe("idle");
+
+    const list = vi.spyOn(remote, "list");
+    await a.engine.flush();
+    expect(list).not.toHaveBeenCalled();
+  });
+
   it("goes offline on a network failure and uploads on flush", async () => {
     const remote = new InMemoryRemoteGameStore();
     const a = device("A", remote);
