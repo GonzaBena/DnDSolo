@@ -151,3 +151,15 @@ describe("parseDMResponse count with advantage", () => {
     expect(response.enemyRolls[0]?.count).toBe(3);
   });
 });
+
+describe("hp state change", () => {
+  const parse = (change: unknown) =>
+    parseDMResponse(JSON.stringify(reply({ stateChanges: [change as never] })));
+  it("accepts a non-zero integer delta", () => {
+    expect(parse({ type: "hp", target: "Lira", delta: -4 }).ok).toBe(true);
+  });
+  it("rejects a zero or fractional delta", () => {
+    expect(parse({ type: "hp", target: "Lira", delta: 0 }).ok).toBe(false);
+    expect(parse({ type: "hp", target: "Lira", delta: 1.5 }).ok).toBe(false);
+  });
+});

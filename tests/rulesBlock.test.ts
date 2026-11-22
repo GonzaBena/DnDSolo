@@ -8,7 +8,7 @@ function hero(overrides: Partial<Character>): Character {
   return {
     id: "p1", name: "Hero", race: "Humano", characterClass: "Guerrero",
     speciesId: "human", classId: "fighter", subclassId: null, srdBackgroundId: null,
-    level: 2, background: null, inventory: [], ...overrides,
+    level: 2, background: null, inventory: [], stats: null, currentHp: null, ...overrides,
   };
 }
 

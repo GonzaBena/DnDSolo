@@ -316,3 +316,58 @@ describe("story items", () => {
     expect(state.storyItems).toEqual([{ name: "Escudo", description: "Abollado", location: "Puente", status: "available" }]);
   });
 });
+
+describe("hp changes", () => {
+  const stats = {
+    maxHp: 20, armorClass: 14, initiative: 3, speed: 30, hitDice: "3d8",
+    attacks: [], spellSaveDc: null, spellAttackBonus: null,
+  };
+  const withHp = () => {
+    const game = newGame();
+    return { ...game, players: game.players.map((p) => ({ ...p, stats, currentHp: 20 })) };
+  };
+
+  it("applies damage by id", () => {
+    const result = applyStateChanges(withHp(), [{ type: "hp", target: PLAYER_ID, delta: -7 }]);
+    expect(result.state.players[0]!.currentHp).toBe(13);
+    expect(result.rejected).toEqual([]);
+  });
+
+  it("clamps to 0 and to the maximum", () => {
+    const dead = applyStateChanges(withHp(), [{ type: "hp", target: PLAYER_ID, delta: -50 }]).state;
+    expect(dead.players[0]!.currentHp).toBe(0);
+    const hurt = applyStateChanges(withHp(), [{ type: "hp", target: PLAYER_ID, delta: -7 }]).state;
+    const healed = applyStateChanges(hurt, [{ type: "hp", target: PLAYER_ID, delta: 50 }]).state;
+    expect(healed.players[0]!.currentHp).toBe(20);
+  });
+
+  it("resolves the target by name ignoring case", () => {
+    const game = withHp();
+    const two = { ...game, players: [...game.players, { ...game.players[0]!, id: "other", name: "Bruno" }] };
+    const result = applyStateChanges(two, [{ type: "hp", target: "lIRA", delta: -2 }]);
+    expect(result.state.players[0]!.currentHp).toBe(18);
+    expect(result.state.players[1]!.currentHp).toBe(20);
+  });
+
+  it("falls back to the only player for an unknown target", () => {
+    const result = applyStateChanges(withHp(), [{ type: "hp", target: "nadie", delta: -1 }]);
+    expect(result.state.players[0]!.currentHp).toBe(19);
+  });
+
+  it("rejects an unknown target when there are several players", () => {
+    const game = withHp();
+    const two = { ...game, players: [...game.players, { ...game.players[0]!, id: "other", name: "Bruno" }] };
+    const result = applyStateChanges(two, [{ type: "hp", target: "nadie", delta: -1 }]);
+    expect(result.rejected).toHaveLength(1);
+    expect(result.state).toEqual(two);
+  });
+
+  it("rejects a character without tracked hit points and leaves the state alone", () => {
+    const game = newGame();
+    const result = applyStateChanges(game, [{ type: "hp", target: PLAYER_ID, delta: -3 }]);
+    expect(result.rejected).toHaveLength(1);
+    expect(result.rejected[0]!.reason).toBe("That character has no hit points tracked.");
+    expect(result.state).toEqual(game);
+  });
+});
+

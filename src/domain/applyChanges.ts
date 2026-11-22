@@ -22,6 +22,15 @@ function findPlayerIndex(players: Character[], playerId: string): number {
   return players.length === 1 ? 0 : -1;
 }
 
+/** Resolves a player by id, then by name (any case); a lone player is always meant. */
+function findPlayerByTarget(players: Character[], target: string): number {
+  const byId = players.findIndex((p) => p.id === target);
+  if (byId !== -1) return byId;
+  const byName = players.findIndex((p) => sameName(p.name, target));
+  if (byName !== -1) return byName;
+  return players.length === 1 ? 0 : -1;
+}
+
 function upsert<T>(list: T[], item: T, matches: (existing: T) => boolean): T[] {
   const index = list.findIndex(matches);
   if (index === -1) return [...list, item];
@@ -112,6 +121,24 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
           break;
         }
         updatePlayer(index, (p) => ({ ...p, level: change.level }));
+        break;
+      }
+      case "hp": {
+        const index = findPlayerByTarget(next.players, change.target);
+        if (index === -1) {
+          rejected.push({ change, reason: "Unknown player." });
+          break;
+        }
+        const player = next.players[index]!;
+        if (player.stats === null || player.currentHp === null) {
+          rejected.push({ change, reason: "That character has no hit points tracked." });
+          break;
+        }
+        const max = player.stats.maxHp;
+        updatePlayer(index, (p) => ({
+          ...p,
+          currentHp: Math.min(max, Math.max(0, (p.currentHp ?? 0) + change.delta)),
+        }));
         break;
       }
       case "subclass": {

@@ -55,6 +55,8 @@ export function createCharacter(input: CharacterInput, newId: () => string): Cha
     level,
     background: background === "" ? null : background,
     inventory: [],
+    stats: null,
+    currentHp: null,
   };
 }
 

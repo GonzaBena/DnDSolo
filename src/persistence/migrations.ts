@@ -111,6 +111,15 @@ function fromV7(raw: Raw): Raw {
   return { ...raw, version: 8, npcs, scene };
 }
 
+/** v9 -> v10. Characters carry optional combat stats and current hit points;
+    old saves have neither tracked. */
+function fromV9(raw: Raw): Raw {
+  const players = Array.isArray(raw.players)
+    ? raw.players.map((p: unknown) => (isObject(p) ? { ...p, stats: null, currentHp: null } : p))
+    : raw.players;
+  return { ...raw, version: 10, players };
+}
+
 /** v8 -> v9. A requested roll (the player's or an enemy's) says whether it
     is made with advantage; every old one was a plain roll. */
 function fromV8(raw: Raw): Raw {
@@ -147,6 +156,7 @@ export function migrateSave(raw: unknown): GameState | null {
   if (current.version === 6) current = fromV6(current);
   if (current.version === 7) current = fromV7(current);
   if (current.version === 8) current = fromV8(current);
+  if (current.version === 9) current = fromV9(current);
   if (current.version !== GAME_STATE_VERSION) return null;
   const parsed = gameStateSchema.safeParse(current);
   return parsed.success ? parsed.data : null;

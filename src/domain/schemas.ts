@@ -43,6 +43,11 @@ const stateChange = z.discriminatedUnion("type", [
     level: z.number().int().min(1).max(20),
   }),
   z.object({
+    type: z.literal("hp"),
+    target: z.string().min(1),
+    delta: z.number().int().refine((d) => d !== 0, "delta must not be 0"),
+  }),
+  z.object({
     type: z.literal("subclass"),
     playerId: z.string(),
     subclassId: z.string().min(1),
@@ -194,6 +199,21 @@ export const gameStateSchema = z.object({
         level: z.number().int(),
         background: z.string().nullable(),
         inventory: z.array(z.object({ name: z.string(), quantity: z.number().int() })),
+        stats: z
+          .object({
+            maxHp: z.number().int(),
+            armorClass: z.number().int(),
+            initiative: z.number().int(),
+            speed: z.number().int(),
+            hitDice: z.string(),
+            attacks: z.array(
+              z.object({ name: z.string(), attackBonus: z.number().int(), damage: z.string() }),
+            ),
+            spellSaveDc: z.number().int().nullable(),
+            spellAttackBonus: z.number().int().nullable(),
+          })
+          .nullable(),
+        currentHp: z.number().int().nullable(),
       }),
     )
     .min(1),

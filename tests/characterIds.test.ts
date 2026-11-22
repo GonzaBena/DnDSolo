@@ -148,3 +148,13 @@ describe("v8 -> v9", () => {
     expect(migrated?.pendingPlayerRoll).toBeNull();
   });
 });
+
+describe("v9 -> v10", () => {
+  it("adds untracked stats and hit points to every player", () => {
+    const game = newGame();
+    const migrated = migrateSave({ ...game, version: 9 });
+    expect(migrated?.version).toBe(GAME_STATE_VERSION);
+    expect(migrated?.players.every((p) => p.stats === null && p.currentHp === null)).toBe(true);
+  });
+});
+
