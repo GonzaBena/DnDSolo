@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { dieSides, formatDice, resolveRollMode, rollModeLabel } from "../domain/dice";
 import { DICE, type Die, type PlayerRollRequest, type RollMode } from "../domain/types";
 import { DieShape } from "./DieShape";
@@ -33,6 +33,14 @@ const DEATH_SAVE: PlayerRollRequest = {
 export function RollDialog({ open, request: asked, deathSave = false, onClose, onSubmit }: Props) {
   const request = deathSave ? DEATH_SAVE : asked;
   const dialogRef = useRef<HTMLDialogElement>(null);
+  // Two of these are mounted (any roll and the death save): ids must not clash.
+  const uid = useId();
+  const ids = {
+    title: `${uid}-title`,
+    value: `${uid}-value`,
+    second: `${uid}-value-2`,
+    modifier: `${uid}-modifier`,
+  };
   const [value, setValue] = useState("");
   // The modifier survives between rolls: the same check often repeats.
   const [modifier, setModifier] = useState("0");
@@ -74,7 +82,7 @@ export function RollDialog({ open, request: asked, deathSave = false, onClose, o
     <dialog
       ref={dialogRef}
       className="roll-dialog"
-      aria-labelledby="roll-dialog-title"
+      aria-labelledby={ids.title}
       onClose={onClose}
       // A click on the dialog itself (not its form) is a click on the backdrop.
       onClick={(event) => {
@@ -96,7 +104,7 @@ export function RollDialog({ open, request: asked, deathSave = false, onClose, o
           });
         }}
       >
-        <h2 id="roll-dialog-title" className="roll-dialog__title">
+        <h2 id={ids.title} className="roll-dialog__title">
           {deathSave ? "Salvación contra la muerte" : "Tu tirada"}
         </h2>
         {request && (
@@ -159,9 +167,9 @@ export function RollDialog({ open, request: asked, deathSave = false, onClose, o
           {twoDice ? (
             <div className="roll-dialog__pair">
               <div className="field">
-                <label htmlFor="roll-value">Dado 1</label>
+                <label htmlFor={ids.value}>Dado 1</label>
                 <input
-                  id="roll-value"
+                  id={ids.value}
                   type="number"
                   inputMode="numeric"
                   min={1}
@@ -173,9 +181,9 @@ export function RollDialog({ open, request: asked, deathSave = false, onClose, o
                 />
               </div>
               <div className="field">
-                <label htmlFor="roll-value-2">Dado 2</label>
+                <label htmlFor={ids.second}>Dado 2</label>
                 <input
-                  id="roll-value-2"
+                  id={ids.second}
                   type="number"
                   inputMode="numeric"
                   min={1}
@@ -188,11 +196,11 @@ export function RollDialog({ open, request: asked, deathSave = false, onClose, o
             </div>
           ) : (
             <div className="field">
-              <label htmlFor="roll-value">
+              <label htmlFor={ids.value}>
                 {count > 1 ? `Suma de ${count}${die}` : "Resultado"}
               </label>
               <input
-                id="roll-value"
+                id={ids.value}
                 type="number"
                 inputMode="numeric"
                 min={1}
@@ -210,9 +218,9 @@ export function RollDialog({ open, request: asked, deathSave = false, onClose, o
                 +
               </span>
               <div className="field">
-                <label htmlFor="roll-modifier">Modificador</label>
+                <label htmlFor={ids.modifier}>Modificador</label>
                 <input
-                  id="roll-modifier"
+                  id={ids.modifier}
                   type="number"
                   inputMode="numeric"
                   value={modifier}
@@ -224,7 +232,7 @@ export function RollDialog({ open, request: asked, deathSave = false, onClose, o
               </span>
               <output
                 className="roll-dialog__total"
-                htmlFor="roll-value roll-value-2 roll-modifier"
+                htmlFor={`${ids.value} ${ids.second} ${ids.modifier}`}
               >
                 {valid ? kept + parsedModifier : "—"}
               </output>

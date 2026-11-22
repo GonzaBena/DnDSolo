@@ -1,7 +1,7 @@
 import { gameStateSchema } from "../domain/schemas";
 import { npcNameFromArchetype } from "../domain/portraits";
 import { findClass, findSpecies } from "../rules";
-import { GAME_STATE_VERSION, type GameState } from "../domain/types";
+import { GAME_STATE_VERSION, type Condition, type GameState } from "../domain/types";
 
 type Raw = Record<string, unknown>;
 const isObject = (value: unknown): value is Raw => typeof value === "object" && value !== null;
@@ -143,15 +143,15 @@ function fromV9(raw: Raw): Raw {
 }
 
 /** v10 -> v11. Characters know whether they are up, dying, stable or dead,
-    and count milestones toward their next level. A player left at 0 HP is
-    dying; nobody has saves or milestones yet. */
+    and count milestones toward their next level. Nobody has saves or
+    milestones yet; normalizeHp turns a player left at 0 HP into dying. */
 function fromV10(raw: Raw): Raw {
   const players = Array.isArray(raw.players)
     ? raw.players.map((p: unknown) =>
         isObject(p)
           ? {
               ...p,
-              condition: p.currentHp === 0 ? "dying" : "ok",
+              condition: "ok",
               deathSaves: { successes: 0, failures: 0 },
               milestonesSinceLevel: 0,
             }
@@ -183,16 +183,24 @@ export function migrateSave(raw: unknown): GameState | null {
 }
 
 /** A stored game can disagree with itself about hit points (stats without
-    current HP, HP above the maximum, HP with no stats). Repair it on load
-    instead of rejecting the whole save. */
+    current HP, HP above the maximum, HP with no stats, a condition that
+    doesn't match the HP). Repair it on load instead of rejecting the save. */
 function normalizeHp(state: GameState): GameState {
   const players = state.players.map((p) => {
     // A non-positive maximum is not a real sheet: treat the player as untracked.
     if (p.stats === null || p.stats.maxHp < 1) {
-      return p.stats === null && p.currentHp === null ? p : { ...p, stats: null, currentHp: null };
+      // Without HP nobody is at 0, so nobody is dying or stable (the dead stay dead).
+      const condition: Condition = p.condition === "dead" ? "dead" : "ok";
+      if (p.stats === null && p.currentHp === null && condition === p.condition) return p;
+      return { ...p, stats: null, currentHp: null, condition, ...(condition === "ok" ? { deathSaves: UP } : {}) };
     }
     const currentHp = Math.min(p.stats.maxHp, Math.max(0, p.currentHp ?? p.stats.maxHp));
-    return currentHp === p.currentHp ? p : { ...p, currentHp };
+    const condition: Condition =
+      p.condition === "dead" ? "dead" : currentHp > 0 ? "ok" : p.condition === "ok" ? "dying" : p.condition;
+    if (currentHp === p.currentHp && condition === p.condition) return p;
+    return { ...p, currentHp, condition, ...(condition === "ok" ? { deathSaves: UP } : {}) };
   });
   return { ...state, players };
 }
+
+const UP = { successes: 0, failures: 0 };
