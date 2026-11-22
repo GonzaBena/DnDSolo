@@ -235,7 +235,7 @@ describe("ServerDriveAuth", () => {
         () => jsonResponse(200, { accessToken: "at9", expiresAt: Date.now() + 60 * MIN }),
       ]);
       const run = vi.fn(async () => auth.getAccessToken());
-      const result = withRenewal({ auth } as SyncRuntime, run);
+      const result = withRenewal({ auth } as unknown as SyncRuntime, run);
       expect(gis.requestCode).toHaveBeenCalledTimes(1);
       expect(run).not.toHaveBeenCalled();
       gis.answer("code-9");
