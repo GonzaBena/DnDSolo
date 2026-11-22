@@ -7,18 +7,19 @@ const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
+/** "hace 2 h". Pure: `now` is passed in; a future time reads as "hace un momento". */
+export function describeAgo(iso: string, now: number): string {
+  const age = Math.max(0, now - new Date(iso).getTime());
+  if (age < MINUTE) return "hace un momento";
+  if (age < HOUR) return `hace ${Math.floor(age / MINUTE)} min`;
+  if (age < DAY) return `hace ${Math.floor(age / HOUR)} h`;
+  const days = Math.floor(age / DAY);
+  return `hace ${days} ${days === 1 ? "día" : "días"}`;
+}
+
 /** "turno 42 · hace 2 h". Pure: `now` is passed in. */
 export function describeVersion(state: GameState, now: number): string {
-  const age = Math.max(0, now - new Date(state.updatedAt).getTime());
-  let when: string;
-  if (age < MINUTE) when = "hace un momento";
-  else if (age < HOUR) when = `hace ${Math.floor(age / MINUTE)} min`;
-  else if (age < DAY) when = `hace ${Math.floor(age / HOUR)} h`;
-  else {
-    const days = Math.floor(age / DAY);
-    when = `hace ${days} ${days === 1 ? "día" : "días"}`;
-  }
-  return `turno ${state.turns.length} · ${when}`;
+  return `turno ${state.turns.length} · ${describeAgo(state.updatedAt, now)}`;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {

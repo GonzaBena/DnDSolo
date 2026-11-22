@@ -147,13 +147,14 @@ describe("BrowserDriveAuth", () => {
 describe("withRenewal", () => {
   function runtimeWith(auth: BrowserDriveAuth): SyncRuntime {
     const local = new InMemoryGameRepo();
+    const remote = new InMemoryRemoteGameStore();
     const engine = new SyncEngine({
       local,
-      remote: new InMemoryRemoteGameStore(),
+      remote,
       bases: (a) => new SyncBases(a),
       resolveConflict,
     });
-    return { auth, engine, repo: new SyncedGameRepo(local, engine) };
+    return { auth, engine, repo: new SyncedGameRepo(local, engine), accountId: () => remote.accountId() };
   }
 
   it("opens the Google window synchronously, before its first await, then runs after it returns", async () => {
@@ -276,6 +277,7 @@ describe("getSyncRuntime", () => {
       getItem: (k: string) => store.get(k) ?? null,
       setItem: (k: string, v: string) => void store.set(k, v),
     });
+    vi.stubEnv("PUBLIC_GOOGLE_CLIENT_ID", "cid");
     const on = (type: string, fn: () => void) => void listeners.set(type, fn);
     vi.stubGlobal("window", { addEventListener: on });
     vi.stubGlobal("document", {
@@ -287,7 +289,10 @@ describe("getSyncRuntime", () => {
       head: { appendChild: () => undefined },
     });
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
 
   it("is null and createGameRepo is plain IndexedDB when sync is off", async () => {
     const { getSyncRuntime, createGameRepo } = await import("../src/sync/runtime");

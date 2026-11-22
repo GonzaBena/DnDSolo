@@ -1,4 +1,5 @@
 import { DRIVE_SCOPE, type DriveAuth } from "./DriveAuth";
+import { ServerNotConfiguredError } from "./errors";
 import type { GisCodeApi, GisCodeClient } from "./gis";
 import { AuthExpiredError, OfflineError } from "./RemoteGameStore";
 
@@ -55,13 +56,26 @@ export class ServerDriveAuth implements DriveAuth {
     }
   }
 
-  /** Opens the Google window synchronously (popups need the live gesture). */
+  /**
+   * Opens the Google window synchronously (popups need the live gesture).
+   * Rejects ServerNotConfiguredError when this server cannot renew at all,
+   * so the page can say so instead of "not connected".
+   */
   async connect(): Promise<boolean> {
     const code = await this.requestCode();
     if (!code) return false;
+    let response: Response;
     try {
-      const response = await this.post("/api/drive/connect", { code });
-      if (!response.ok) return false;
+      response = await this.post("/api/drive/connect", { code });
+    } catch {
+      return false;
+    }
+    if (response.status === 500) {
+      const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
+      if (body?.error === "not_configured") throw new ServerNotConfiguredError("Auto-renewal is not configured");
+    }
+    if (!response.ok) return false;
+    try {
       this.store((await response.json()) as AccessGrant);
       return true;
     } catch {

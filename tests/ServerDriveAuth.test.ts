@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DRIVE_SCOPE } from "../src/sync/DriveAuth";
 import type { GisCodeApi, GisCodeClientConfig } from "../src/sync/gis";
+import { ServerNotConfiguredError } from "../src/sync/errors";
 import { AuthExpiredError, OfflineError } from "../src/sync/RemoteGameStore";
 import { ServerDriveAuth } from "../src/sync/ServerDriveAuth";
 
@@ -84,6 +85,20 @@ describe("ServerDriveAuth", () => {
     const { gis, auth } = setup([() => jsonResponse(400)]);
     const done = auth.connect();
     gis.answer("bad");
+    expect(await done).toBe(false);
+  });
+
+  it("connect rejects ServerNotConfiguredError when the server has no Google secrets", async () => {
+    const { gis, auth } = setup([() => jsonResponse(500, { error: "not_configured" })]);
+    const done = auth.connect();
+    gis.answer("code");
+    await expect(done).rejects.toBeInstanceOf(ServerNotConfiguredError);
+  });
+
+  it("connect resolves false on other server failures", async () => {
+    const { gis, auth } = setup([() => jsonResponse(502, { error: "google_unavailable" })]);
+    const done = auth.connect();
+    gis.answer("code");
     expect(await done).toBe(false);
   });
 

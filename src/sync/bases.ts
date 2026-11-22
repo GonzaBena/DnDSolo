@@ -49,3 +49,8 @@ export class SyncBases {
     writeAll(all);
   }
 }
+
+/** Forgets the bases of every account (used when the account cannot be told). */
+export function clearAllBases(): void {
+  writeAll({});
+}
