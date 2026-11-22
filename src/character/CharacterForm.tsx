@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { CharacterInput } from "../domain/character";
 import { BACKGROUND_OPTIONS, CLASSES, MAX_LEVEL, MIN_LEVEL, SPECIES_OPTIONS, createGame } from "../domain/character";
 import { statsFromForm } from "../domain/stats";
-import { applyBuildChange } from "./buildChange";
+import { applyBuildChange, mergeReviewedStats, parseLevel, parseWholeNumber } from "./buildChange";
 import { IndexedDBGameRepo } from "../persistence/IndexedDBGameRepo";
 import { findClass } from "../rules";
 
@@ -22,6 +22,8 @@ export function CharacterForm({ values, onChange }: Props) {
   const fromSheet = values.stats != null && !review;
   const [manualHp, setManualHp] = useState("");
   const [manualAc, setManualAc] = useState("");
+  // The level is typed as text so clearing the field mid-edit doesn't change the build.
+  const [levelText, setLevelText] = useState(String(values.level));
   const set = (patch: Partial<CharacterInput>) => onChange({ ...values, ...patch });
   // The generated stats and gear describe one exact build: see applyBuildChange.
   const setBuild = (patch: Partial<CharacterInput>) => {
@@ -30,10 +32,16 @@ export function CharacterForm({ values, onChange }: Props) {
       setManualHp(String(values.stats.maxHp));
       setManualAc(String(values.stats.armorClass));
     }
+    // A dropped sheet leaves nothing to review: forget the prefilled numbers.
+    if (values.stats && !result.values.stats) {
+      setManualHp("");
+      setManualAc("");
+    }
     setReview(result.review);
     onChange(result.values);
   };
-  const toNumber = (text: string) => (text.trim() === "" || !Number.isFinite(Number(text)) ? null : Math.trunc(Number(text)));
+  const toNumber = parseWholeNumber;
+  const onlyOneFilled = !fromSheet && !review && (manualHp.trim() === "") !== (manualAc.trim() === "");
 
   async function submit(event: { preventDefault(): void }) {
     event.preventDefault();
@@ -42,11 +50,7 @@ export function CharacterForm({ values, onChange }: Props) {
     try {
       const stats =
         values.stats && review
-          ? {
-              ...values.stats,
-              maxHp: toNumber(manualHp) ?? values.stats.maxHp,
-              armorClass: toNumber(manualAc) ?? values.stats.armorClass,
-            }
+          ? mergeReviewedStats(values.stats, manualHp, manualAc)
           : fromSheet
             ? values.stats
             : statsFromForm(toNumber(manualHp), toNumber(manualAc));
@@ -103,8 +107,13 @@ export function CharacterForm({ values, onChange }: Props) {
           min={MIN_LEVEL}
           max={MAX_LEVEL}
           required
-          value={values.level}
-          onChange={(e) => setBuild({ level: Number(e.target.value) })}
+          value={levelText}
+          onChange={(e) => {
+            setLevelText(e.target.value);
+            const level = parseLevel(e.target.value);
+            if (level !== null) setBuild({ level });
+          }}
+          onBlur={() => setLevelText(String(values.level))}
         />
       </label>
 
@@ -183,6 +192,7 @@ export function CharacterForm({ values, onChange }: Props) {
               ? "Cambiaste la especie: revisá los PG y la CA."
               : "Si los completás, la app lleva tus PG (hacen falta los dos)."}
         </small>
+        {onlyOneFilled && <small role="status">Completá los dos para que la app lleve tus PG.</small>}
       </label>
 
       <p className="status" role="status" aria-live="polite" data-tone={error ? "error" : undefined}>

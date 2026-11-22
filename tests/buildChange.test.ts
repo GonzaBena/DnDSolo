@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyBuildChange } from "../src/character/buildChange";
+import { applyBuildChange, mergeReviewedStats, parseLevel, parseWholeNumber } from "../src/character/buildChange";
 import { formValuesFromOption } from "../src/character/formValues";
 import { buildSheet } from "../src/rules/buildSheet";
 import type { GeneratedOption } from "../src/rules/generateOptions";
@@ -64,5 +64,42 @@ describe("applyBuildChange", () => {
     const result = applyBuildChange(manual, { classId: "wizard" });
     expect(result.values.classId).toBe("wizard");
     expect(result.review).toBe(false);
+  });
+});
+
+describe("mergeReviewedStats", () => {
+  const kept = human.stats!;
+
+  it("replaces PG and CA with the edited numbers and keeps the rest", () => {
+    expect(mergeReviewedStats(kept, "30", "17")).toEqual({ ...kept, maxHp: 30, armorClass: 17 });
+  });
+
+  it("keeps the previous number when a field is empty, invalid or below 1", () => {
+    expect(mergeReviewedStats(kept, "", "abc")).toEqual(kept);
+    expect(mergeReviewedStats(kept, "0", "-3")).toEqual(kept);
+  });
+
+  it("truncates fractions", () => {
+    expect(mergeReviewedStats(kept, "12.9", "15")).toEqual({ ...kept, maxHp: 12, armorClass: 15 });
+  });
+});
+
+describe("parseLevel", () => {
+  it("accepts a whole level from 1 to 20", () => {
+    expect(parseLevel("1")).toBe(1);
+    expect(parseLevel("20")).toBe(20);
+  });
+
+  it("ignores empty, out of range and non-integer text", () => {
+    for (const text of ["", " ", "0", "21", "-1", "2.5", "abc"]) expect(parseLevel(text)).toBeNull();
+  });
+});
+
+describe("parseWholeNumber", () => {
+  it("reads whole numbers and rejects empty or invalid text", () => {
+    expect(parseWholeNumber("18")).toBe(18);
+    expect(parseWholeNumber("18.7")).toBe(18);
+    expect(parseWholeNumber("")).toBeNull();
+    expect(parseWholeNumber("x")).toBeNull();
   });
 });

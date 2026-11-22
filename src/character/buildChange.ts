@@ -1,4 +1,5 @@
-import type { CharacterInput } from "../domain/character";
+import { MAX_LEVEL, MIN_LEVEL, type CharacterInput } from "../domain/character";
+import type { CharacterStats } from "../domain/types";
 import { inventoryFromSheet, statsFromSheet } from "../domain/stats";
 import { buildSheet } from "../rules/buildSheet";
 
@@ -40,4 +41,27 @@ export function applyBuildChange(values: CharacterInput, patch: Partial<Characte
     }
   }
   return { values: next, review: true };
+}
+
+/** Text of a number field -> whole number, or null when empty or not a number. */
+export function parseWholeNumber(text: string): number | null {
+  return text.trim() === "" || !Number.isFinite(Number(text)) ? null : Math.trunc(Number(text));
+}
+
+/** Level field text -> a level from 1 to 20, or null for the empty or invalid
+    values that pass through while the player is typing. */
+export function parseLevel(text: string): number | null {
+  if (text.trim() === "") return null;
+  const level = Number(text);
+  return Number.isInteger(level) && level >= MIN_LEVEL && level <= MAX_LEVEL ? level : null;
+}
+
+/** Review mode: the player's edited PG and CA over the kept stats. A field
+    that is empty, invalid or below 1 keeps the previous number. */
+export function mergeReviewedStats(kept: CharacterStats, hpText: string, acText: string): CharacterStats {
+  const positive = (text: string, fallback: number) => {
+    const value = parseWholeNumber(text);
+    return value !== null && value >= 1 ? value : fallback;
+  };
+  return { ...kept, maxHp: positive(hpText, kept.maxHp), armorClass: positive(acText, kept.armorClass) };
 }
