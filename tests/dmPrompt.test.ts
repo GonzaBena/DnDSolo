@@ -214,6 +214,11 @@ describe("compact prompt", () => {
     expect(DM_SYSTEM_PROMPT).not.toContain("son solo los objetos que entregaste vos");
   });
 
+  it("says the stats speed is in feet while distances are narrated in metres", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('"speed" está en pies (30 pies = 9 m)');
+    expect(DM_SYSTEM_PROMPT).toContain("siempre narrás las distancias en metros");
+  });
+
   it("documents the hp change and the null-stats fallback", () => {
     expect(DM_SYSTEM_PROMPT).toContain('"hp"');
     expect(DM_SYSTEM_PROMPT).toContain('Si "stats" es null');
