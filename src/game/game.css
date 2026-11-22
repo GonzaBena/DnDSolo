@@ -151,6 +151,19 @@
 .sheet__identity {
   display: grid;
 }
+/* On a phone the actions leave their column and line up at the foot. */
+@media (max-width: 34rem) {
+  .sheet {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sheet__actions {
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+  }
+  .sheet__actions .scene-toggle {
+    justify-content: center;
+  }
+}
 .scene-toggle {
   align-self: start;
   display: inline-flex;
@@ -1233,41 +1246,63 @@
 .sheet__vitals {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
+/* The bar with its label laid on top of it. */
 .hp {
-  display: grid;
-  gap: var(--space-1);
+  position: relative;
   flex: 1;
+  max-width: 20rem;
   min-width: 0;
 }
-.hp__row {
+.hp__steps {
   display: flex;
-  align-items: center;
   gap: var(--space-2);
 }
 .hp__step {
-  padding: 0 var(--space-2);
-  min-width: 2rem;
-  line-height: 1.6;
+  padding: 0;
+  width: 2rem;
+  aspect-ratio: 1 / 1;
+  line-height: 1;
+  color: var(--color-primary-ink);
+}
+.hp__step--minus {
+  background: var(--color-primary);
+}
+.hp__step--plus {
+  background: var(--color-turn-calm);
+}
+.hp__label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-weight: 800;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  /* A halo keeps the text readable over any fill color. */
+  text-shadow:
+    0 0 2px var(--color-surface),
+    0 0 2px var(--color-surface),
+    0 0 3px var(--color-surface);
+  pointer-events: none;
 }
 .hp__value {
-  flex: 1;
   padding: 0;
   border: 0;
   background: none;
   color: var(--color-ink);
   font: inherit;
-  font-weight: 800;
-  font-size: var(--text-sm);
   cursor: pointer;
-  text-align: center;
+  pointer-events: auto;
 }
 .hp__value:disabled {
   cursor: default;
 }
 .hp__bar {
-  height: 0.75rem;
+  height: 1.5rem;
   border: var(--border);
   border-radius: 999px;
   background: var(--color-bg);
@@ -1285,11 +1320,6 @@
 }
 .hp__bar[data-tone="critical"] .hp__fill {
   background: var(--color-primary);
-}
-.sheet__ac {
-  font-size: var(--text-sm);
-  font-weight: 800;
-  white-space: nowrap;
 }
 @media (prefers-reduced-motion: reduce) {
   .hp__fill {

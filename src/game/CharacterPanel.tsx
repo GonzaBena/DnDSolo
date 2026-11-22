@@ -57,36 +57,6 @@ export function CharacterPanel({
         {stats && hp && (
           <div className="sheet__vitals">
             <div className="hp">
-              <div className="hp__row">
-                <button
-                  type="button"
-                  className="button hp__step"
-                  aria-label="Restar 1 PG"
-                  disabled={hpDisabled || !onAdjustHp || hp.current <= 0}
-                  onClick={() => onAdjustHp?.(-1)}
-                >
-                  −
-                </button>
-                <button
-                  type="button"
-                  className="hp__value"
-                  aria-label={`Puntos de golpe ${hp.current} de ${hp.max}. Corregir`}
-                  aria-haspopup="dialog"
-                  disabled={hpDisabled || !onAdjustHp}
-                  onClick={() => setHpOpen(true)}
-                >
-                  PG {hp.current}/{hp.max}
-                </button>
-                <button
-                  type="button"
-                  className="button hp__step"
-                  aria-label="Sumar 1 PG"
-                  disabled={hpDisabled || !onAdjustHp || hp.current >= hp.max}
-                  onClick={() => onAdjustHp?.(1)}
-                >
-                  +
-                </button>
-              </div>
               <div
                 className="hp__bar"
                 data-tone={hpTone(hp.current, hp.max)}
@@ -101,8 +71,40 @@ export function CharacterPanel({
                   style={{ width: `${Math.max(0, Math.min(100, (hp.current / hp.max) * 100))}%` }}
                 />
               </div>
+              <span className="hp__label">
+                <button
+                  type="button"
+                  className="hp__value"
+                  aria-label={`Puntos de golpe ${hp.current} de ${hp.max}. Corregir`}
+                  aria-haspopup="dialog"
+                  disabled={hpDisabled || !onAdjustHp}
+                  onClick={() => setHpOpen(true)}
+                >
+                  PG {hp.current}/{hp.max}
+                </button>
+                <span className="sheet__ac"> – CA {stats.armorClass}</span>
+              </span>
             </div>
-            <span className="sheet__ac">CA {stats.armorClass}</span>
+            <div className="hp__steps">
+              <button
+                type="button"
+                className="button hp__step hp__step--minus"
+                aria-label="Restar 1 PG"
+                disabled={hpDisabled || !onAdjustHp || hp.current <= 0}
+                onClick={() => onAdjustHp?.(-1)}
+              >
+                −
+              </button>
+              <button
+                type="button"
+                className="button hp__step hp__step--plus"
+                aria-label="Sumar 1 PG"
+                disabled={hpDisabled || !onAdjustHp || hp.current >= hp.max}
+                onClick={() => onAdjustHp?.(1)}
+              >
+                +
+              </button>
+            </div>
           </div>
         )}
         {!zenMode && (
