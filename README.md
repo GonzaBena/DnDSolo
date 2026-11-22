@@ -66,8 +66,8 @@ Cada capa vive detrás de una interfaz (`LLMClient`, `GameRepo`, `RemoteGameStor
 Es opcional. Con `PUBLIC_GOOGLE_CLIENT_ID` vacío la función queda oculta y la app no contacta a Google.
 
 - **Dónde viven los datos**: en la carpeta oculta de la app (`appDataFolder`) del Drive de cada jugador, con el alcance `drive.appdata`. Un archivo por campaña. Los borrados se sincronizan como lápidas y los conflictos los resuelve el jugador. La API key de Gemini y los ajustes no se sincronizan.
-- **Modo por defecto, sin servidor**: el permiso dura cerca de 1 hora y se renueva con el próximo toque del jugador (Enviar, Jugar/Continuar, Reconectar); puede parpadear una ventana de Google.
-- **Modo opcional "Renovar la conexión automáticamente"**: usa tres rutas del servidor, `/api/drive/connect`, `/api/drive/token` y `/api/drive/disconnect`. El refresh token queda sellado (AES-256-GCM) en una cookie HttpOnly del jugador; el servidor no guarda nada.
+- **Modo por defecto, sin servidor**: el permiso dura cerca de 1 hora y se guarda en `sessionStorage`, así que sobrevive a la navegación dentro de la misma pestaña (se pierde al cerrarla). Al vencer se renueva con el próximo toque del jugador (Enviar, Jugar/Continuar, Reconectar); puede parpadear una ventana de Google.
+- **Modo opcional "Renovar la conexión automáticamente"**: usa tres rutas del servidor, `/api/drive/connect`, `/api/drive/token` y `/api/drive/disconnect`. El refresh token queda sellado (AES-256-GCM) en una cookie HttpOnly del jugador; el servidor no guarda nada. Si el servidor ya no puede renovar (cookie borrada, permiso revocado, o los 7 días que dura el refresh token mientras la pantalla de consentimiento está en Testing), "Reconectar" o "Sincronizar ahora" vuelven a abrir la ventana de Google.
 
 Las páginas se prerenderizan y solo esas tres rutas corren en el servidor (`@astrojs/node`, modo standalone).
 
