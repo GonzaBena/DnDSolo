@@ -8,7 +8,7 @@ import { GeminiClient } from "../llm/GeminiClient";
 import { describeLLMError } from "../llm/errorMessages";
 import { describeFailure, type FailureNotice } from "./failureNotice";
 import { mountSyncIndicator } from "../sync/indicator";
-import { sendAfterRenewal, syncBeforeOpen } from "../sync/openGame";
+import { sendAfterRenewal, shouldDropSend, syncBeforeOpen } from "../sync/openGame";
 import { createGameRepo, getSyncRuntime } from "../sync/runtime";
 import { isConfigured, loadSettings } from "../persistence/settings";
 import { CharacterPanel } from "./CharacterPanel";
@@ -230,10 +230,22 @@ export default function Game() {
   }, [sync, setPause]);
 
   const send = useCallback(
-    async (engine: TurnEngine, shownState: GameState, input: TurnInput, typed?: string) => {
-      // Drive's copy is being written or opened: the screen is about to change.
-      if (pauseRef.current.replacing || pauseRef.current.opening) return;
-      const generation = generationRef.current;
+    async (
+      engine: TurnEngine,
+      shownState: GameState,
+      input: TurnInput,
+      typed?: string,
+      // Read by the click itself, before any Google window: the engine and
+      // state it passes belong to that screen.
+      generation = generationRef.current,
+    ) => {
+      const replacing = pauseRef.current.replacing || pauseRef.current.opening;
+      if (shouldDropSend(generation, generationRef.current, replacing)) {
+        // Nothing was sent: give the typed text back instead of losing it.
+        const text = typed ?? (input.type === "action" ? input.text : "");
+        if (text !== "") setDraft((current) => (current === "" ? text : current));
+        return;
+      }
       // A manual HP fix may be newer than the rendered state: start from it,
       // so the model sees it and the toasts don't announce it again.
       const state = freshest(shownState, latestStateRef.current);
@@ -475,8 +487,9 @@ export default function Game() {
     // Solo game: the one player is always the author. The Google window (if
     // due) opens before any await, inside this gesture.
     changedRef.current = true;
+    const generation = generationRef.current;
     void sendAfterRenewal(sync, (on) => setPause("renewing", on), () =>
-      send(engine, state, { type: "action", text, playerId: state.players[0]?.id }, raw),
+      send(engine, state, { type: "action", text, playerId: state.players[0]?.id }, raw, generation),
     );
   };
 
@@ -523,13 +536,20 @@ export default function Game() {
     const raw = draft.trim();
     setDraft("");
     changedRef.current = true;
+    const generation = generationRef.current;
     void sendAfterRenewal(sync, (on) => setPause("renewing", on), () =>
-      send(engine, state, {
-        type: "action",
-        text: raw === "" ? "" : expandSlashCommands(raw),
-        playerId: state.players[0]?.id,
-        roll: { ...roll, reason: playerRoll?.reason },
-      }),
+      send(
+        engine,
+        state,
+        {
+          type: "action",
+          text: raw === "" ? "" : expandSlashCommands(raw),
+          playerId: state.players[0]?.id,
+          roll: { ...roll, reason: playerRoll?.reason },
+        },
+        undefined,
+        generation,
+      ),
     );
   };
 
@@ -537,8 +557,9 @@ export default function Game() {
     setDeathSaveOpen(false);
     if (!canAct || isPaused() || !hero) return;
     changedRef.current = true;
+    const generation = generationRef.current;
     void sendAfterRenewal(sync, (on) => setPause("renewing", on), () =>
-      send(engine, state, { type: "death_save", playerId: hero.id, natural: roll.value }),
+      send(engine, state, { type: "death_save", playerId: hero.id, natural: roll.value }, undefined, generation),
     );
   };
 
@@ -602,8 +623,9 @@ export default function Game() {
                   onClick={() => {
                     if (isPaused()) return;
                     changedRef.current = true;
+                    const generation = generationRef.current;
                     void sendAfterRenewal(sync, (on) => setPause("renewing", on), () =>
-                      send(engine, state, inFlight.input, inFlight.draft),
+                      send(engine, state, inFlight.input, inFlight.draft, generation),
                     );
                   }}
                 >

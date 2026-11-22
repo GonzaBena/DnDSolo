@@ -49,3 +49,13 @@ export function sendAfterRenewal<T>(
     if (!started) hold(false);
   });
 }
+
+/**
+ * Whether a turn must not be sent: Drive's copy replaced the screen after the
+ * click (`clickedGeneration` is stale), or is being written/opened right now.
+ * The click's engine and state belong to the old screen; playing them would
+ * save over Drive's copy.
+ */
+export function shouldDropSend(clickedGeneration: number, currentGeneration: number, paused: boolean): boolean {
+  return paused || clickedGeneration !== currentGeneration;
+}

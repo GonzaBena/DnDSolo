@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { sendAfterRenewal, syncBeforeOpen } from "../src/sync/openGame";
+import { sendAfterRenewal, shouldDropSend, syncBeforeOpen } from "../src/sync/openGame";
 import { OfflineError } from "../src/sync/RemoteGameStore";
 import type { SyncRuntime } from "../src/sync/runtime";
 
@@ -98,5 +98,17 @@ describe("sendAfterRenewal", () => {
     await sendAfterRenewal(sync, (on) => holds.push(on), run).catch(() => undefined);
     expect(run).not.toHaveBeenCalled();
     expect(holds).toEqual([true, false]);
+  });
+});
+
+describe("shouldDropSend", () => {
+  it("sends when the screen is the one the click saw and nothing is paused", () => {
+    expect(shouldDropSend(2, 2, false)).toBe(false);
+  });
+  it("drops a turn clicked before Drive's copy replaced the screen", () => {
+    expect(shouldDropSend(1, 2, false)).toBe(true);
+  });
+  it("drops while Drive's copy is being written or opened", () => {
+    expect(shouldDropSend(2, 2, true)).toBe(true);
   });
 });
