@@ -1,0 +1,14 @@
+/** Only the hidden app folder: the app never sees the user's other files. */
+export const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.appdata";
+
+export interface DriveAuth {
+  /** Valid token or rejects AuthExpiredError; never opens UI. */
+  getAccessToken(): Promise<string>;
+  /** True when the next action should renew via a user gesture (browser: no token or < 10 min left). */
+  needsGesture(): boolean;
+  /** MUST be called synchronously inside a click/submit handler. Resolves false on close/deny/20 s timeout. */
+  renewWithGesture(): Promise<boolean>;
+  /** First consent; false if closed/denied. */
+  connect(): Promise<boolean>;
+  disconnect(): Promise<void>;
+}
