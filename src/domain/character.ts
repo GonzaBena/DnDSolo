@@ -1,5 +1,6 @@
+import type { CharacterChoices } from "../rules/buildSheet";
 import { BACKGROUNDS, CLASSES_DATA, SPECIES, findBackground, findClass, findSpecies } from "../rules";
-import { GAME_STATE_VERSION, type Character, type GameState } from "./types";
+import { GAME_STATE_VERSION, type Character, type CharacterStats, type GameState, type InventoryItem, type StoryItem } from "./types";
 
 export interface ClassOption {
   id: string;
@@ -22,6 +23,12 @@ export interface CharacterInput {
   srdBackgroundId: string | null;
   level: number;
   background: string;
+  /** From a generated sheet or the manual form; the game then tracks HP. */
+  stats?: CharacterStats | null;
+  /** Gear the character starts with, from a generated sheet. */
+  startingInventory?: InventoryItem[];
+  /** The generator's choices, so the form can rebuild the sheet when the species changes. */
+  choices?: CharacterChoices;
 }
 
 interface CreateOptions {
@@ -54,25 +61,35 @@ export function createCharacter(input: CharacterInput, newId: () => string): Cha
     srdBackgroundId: input.srdBackgroundId,
     level,
     background: background === "" ? null : background,
-    inventory: [],
+    inventory: (input.startingInventory ?? []).map((item) => ({ ...item })),
+    stats: input.stats ?? null,
+    currentHp: input.stats?.maxHp ?? null,
   };
 }
 
 export function createGame(input: CharacterInput, options: CreateOptions = {}): GameState {
   const newId = options.newId ?? (() => crypto.randomUUID());
+  const players = [createCharacter(input, newId)];
+  // The starting gear is already carried, so the first turn must not announce it as found.
+  const storyItems: StoryItem[] = players[0]!.inventory.map((item) => ({
+    name: item.name,
+    description: "",
+    location: "",
+    status: "taken",
+  }));
   const timestamp = (options.now ?? (() => new Date()))().toISOString();
   return {
     id: newId(),
     version: GAME_STATE_VERSION,
     createdAt: timestamp,
     updatedAt: timestamp,
-    players: [createCharacter(input, newId)],
+    players,
     // Empty until the DM's opening turn proposes a location.
     location: { name: "", description: "" },
     npcs: [],
     scene: { inCombat: false, turnOf: null },
     quests: [],
-    storyItems: [],
+    storyItems,
     summary: "",
     summarizedThroughTurn: 0,
     turns: [],

@@ -214,7 +214,11 @@ export class TurnEngine {
     response: DMResponse,
     enemyRollsAllowed: boolean,
   ): Promise<TurnOutcome> {
-    const applied = applyStateChanges(state, response.stateChanges);
+    // An in-place correction (adjustHp) may be newer than the state the
+    // caller holds, with the same turns: apply on top of it, not over it.
+    const known = this.latestByGame.get(state.id);
+    const base = known && known.turns.length === state.turns.length ? known : state;
+    const applied = applyStateChanges(base, response.stateChanges);
     const turn: Turn = {
       number: state.turns.length + 1,
       input,
@@ -248,6 +252,25 @@ export class TurnEngine {
 
     const saveError = await this.enqueueSave(next);
     return { ok: true, state: next, response, rejectedChanges: applied.rejected, saveError };
+  }
+
+  /** Manual hit point fix from the sheet panel. It is not a turn, so nothing
+      goes to the model and `turns` doesn't change. Applied on the newest
+      state this engine knows, so it neither loses nor overwrites a turn or
+      a summary that landed meanwhile. A rejected change (no stats) leaves
+      the state as is. `before` is the state the fix was applied on. */
+  async adjustHp(
+    given: GameState,
+    playerId: string,
+    delta: number,
+  ): Promise<{ state: GameState; saveError: unknown | null; before: GameState }> {
+    const tracked = this.latestByGame.get(given.id);
+    const base = tracked && tracked.turns.length >= given.turns.length ? tracked : given;
+    const applied = applyStateChanges(base, [{ type: "hp", target: playerId, delta }]);
+    if (applied.rejected.length > 0) return { state: base, saveError: null, before: base };
+    const next: GameState = { ...applied.state, updatedAt: this.now().toISOString() };
+    this.latestByGame.set(next.id, next);
+    return { state: next, saveError: await this.enqueueSave(next), before: base };
   }
 
   /** Saves after every earlier save has settled; a failure doesn't break

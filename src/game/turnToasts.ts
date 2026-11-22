@@ -15,6 +15,13 @@ function inventoryOf(state: GameState): Map<string, { name: string; quantity: nu
   return map;
 }
 
+/** The first player's tracked hit points, or null while the sheet has none. */
+function hpOf(state: GameState): { current: number; max: number } | null {
+  const player = state.players[0];
+  if (!player || player.stats === null || player.currentHp === null) return null;
+  return { current: player.currentHp, max: player.stats.maxHp };
+}
+
 function itemDetail(name: string, amount: number): string {
   return amount > 1 ? `${name} ×${amount}` : name;
 }
@@ -32,14 +39,36 @@ export function buildTurnToasts(
 ): ToastItem[] {
   const drafts: Draft[] = [];
 
-  if (events.includes("damage_taken")) {
+  const hpBefore = hpOf(prev);
+  const hpAfter = hpOf(next);
+  // With tracked hit points the toast comes from the real change, so it
+  // carries the exact number and a rejected change shows nothing.
+  const tracked = hpBefore !== null && hpAfter !== null;
+  if (tracked) {
+    const delta = hpAfter.current - hpBefore.current;
+    const shown = `(${hpAfter.current}/${hpAfter.max})`;
+    if (delta < 0) {
+      drafts.push({
+        kind: "damage",
+        title: "¡Daño recibido!",
+        detail: `Perdiste ${-delta} PG ${shown}.`,
+      });
+    } else if (delta > 0) {
+      drafts.push({
+        kind: "healing",
+        title: "Recuperación",
+        detail: `Recuperaste ${delta} PG ${shown}.`,
+      });
+    }
+  }
+  if (!tracked && events.includes("damage_taken")) {
     drafts.push({
       kind: "damage",
       title: "¡Daño recibido!",
       detail: "Hubo un impacto en combate o peligro del entorno.",
     });
   }
-  if (events.includes("healing")) {
+  if (!tracked && events.includes("healing")) {
     drafts.push({
       kind: "healing",
       title: "Recuperación",
@@ -117,7 +146,15 @@ export function buildTurnToasts(
   return drafts.map((draft, index) => ({ ...draft, id: `${draft.kind}-${stamp}-${index}` }));
 }
 
-/** Whether the screen should shake: a player took damage. */
-export function tookDamage(events: readonly string[]): boolean {
+/** Whether the screen should shake: a player took damage. With tracked hit
+    points (`prev` and `next` given) it is the real drop, otherwise the event. */
+export function tookDamage(
+  events: readonly string[],
+  prev?: GameState,
+  next?: GameState,
+): boolean {
+  const before = prev ? hpOf(prev) : null;
+  const after = next ? hpOf(next) : null;
+  if (before !== null && after !== null) return after.current < before.current;
   return events.includes("damage_taken");
 }

@@ -932,3 +932,112 @@ describe("TurnEngine summary ordering", () => {
     expect(ctx.llm.textRequests).toHaveLength(2);
   });
 });
+
+describe("TurnEngine.adjustHp", () => {
+  const stats = {
+    maxHp: 20,
+    armorClass: 16,
+    initiative: 2,
+    speed: 30,
+    hitDice: "3d8",
+    attacks: [],
+    spellSaveDc: null,
+    spellAttackBonus: null,
+  };
+  const tracked = (): GameState => {
+    const game = newGame();
+    return { ...game, players: [{ ...game.players[0]!, stats, currentHp: 15 }] };
+  };
+
+  it("changes the hit points without adding a turn, and saves", async () => {
+    const ctx = setup();
+    const state = tracked();
+    const out = await ctx.engine.adjustHp(state, PLAYER_ID, -3);
+    expect(out.state.players[0]!.currentHp).toBe(12);
+    expect(out.state.turns).toHaveLength(state.turns.length);
+    expect(out.saveError).toBeNull();
+    expect((await ctx.repo.load(state.id))!.players[0]!.currentHp).toBe(12);
+    expect(ctx.llm.structuredRequests).toHaveLength(0);
+  });
+
+  it("clamps at the maximum", async () => {
+    const out = await setup().engine.adjustHp(tracked(), PLAYER_ID, 99);
+    expect(out.state.players[0]!.currentHp).toBe(20);
+  });
+
+  it("leaves a sheet without stats alone and saves nothing", async () => {
+    const ctx = setup();
+    const state = newGame();
+    const out = await ctx.engine.adjustHp(state, PLAYER_ID, -3);
+    expect(out.state).toBe(state);
+    expect(await ctx.repo.load(state.id)).toBeNull();
+  });
+
+  it("reports a save failure", async () => {
+    const ctx = setup();
+    ctx.repo.save = async () => {
+      throw new Error("disk");
+    };
+    const out = await ctx.engine.adjustHp(tracked(), PLAYER_ID, -1);
+    expect(out.saveError).toBeInstanceOf(Error);
+  });
+
+  it("two quick fixes on the same state add up in memory and in the repo", async () => {
+    const ctx = setup();
+    const state = tracked();
+    const first = ctx.engine.adjustHp(state, PLAYER_ID, -1);
+    const second = await ctx.engine.adjustHp(state, PLAYER_ID, -1);
+    await first;
+    expect(second.state.players[0]!.currentHp).toBe(13);
+    expect((await ctx.repo.load(state.id))!.players[0]!.currentHp).toBe(13);
+  });
+
+  it("returns the state it applied on, so a toast can diff exactly that step", async () => {
+    const ctx = setup();
+    const state = tracked();
+    void ctx.engine.adjustHp(state, PLAYER_ID, -1);
+    const second = await ctx.engine.adjustHp(state, PLAYER_ID, -1);
+    expect(second.before.players[0]!.currentHp).toBe(14);
+    expect(second.state.players[0]!.currentHp).toBe(13);
+  });
+
+  it("a turn played on the pre-fix state keeps a fix whose save is still pending", async () => {
+    const ctx = setup();
+    const state = started0(tracked());
+    void ctx.engine.adjustHp(state, PLAYER_ID, -5);
+    ctx.llm.queueStructured(reply({}));
+    const outcome = await ctx.engine.playTurn(state, { type: "action", text: "Miro", playerId: PLAYER_ID });
+    if (!outcome.ok) throw new Error("turn failed");
+    expect(outcome.state.players[0]!.currentHp).toBe(10);
+    expect((await ctx.repo.load(state.id))!.players[0]!.currentHp).toBe(10);
+  });
+
+  it("a turn played on an older state is not applied onto a tracked state with more turns", async () => {
+    const ctx = setup();
+    const older = started0(tracked());
+    ctx.llm.queueStructured(
+      reply({ stateChanges: [{ type: "inventory_add", playerId: PLAYER_ID, item: "Llave", quantity: 1 }] }),
+      reply({ stateChanges: [{ type: "inventory_add", playerId: PLAYER_ID, item: "Daga", quantity: 1 }] }),
+    );
+    const first = await ctx.engine.playTurn(older, { type: "action", text: "Miro", playerId: PLAYER_ID });
+    if (!first.ok) throw new Error("first turn failed");
+    expect(first.state.turns).toHaveLength(2);
+    // The caller still holds the state from before the first turn.
+    const second = await ctx.engine.playTurn(older, { type: "action", text: "Busco", playerId: PLAYER_ID });
+    if (!second.ok) throw new Error("second turn failed");
+    expect(second.state.players[0]!.inventory.map((i) => i.name)).toEqual(["Daga"]);
+  });
+
+  it("a later summary keeps the manual fix", async () => {
+    const ctx = setup();
+    const state = tracked();
+    const fixed = await ctx.engine.adjustHp(state, PLAYER_ID, -5);
+    const next = await ctx.engine.applySummary(state, { summary: "R", summarizedThroughTurn: 0 });
+    expect(next.state.players[0]!.currentHp).toBe(fixed.state.players[0]!.currentHp);
+  });
+});
+
+/** A tracked game that already has its opening turn, so actions are legal. */
+function started0(state: GameState): GameState {
+  return { ...state, turns: [{ number: 1, input: { type: "start" }, narration: "Hola", events: [] }] };
+}

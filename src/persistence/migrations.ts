@@ -133,6 +133,15 @@ function fromV8(raw: Raw): Raw {
   return { ...raw, version: 9, pendingPlayerRoll: pending, pendingEnemyRolls, turns };
 }
 
+/** v9 -> v10. Characters carry optional combat stats and current hit points;
+    old saves have neither tracked. */
+function fromV9(raw: Raw): Raw {
+  const players = Array.isArray(raw.players)
+    ? raw.players.map((p: unknown) => (isObject(p) ? { ...p, stats: null, currentHp: null } : p))
+    : raw.players;
+  return { ...raw, version: 10, players };
+}
+
 /** Turns whatever was stored into a GameState of the current version, or
     null if it can't be trusted (unknown version or wrong shape). Loading
     code must go through here so the screens never see a malformed save. */
@@ -147,7 +156,23 @@ export function migrateSave(raw: unknown): GameState | null {
   if (current.version === 6) current = fromV6(current);
   if (current.version === 7) current = fromV7(current);
   if (current.version === 8) current = fromV8(current);
+  if (current.version === 9) current = fromV9(current);
   if (current.version !== GAME_STATE_VERSION) return null;
   const parsed = gameStateSchema.safeParse(current);
-  return parsed.success ? parsed.data : null;
+  return parsed.success ? normalizeHp(parsed.data) : null;
+}
+
+/** A stored game can disagree with itself about hit points (stats without
+    current HP, HP above the maximum, HP with no stats). Repair it on load
+    instead of rejecting the whole save. */
+function normalizeHp(state: GameState): GameState {
+  const players = state.players.map((p) => {
+    // A non-positive maximum is not a real sheet: treat the player as untracked.
+    if (p.stats === null || p.stats.maxHp < 1) {
+      return p.stats === null && p.currentHp === null ? p : { ...p, stats: null, currentHp: null };
+    }
+    const currentHp = Math.min(p.stats.maxHp, Math.max(0, p.currentHp ?? p.stats.maxHp));
+    return currentHp === p.currentHp ? p : { ...p, currentHp };
+  });
+  return { ...state, players };
 }

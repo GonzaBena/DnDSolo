@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { HANDOFF_KEY, stashCharacter, takeCharacter } from "../src/character/handoff";
+import { fighterChoices } from "./helpers";
 import type { CharacterInput } from "../src/domain/character";
 
 function memoryStorage() {
@@ -27,6 +28,30 @@ describe("character handoff", () => {
     const storage = memoryStorage();
     expect(stashCharacter(storage, VALUES)).toBe(true);
     expect(takeCharacter(storage)).toEqual(VALUES);
+    expect(takeCharacter(storage)).toBeNull();
+  });
+
+  it("carries stats and the starting inventory", () => {
+    const storage = memoryStorage();
+    const full: CharacterInput = {
+      ...VALUES,
+      stats: { maxHp: 12, armorClass: 16, initiative: 1, speed: 9, hitDice: "1d10", attacks: [{ name: "Espada", attackBonus: 5, damage: "1d8+3" }], spellSaveDc: null, spellAttackBonus: null },
+      startingInventory: [{ name: "Espada larga", quantity: 1 }],
+      choices: fighterChoices(),
+    };
+    stashCharacter(storage, full);
+    expect(takeCharacter(storage)).toEqual(full);
+  });
+
+  it("drops values with malformed stats", () => {
+    const storage = memoryStorage();
+    storage.setItem(HANDOFF_KEY, JSON.stringify({ ...VALUES, stats: { maxHp: "mucho" } }));
+    expect(takeCharacter(storage)).toBeNull();
+  });
+
+  it("drops values with malformed choices", () => {
+    const storage = memoryStorage();
+    storage.setItem(HANDOFF_KEY, JSON.stringify({ ...VALUES, choices: { speciesId: "human" } }));
     expect(takeCharacter(storage)).toBeNull();
   });
 

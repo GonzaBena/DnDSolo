@@ -202,4 +202,50 @@ describe("compact prompt", () => {
     expect(DM_SYSTEM_PROMPT).toContain("Los NPCs ausentes figuran solo con nombre y actitud");
     expect(DM_SYSTEM_PROMPT).toContain("mandala vacía");
   });
+
+  it("no longer says the DM lacks the character sheet or an hp change", () => {
+    expect(DM_SYSTEM_PROMPT).not.toContain("No tenés su hoja de personaje");
+    expect(DM_SYSTEM_PROMPT).not.toContain("No hay cambio de estado para eso");
+  });
+
+  it("asks for any stats field that is null or empty, and no longer claims the inventory is only story items", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('un dato de "stats" es null o está vacío (como "spellSaveDc" o "attacks")');
+    expect(DM_SYSTEM_PROMPT).toContain("arranca con el equipo inicial del personaje");
+    expect(DM_SYSTEM_PROMPT).not.toContain("son solo los objetos que entregaste vos");
+  });
+
+  it("says the stats speed is in feet while distances are narrated in metres", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('"speed" está en pies (30 pies = 9 m)');
+    expect(DM_SYSTEM_PROMPT).toContain("siempre narrás las distancias en metros");
+  });
+
+  it("documents the hp change and the null-stats fallback", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('"hp"');
+    expect(DM_SYSTEM_PROMPT).toContain('Si "stats" es null');
+  });
+
+  it("limits the hp change to players and keeps enemy HP in the narration", () => {
+    expect(DM_SYSTEM_PROMPT).toContain("Cuando un jugador recibe daño o curación");
+    expect(DM_SYSTEM_PROMPT).not.toContain("Cuando un personaje recibe daño");
+    expect(DM_SYSTEM_PROMPT).toContain("los PG de enemigos y NPCs los llevás vos en la narración");
+  });
+
+  it("combat rules tie enemy attacks to the AC and hp change, and spell saves to stats", () => {
+    const fight = buildTurnPrompt({ ...newGame(), scene: { inCombat: true, turnOf: null } }, { type: "start" }, 6);
+    expect(fight).toContain('Compará el ataque con la CA de "stats" del jugador');
+    expect(fight).toContain('con un cambio "hp"');
+    expect(fight).toContain('"spellSaveDc" de "stats"');
+    expect(fight).toContain('si es null, no la tenés: preguntásela');
+    expect(fight).not.toContain('solo si "stats" es null');
+    expect(fight).not.toContain("preguntásela si no la sabés");
+  });
+
+  it("shows the DM a player's stats and current hp", () => {
+    const state = newGame();
+    const stats = { maxHp: 12, armorClass: 16, initiative: 1, speed: 30, hitDice: "1d10", attacks: [], spellSaveDc: null, spellAttackBonus: null };
+    state.players = [{ ...state.players[0]!, stats, currentHp: 9 }];
+    const json = JSON.stringify(stateForModel(state));
+    expect(json).toContain('"armorClass":16');
+    expect(json).toContain('"currentHp":9');
+  });
 });

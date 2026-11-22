@@ -2,7 +2,7 @@ import { z } from "zod";
 import { toProviderSchema } from "../domain/schemas";
 import { LLMError } from "../llm/LLMClient";
 import type { LLMClient } from "../llm/LLMClient";
-import { buildSheet, replaceRepeatedSpells } from "./buildSheet";
+import { buildSheet, replaceRepeatedSkills, replaceRepeatedSpells } from "./buildSheet";
 import type { CharacterChoices, ChoiceError } from "./buildSheet";
 import { activeChoices, requiredChoices } from "./choices";
 import { buildChoicesPrompt, buildConceptPrompt, GENERATOR_SYSTEM_PROMPT, OUTSIDE_SRD_PHRASE } from "./generatorPrompt";
@@ -167,7 +167,7 @@ async function generateChoices(
       problem = { kind: "format" };
       continue;
     }
-    const choices = replaceRepeatedSpells(toChoices(concept, level, specs, parsed.value));
+    const choices = replaceRepeatedSpells(replaceRepeatedSkills(toChoices(concept, level, specs, parsed.value)));
     const built = buildSheet(choices);
     if (built.ok) {
       const { name, story, pitch } = concept;

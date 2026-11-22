@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSheet, replaceRepeatedSpells, validateChoices } from "../src/rules/buildSheet";
+import { buildSheet, replaceRepeatedSkills, replaceRepeatedSpells, validateChoices } from "../src/rules/buildSheet";
 import type { CharacterChoices, ChoiceError } from "../src/rules/buildSheet";
 import { WEAPONS, findClass, findSpell, spellsFor } from "../src/rules";
 import type { CharacterSheet, SkillId } from "../src/rules";
@@ -1022,6 +1022,19 @@ describe("replaceRepeatedSpells", () => {
     expect(buildSheet(fixed).ok).toBe(true);
   });
 
+  it("swaps a species cantrip that the class list does not even offer", () => {
+    // Wood elf wizard: druidcraft comes from the lineage and is not a wizard cantrip.
+    const c = repeat(greedyChoices("elf", "wizard", "sage", 1), {
+      "species.elf.lineage": ["wood_elf"], "class.wizard.cantrips": ["druidcraft", "minor_illusion", "true_strike"],
+    });
+    expect(buildSheet(c).ok).toBe(false);
+    const fixed = replaceRepeatedSpells(c);
+    const cantrips = fixed.picks["class.wizard.cantrips"]!;
+    expect(cantrips).not.toContain("druidcraft");
+    expect(cantrips).toEqual(expect.arrayContaining(["minor_illusion", "true_strike"]));
+    expect(buildSheet(fixed).ok).toBe(true);
+  });
+
   it("replaces a wizard's repeated prepared spell with another one from the spellbook", () => {
     const base = greedyChoices("elf", "wizard", "sage", 1);
     const c = repeat(base, {
@@ -1036,8 +1049,49 @@ describe("replaceRepeatedSpells", () => {
     expect(buildSheet(fixed).ok).toBe(true);
   });
 
+  it("replaces a wizard's prepared spell that is not in the spellbook with one that is", () => {
+    const base = greedyChoices("elf", "wizard", "sage", 1);
+    const book = base.picks["class.wizard.spellbook"]!;
+    const spec = requiredChoices(base).find((s) => s.id === "class.wizard.prepared")!;
+    const outside = spec.options.find((o) => !book.includes(o.id))!.id;
+    const c = repeat(base, { "class.wizard.prepared": [outside, ...base.picks["class.wizard.prepared"]!.slice(1)] });
+    expect(buildSheet(c).ok).toBe(false);
+    const fixed = replaceRepeatedSpells(c);
+    expect(book).toEqual(expect.arrayContaining(fixed.picks["class.wizard.prepared"]!));
+    expect(buildSheet(fixed).ok).toBe(true);
+  });
+
   it("leaves legal choices untouched", () => {
     const c = greedyChoices("elf", "wizard", "sage", 1);
     expect(replaceRepeatedSpells(c)).toEqual(c);
+  });
+});
+
+describe("replaceRepeatedSkills", () => {
+  const repeat = (c: CharacterChoices, picks: Record<string, string[]>): CharacterChoices => ({ ...c, picks: { ...c.picks, ...picks } });
+
+  it("swaps a class skill that the background already gives for a free one", () => {
+    // Sage gives Arcana and History, both on the wizard list.
+    const c = repeat(greedyChoices("dwarf", "wizard", "sage", 1), { "class.wizard.skills": ["arcana", "medicine"] });
+    expect(buildSheet(c).ok).toBe(false);
+    const fixed = replaceRepeatedSkills(c);
+    const skills = fixed.picks["class.wizard.skills"]!;
+    expect(skills).not.toContain("arcana");
+    expect(skills).toContain("medicine");
+    expect(buildSheet(fixed).ok).toBe(true);
+  });
+
+  it("swaps a background skill that the class list does not even offer", () => {
+    // Criminal gives Stealth, which is not on the wizard list.
+    const c = repeat(greedyChoices("dwarf", "wizard", "criminal", 1), { "class.wizard.skills": ["stealth", "medicine"] });
+    expect(buildSheet(c).ok).toBe(false);
+    const fixed = replaceRepeatedSkills(c);
+    expect(fixed.picks["class.wizard.skills"]).not.toContain("stealth");
+    expect(buildSheet(fixed).ok).toBe(true);
+  });
+
+  it("leaves legal choices untouched", () => {
+    const c = greedyChoices("elf", "rogue", "criminal", 4);
+    expect(replaceRepeatedSkills(c)).toEqual(c);
   });
 });

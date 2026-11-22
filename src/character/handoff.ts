@@ -8,6 +8,33 @@ import { findBackground, findClass, findSpecies } from "../rules";
  */
 export const HANDOFF_KEY = "dnsolo.generatedCharacter";
 
+const statsSchema = z.object({
+  maxHp: z.number().int().min(1),
+  armorClass: z.number().int(),
+  initiative: z.number().int(),
+  speed: z.number().int(),
+  hitDice: z.string(),
+  attacks: z.array(z.object({ name: z.string(), attackBonus: z.number().int(), damage: z.string() })),
+  spellSaveDc: z.number().int().nullable(),
+  spellAttackBonus: z.number().int().nullable(),
+});
+
+const abilityScores = z.object({
+  str: z.number(), dex: z.number(), con: z.number(), int: z.number(), wis: z.number(), cha: z.number(),
+});
+
+const choicesSchema = z.object({
+  speciesId: z.string(),
+  classId: z.string(),
+  backgroundId: z.string(),
+  level: z.number().int(),
+  baseScores: abilityScores,
+  backgroundBonus: abilityScores.partial(),
+  classEquipment: z.enum(["A", "B", "C"]),
+  backgroundEquipment: z.enum(["A", "B"]),
+  picks: z.record(z.string(), z.array(z.string())),
+});
+
 const handoffSchema = z.object({
   name: z.string(),
   speciesId: z.string().refine((id) => findSpecies(id) !== undefined),
@@ -19,6 +46,9 @@ const handoffSchema = z.object({
     .nullable(),
   level: z.number().int().min(1).max(20),
   background: z.string(),
+  stats: statsSchema.nullable().optional(),
+  choices: choicesSchema.optional(),
+  startingInventory: z.array(z.object({ name: z.string().min(1), quantity: z.number().int().min(1) })).optional(),
 });
 
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;

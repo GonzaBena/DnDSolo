@@ -196,7 +196,7 @@ function speciesSpells(c: CharacterChoices, specs: ChoiceSpec[]): Map<string, st
 }
 
 /** The generator's fix for the model's most common slip: picking again a spell that the species, a feat or an
-    earlier choice already gives. Each repeat becomes the first free option of the same choice (for the wizard's
+    earlier choice already gives, even when that choice does not offer it. Each repeat becomes the first free option of the same choice (for the wizard's
     prepared spells, one from the spellbook), in the order validateSpells reads them. A repeat with no free option
     left stays, and validation reports it. */
 export function replaceRepeatedSpells(c: CharacterChoices): CharacterChoices {
@@ -213,7 +213,10 @@ export function replaceRepeatedSpells(c: CharacterChoices): CharacterChoices {
     const book = spec.id === "class.wizard.prepared" ? new Set(picks["class.wizard.spellbook"] ?? []) : null;
     const result: string[] = [];
     for (const id of current) {
-      if (!optionOf(spec, id) || !blocked.has(id)) {
+      // A spell already known is replaced even when this choice does not offer it (a wood elf wizard
+      // picking druidcraft again as a class cantrip): the model meant a repeat, not some other option.
+      // So is a wizard's prepared spell that is not in the spellbook.
+      if (!blocked.has(id) && (!book || book.has(id))) {
         result.push(id);
         continue;
       }
@@ -223,6 +226,38 @@ export function replaceRepeatedSpells(c: CharacterChoices): CharacterChoices {
     }
     picks[spec.id] = result;
     for (const id of result) if (optionOf(spec, id)) known.add(id);
+  }
+  return { ...c, picks };
+}
+
+/** The same fix for skills: a skill the background, the species or an earlier choice already gives, picked
+    again (whether or not this choice offers it), becomes the first free option, in the order validateSkills
+    reads them. Expertise is left alone: it must point at a skill the character already has. */
+export function replaceRepeatedSkills(c: CharacterChoices): CharacterChoices {
+  const specs = activeChoices(requiredChoices(c), c.picks);
+  const background = findBackground(c.backgroundId)!;
+  const species = SPECIES.find((s) => s.id === c.speciesId)!;
+  const owned = new Set<string>([...background.skills, ...species.fixedSkills]);
+  const picks = { ...c.picks };
+  for (const spec of specs.filter((s) => !isExpertise(s.id) && s.options.some((o) => o.skill))) {
+    const current = picks[spec.id];
+    if (!current) continue;
+    const result: string[] = [];
+    for (const id of current) {
+      const skill = optionOf(spec, id)?.skill ?? id;
+      if (!owned.has(skill)) {
+        result.push(id);
+        continue;
+      }
+      const free = spec.options.find((o) =>
+        !(o.skill && owned.has(o.skill)) && !current.includes(o.id) && !result.includes(o.id));
+      result.push(free?.id ?? id);
+    }
+    picks[spec.id] = result;
+    for (const id of result) {
+      const skill = optionOf(spec, id)?.skill;
+      if (skill) owned.add(skill);
+    }
   }
   return { ...c, picks };
 }

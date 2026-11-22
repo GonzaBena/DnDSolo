@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { shakeScreen } from "../animations/motion";
 import { castOf, speakingNow } from "../domain/dialogue";
 import { formatDice } from "../domain/dice";
@@ -17,6 +17,7 @@ import { RollDialog } from "./RollDialog";
 import { SceneDrawer } from "./SceneDrawer";
 import { ScenePanel } from "./ScenePanel";
 import { expandSlashCommands } from "./slashCommands";
+import { freshest } from "./freshest";
 import { buildTurnToasts, tookDamage } from "./turnToasts";
 import { InputEntry, Narration, TurnLog } from "./TurnLog";
 import { useStickToBottom } from "./useStickToBottom";
@@ -47,6 +48,8 @@ export default function Game() {
   const [screen, setScreen] = useState<Screen>({ status: "loading" });
   const [inFlight, setInFlight] = useState<InFlight | null>(null);
   const [busy, setBusy] = useState(false);
+  // Manual HP fixes still saving; a turn waits for them (see adjustHp).
+  const [hpPending, setHpPending] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
   useEffect(() => () => abortRef.current?.abort(), []);
   const [error, setError] = useState<FailureNotice | null>(null);
@@ -110,7 +113,10 @@ export default function Game() {
   }, []);
 
   const send = useCallback(
-    async (engine: TurnEngine, state: GameState, input: TurnInput, typed?: string) => {
+    async (engine: TurnEngine, shownState: GameState, input: TurnInput, typed?: string) => {
+      // A manual HP fix may be newer than the rendered state: start from it,
+      // so the model sees it and the toasts don't announce it again.
+      const state = freshest(shownState, latestStateRef.current);
       setBusy(true);
       // Whoever sends wants to see the reply, even if they had scrolled up.
       scrollToBottom();
@@ -193,7 +199,7 @@ export default function Game() {
       setInFlight(null);
       const turnToasts = buildTurnToasts(state, outcome.state, outcome.response.events, Date.now());
       if (turnToasts.length > 0) setToasts((prev) => [...prev, ...turnToasts]);
-      if (tookDamage(outcome.response.events) && gameRef.current) {
+      if (tookDamage(outcome.response.events, state, outcome.state) && gameRef.current) {
         const el = gameRef.current;
         shakeScreen(el);
         el.classList.add("game--damage-flash");
@@ -247,7 +253,7 @@ export default function Game() {
   // `inFlight` being set also blocks this after a failure, so a failed
   // send waits for "Reintentar" instead of re-rolling in a loop.
   useEffect(() => {
-    if (screen.status !== "playing" || busy || inFlight) return;
+    if (screen.status !== "playing" || busy || inFlight || hpPending > 0) return;
     const { engine, state } = screen;
     if (state.turns.length === 0) {
       if (startedRef.current) return;
@@ -256,7 +262,7 @@ export default function Game() {
     } else if (state.pendingEnemyRolls.length > 0) {
       void send(engine, state, { type: "enemy_rolls", results: engine.rollEnemyDice(state) });
     }
-  }, [screen, busy, inFlight, send]);
+  }, [screen, busy, inFlight, hpPending, send]);
 
   const turnCount = screen.status === "playing" ? screen.state.turns.length : 0;
   const streamed = inFlight?.narration ?? "";
@@ -270,19 +276,19 @@ export default function Game() {
   const playerRoll = screen.status === "playing" ? screen.state.pendingPlayerRoll : null;
   const enemyRollsPending =
     screen.status === "playing" && screen.state.pendingEnemyRolls.length > 0;
-  const canAct = useMemo(
-    () => screen.status === "playing" && !busy && !inFlight && !enemyRollsPending,
-    [screen.status, busy, inFlight, enemyRollsPending],
-  );
+  // The player's turn, apart from a pending HP fix. Focus follows this one,
+  // so adjusting HP doesn't pull focus from the -/+ buttons to the composer.
+  const turnReady = screen.status === "playing" && !busy && !inFlight && !enemyRollsPending;
+  const canAct = turnReady && hpPending === 0;
 
   // Focus the composer whenever it is the player's turn, unless they are
   // already in another field. Skipped on touch screens, where focusing
   // would pop the on-screen keyboard over the story.
   useEffect(() => {
-    if (!canAct || !matchMedia("(pointer: fine)").matches) return;
+    if (!turnReady || !matchMedia("(pointer: fine)").matches) return;
     if (isEditable(document.activeElement)) return;
     draftRef.current?.focus();
-  }, [canAct]);
+  }, [turnReady]);
 
   // Typing anywhere on the page goes into the composer: focusing it on
   // keydown makes the browser deliver that same keystroke to it.
@@ -335,6 +341,38 @@ export default function Game() {
     void send(engine, state, { type: "action", text, playerId: state.players[0]?.id }, raw);
   };
 
+  const adjustHp = async (delta: number) => {
+    if (busy || inFlight) return;
+    const held = latestStateRef.current ?? state;
+    const playerId = held.players[0]?.id;
+    if (!playerId) return;
+    // While a fix is saving no turn may start on the screen's older state.
+    setHpPending((count) => count + 1);
+    let applied: Awaited<ReturnType<TurnEngine["adjustHp"]>>;
+    try {
+      applied = await engine.adjustHp(held, playerId, delta);
+    } finally {
+      setHpPending((count) => count - 1);
+    }
+    // The toast diffs the exact step, even if clicks overlapped.
+    const before = applied.before;
+    const current = latestStateRef.current;
+    if (!current || (current.id === applied.state.id && current.turns.length <= applied.state.turns.length)) {
+      latestStateRef.current = applied.state;
+    }
+    setScreen((previous) =>
+      previous.status === "playing" &&
+      previous.state.id === applied.state.id &&
+      previous.state.turns.length <= applied.state.turns.length
+        ? { ...previous, state: applied.state }
+        : previous,
+    );
+    const hpToasts = buildTurnToasts(before, applied.state, [], Date.now());
+    if (hpToasts.length > 0) setToasts((prev) => [...prev, ...hpToasts]);
+    // No shake or flash: the player made this correction themselves.
+    if (applied.saveError) setWarning(SAVE_WARNING);
+  };
+
   // Whatever was already typed goes first, so "Ataco al orco" + roll
   // becomes a single turn.
   const submitRoll = (roll: Omit<PlayerRoll, "reason">) => {
@@ -360,6 +398,8 @@ export default function Game() {
           onToggleZen={() => setZenMode((prev) => !prev)}
           onOpenScene={() => setSceneOpen(true)}
           onOpenInfo={() => setInfoOpen(true)}
+          onAdjustHp={(delta) => void adjustHp(delta)}
+          hpDisabled={busy || inFlight !== null}
         />
         <InfoDrawer state={state} open={infoOpen} onClose={() => setInfoOpen(false)} />
         <SceneDrawer
@@ -403,6 +443,7 @@ export default function Game() {
                 <button
                   type="button"
                   className="button button--primary"
+                  disabled={hpPending > 0}
                   onClick={() => void send(engine, state, inFlight.input, inFlight.draft)}
                 >
                   Reintentar

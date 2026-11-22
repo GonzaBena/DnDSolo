@@ -36,9 +36,9 @@ function choicesReply(c: CharacterChoices) {
 const replyFor = (concept: ConceptReply, level = 1) =>
   choicesReply(greedyChoices(concept.speciesId, concept.classId, concept.backgroundId, level));
 
-/** The fighter repeats Athletics, which the soldier background already gives. */
+/** The fighter picks a fighting style that does not exist, which no repair can fix. */
 const invalidFighter = () =>
-  choicesReply(fighterChoices({ picks: { ...fighterChoices().picks, "class.fighter.skills": ["athletics", "survival"] } }));
+  choicesReply(fighterChoices({ picks: { ...fighterChoices().picks, "class.fighter.fighting_style": ["kung_fu"] } }));
 
 type Reply = object | string | Error;
 
@@ -102,7 +102,7 @@ describe("generateOptions", () => {
     const [first, retry] = llm.promptsFor("Brann");
     expect(first).not.toContain("ERRORES DEL INTENTO ANTERIOR");
     expect(retry).toContain("ERRORES DEL INTENTO ANTERIOR");
-    expect(retry).toContain("Atletismo");
+    expect(retry).toContain("kung_fu");
   });
 
   it("drops a concept that fails twice and keeps the others", async () => {
@@ -112,7 +112,18 @@ describe("generateOptions", () => {
     expect(result.failures).toHaveLength(1);
     expect(result.failures[0]).toContain("Brann");
     expect(result.failures[0]).toMatch(/no se pudo/i);
-    expect(result.failures[0]).toContain("Atletismo");
+    expect(result.failures[0]).toContain("kung_fu");
+  });
+
+  it("keeps a concept whose class skill repeats one its background gives", async () => {
+    // Soldier already gives Athletics.
+    const repeated = choicesReply(fighterChoices({ picks: { ...fighterChoices().picks, "class.fighter.skills": ["athletics", "survival"] } }));
+    const llm = scripted({ Brann: [repeated] });
+    const result = await generateOptions(llm, STORY, 1);
+    expect(result.failures).toEqual([]);
+    const option = result.options.find((o) => o.name === "Brann")!;
+    expect(option.choices.picks["class.fighter.skills"]).not.toContain("athletics");
+    expect(option.choices.picks["class.fighter.skills"]).toContain("survival");
   });
 
   it("keeps a concept whose class cantrip repeats one its background feat gives", async () => {

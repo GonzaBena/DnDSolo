@@ -11,6 +11,17 @@ export interface InventoryItem {
   quantity: number;
 }
 
+export interface CharacterStats {
+  maxHp: number;
+  armorClass: number;
+  initiative: number;
+  speed: number;
+  hitDice: string;
+  attacks: { name: string; attackBonus: number; damage: string }[];
+  spellSaveDc: number | null;
+  spellAttackBonus: number | null;
+}
+
 export interface Character {
   id: string;
   name: string;
@@ -24,9 +35,13 @@ export interface Character {
   srdBackgroundId: string | null;
   level: number;
   background: string | null;
-  /** Story items the DM handed out. The player's real sheet (HP, stats,
-      modifiers) lives with the player, not here. */
+  /** Starts with the character's starting gear (from the sheet, when there is
+      one) and then changes only through the DM's inventory changes. */
   inventory: InventoryItem[];
+  /** Combat stats; null until the sheet fills them in (and for older saves). */
+  stats: CharacterStats | null;
+  /** Current hit points; null exactly when `stats` is null. */
+  currentHp: number | null;
 }
 
 export const ROLL_MODES = ["normal", "advantage", "disadvantage"] as const;
@@ -141,6 +156,8 @@ export type StateChange =
   | { type: "inventory_add"; playerId: string; item: string; quantity: number }
   | { type: "inventory_remove"; playerId: string; item: string; quantity: number }
   | { type: "level"; playerId: string; level: number }
+  /** Hit points gained (+) or lost (-). `target` is a player id or name. */
+  | { type: "hp"; target: string; delta: number }
   /** The SRD subclass of the player's class, once its level is reached. */
   | { type: "subclass"; playerId: string; subclassId: string }
   | { type: "location"; name: string; description: string }
@@ -234,4 +251,4 @@ export interface GameState {
   pendingEnemyRolls: EnemyRollRequest[];
 }
 
-export const GAME_STATE_VERSION = 9;
+export const GAME_STATE_VERSION = 10;

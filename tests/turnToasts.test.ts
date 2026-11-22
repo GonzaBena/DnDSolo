@@ -112,3 +112,53 @@ describe("tookDamage", () => {
     expect(tookDamage(["damage_dealt", "healing"])).toBe(false);
   });
 });
+
+const stats = {
+  maxHp: 20,
+  armorClass: 16,
+  initiative: 2,
+  speed: 30,
+  hitDice: "3d8",
+  attacks: [],
+  spellSaveDc: null,
+  spellAttackBonus: null,
+};
+
+function withHp(state: GameState, currentHp: number): GameState {
+  const [player, ...rest] = state.players;
+  return { ...state, players: [{ ...player!, stats, currentHp }, ...rest] };
+}
+
+describe("hit point toasts", () => {
+  const base = newGame();
+
+  it("says exactly how many hit points were lost", () => {
+    expect(buildTurnToasts(withHp(base, 20), withHp(base, 13), [], 1)).toMatchObject([
+      { kind: "damage", title: "¡Daño recibido!", detail: "Perdiste 7 PG (13/20)." },
+    ]);
+  });
+
+  it("says exactly how many hit points were recovered", () => {
+    expect(buildTurnToasts(withHp(base, 13), withHp(base, 18), [], 1)).toMatchObject([
+      { kind: "healing", title: "Recuperación", detail: "Recuperaste 5 PG (18/20)." },
+    ]);
+  });
+
+  it("doesn't also fire the event toast, nor any toast without a change", () => {
+    const hurt = buildTurnToasts(withHp(base, 20), withHp(base, 13), ["damage_taken"], 1);
+    expect(hurt.map((t) => t.kind)).toEqual(["damage"]);
+    expect(buildTurnToasts(withHp(base, 20), withHp(base, 20), ["damage_taken", "healing"], 1)).toEqual([]);
+  });
+
+  it("keeps the event toast when the sheet has no stats", () => {
+    expect(buildTurnToasts(base, base, ["damage_taken"], 1)[0]).toMatchObject({
+      detail: "Hubo un impacto en combate o peligro del entorno.",
+    });
+  });
+
+  it("shakes on a real hit point drop", () => {
+    expect(tookDamage([], withHp(base, 20), withHp(base, 13))).toBe(true);
+    expect(tookDamage(["damage_taken"], withHp(base, 20), withHp(base, 20))).toBe(false);
+    expect(tookDamage(["damage_taken"], base, base)).toBe(true);
+  });
+});

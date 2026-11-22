@@ -1,4 +1,7 @@
+import { useState } from "react";
 import type { GameState } from "../domain/types";
+import { HpDialog } from "./HpDialog";
+import { hpTone } from "./hpBar";
 
 interface Props {
   state: GameState;
@@ -6,6 +9,10 @@ interface Props {
   onOpenInfo: () => void;
   zenMode?: boolean;
   onToggleZen?: () => void;
+  /** Manual hit point fix (signed). Without it the HP controls are read-only. */
+  onAdjustHp?: (delta: number) => void;
+  /** Disables the HP controls, e.g. while the DM is answering. */
+  hpDisabled?: boolean;
 }
 
 export function CharacterPanel({
@@ -14,7 +21,10 @@ export function CharacterPanel({
   onOpenInfo,
   zenMode = false,
   onToggleZen,
+  onAdjustHp,
+  hpDisabled = false,
 }: Props) {
+  const [hpOpen, setHpOpen] = useState(false);
   const player = state.players?.[0];
   if (!player) return null;
   // The first active quest is the main one.
@@ -22,6 +32,9 @@ export function CharacterPanel({
   // Players, the DM and the NPCs around.
   const inScene = (state.players?.length ?? 1) + 1 + (state.npcs ?? []).filter((n) => n.present).length;
   const inCombat = state.scene?.inCombat ?? false;
+
+  const stats = player.stats;
+  const hp = stats && player.currentHp !== null ? { current: player.currentHp, max: stats.maxHp } : null;
 
   return (
     <aside className={`sheet${zenMode ? " sheet--zen" : ""}`} aria-label="Tu personaje">
@@ -32,6 +45,57 @@ export function CharacterPanel({
             {player.race} · {player.characterClass} · Nivel {player.level}
           </span>
         </div>
+        {stats && hp && (
+          <div className="sheet__vitals">
+            <div className="hp">
+              <div className="hp__row">
+                <button
+                  type="button"
+                  className="button hp__step"
+                  aria-label="Restar 1 PG"
+                  disabled={hpDisabled || !onAdjustHp || hp.current <= 0}
+                  onClick={() => onAdjustHp?.(-1)}
+                >
+                  −
+                </button>
+                <button
+                  type="button"
+                  className="hp__value"
+                  aria-label={`Puntos de golpe ${hp.current} de ${hp.max}. Corregir`}
+                  aria-haspopup="dialog"
+                  disabled={hpDisabled || !onAdjustHp}
+                  onClick={() => setHpOpen(true)}
+                >
+                  PG {hp.current}/{hp.max}
+                </button>
+                <button
+                  type="button"
+                  className="button hp__step"
+                  aria-label="Sumar 1 PG"
+                  disabled={hpDisabled || !onAdjustHp || hp.current >= hp.max}
+                  onClick={() => onAdjustHp?.(1)}
+                >
+                  +
+                </button>
+              </div>
+              <div
+                className="hp__bar"
+                data-tone={hpTone(hp.current, hp.max)}
+                role="progressbar"
+                aria-label="Puntos de golpe"
+                aria-valuemin={0}
+                aria-valuemax={hp.max}
+                aria-valuenow={hp.current}
+              >
+                <div
+                  className="hp__fill"
+                  style={{ width: `${Math.max(0, Math.min(100, (hp.current / hp.max) * 100))}%` }}
+                />
+              </div>
+            </div>
+            <span className="sheet__ac">CA {stats.armorClass}</span>
+          </div>
+        )}
         {!zenMode && (
           <dl className="sheet__details">
             <div>
@@ -75,6 +139,17 @@ export function CharacterPanel({
           Info
         </button>
       </div>
+      {stats && hp && onAdjustHp && (
+        <HpDialog
+          open={hpOpen}
+          disabled={hpDisabled}
+          onClose={() => setHpOpen(false)}
+          onSubmit={(delta) => {
+            setHpOpen(false);
+            onAdjustHp(delta);
+          }}
+        />
+      )}
     </aside>
   );
 }
