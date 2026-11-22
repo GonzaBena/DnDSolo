@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSheet, replaceRepeatedSpells, validateChoices } from "../src/rules/buildSheet";
+import { buildSheet, replaceRepeatedSkills, replaceRepeatedSpells, validateChoices } from "../src/rules/buildSheet";
 import type { CharacterChoices, ChoiceError } from "../src/rules/buildSheet";
 import { WEAPONS, findClass, findSpell, spellsFor } from "../src/rules";
 import type { CharacterSheet, SkillId } from "../src/rules";
@@ -1064,5 +1064,34 @@ describe("replaceRepeatedSpells", () => {
   it("leaves legal choices untouched", () => {
     const c = greedyChoices("elf", "wizard", "sage", 1);
     expect(replaceRepeatedSpells(c)).toEqual(c);
+  });
+});
+
+describe("replaceRepeatedSkills", () => {
+  const repeat = (c: CharacterChoices, picks: Record<string, string[]>): CharacterChoices => ({ ...c, picks: { ...c.picks, ...picks } });
+
+  it("swaps a class skill that the background already gives for a free one", () => {
+    // Sage gives Arcana and History, both on the wizard list.
+    const c = repeat(greedyChoices("dwarf", "wizard", "sage", 1), { "class.wizard.skills": ["arcana", "medicine"] });
+    expect(buildSheet(c).ok).toBe(false);
+    const fixed = replaceRepeatedSkills(c);
+    const skills = fixed.picks["class.wizard.skills"]!;
+    expect(skills).not.toContain("arcana");
+    expect(skills).toContain("medicine");
+    expect(buildSheet(fixed).ok).toBe(true);
+  });
+
+  it("swaps a background skill that the class list does not even offer", () => {
+    // Criminal gives Stealth, which is not on the wizard list.
+    const c = repeat(greedyChoices("dwarf", "wizard", "criminal", 1), { "class.wizard.skills": ["stealth", "medicine"] });
+    expect(buildSheet(c).ok).toBe(false);
+    const fixed = replaceRepeatedSkills(c);
+    expect(fixed.picks["class.wizard.skills"]).not.toContain("stealth");
+    expect(buildSheet(fixed).ok).toBe(true);
+  });
+
+  it("leaves legal choices untouched", () => {
+    const c = greedyChoices("elf", "rogue", "criminal", 4);
+    expect(replaceRepeatedSkills(c)).toEqual(c);
   });
 });

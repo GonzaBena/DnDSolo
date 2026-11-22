@@ -230,6 +230,38 @@ export function replaceRepeatedSpells(c: CharacterChoices): CharacterChoices {
   return { ...c, picks };
 }
 
+/** The same fix for skills: a skill the background, the species or an earlier choice already gives, picked
+    again (whether or not this choice offers it), becomes the first free option, in the order validateSkills
+    reads them. Expertise is left alone: it must point at a skill the character already has. */
+export function replaceRepeatedSkills(c: CharacterChoices): CharacterChoices {
+  const specs = activeChoices(requiredChoices(c), c.picks);
+  const background = findBackground(c.backgroundId)!;
+  const species = SPECIES.find((s) => s.id === c.speciesId)!;
+  const owned = new Set<string>([...background.skills, ...species.fixedSkills]);
+  const picks = { ...c.picks };
+  for (const spec of specs.filter((s) => !isExpertise(s.id) && s.options.some((o) => o.skill))) {
+    const current = picks[spec.id];
+    if (!current) continue;
+    const result: string[] = [];
+    for (const id of current) {
+      const skill = optionOf(spec, id)?.skill ?? id;
+      if (!owned.has(skill)) {
+        result.push(id);
+        continue;
+      }
+      const free = spec.options.find((o) =>
+        !(o.skill && owned.has(o.skill)) && !current.includes(o.id) && !result.includes(o.id));
+      result.push(free?.id ?? id);
+    }
+    picks[spec.id] = result;
+    for (const id of result) {
+      const skill = optionOf(spec, id)?.skill;
+      if (skill) owned.add(skill);
+    }
+  }
+  return { ...c, picks };
+}
+
 /** A spell is learned or prepared from one source only: species spells, feats, invocations and class choices. */
 function validateSpells(c: CharacterChoices, specs: ChoiceSpec[]): ChoiceError[] {
   const errors: ChoiceError[] = [];
