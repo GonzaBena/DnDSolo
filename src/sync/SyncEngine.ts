@@ -22,8 +22,11 @@ export interface LocalGuard {
       False keeps local and the base, so the next save becomes a conflict;
       true means the screen stops taking turns until `replaced`. */
   mayReplace(): boolean;
-  /** After a replacement: the new local state, or null when the write failed.
-      Also called when the player chose Drive's copy in the dialog. */
+  /** The player chose Drive's copy in the dialog: stop taking turns, abort
+      the one in flight and resolve once it (and its save) has settled. */
+  hold(): Promise<void>;
+  /** Ends `hold` or a granted `mayReplace`: the new local state, or null
+      when nothing was written (failed, or local changed meanwhile). */
   replaced(state: GameState | null): void;
 }
 
@@ -227,12 +230,24 @@ export class SyncEngine {
   private async download(id: string, bases: SyncBases, seen: GameState | null, chosen = false): Promise<Outcome> {
     const state = await this.readRemote(id);
     if (!state) return "unchanged"; // missing, or from an unknown version: leave local alone
-    if (!(await this.localUnchangedSince(id, seen))) return "unchanged"; // a newer save will push
     const guard = this.guards.get(id);
-    // Same tick as the write below starts: no turn can begin in between.
-    if (guard && !chosen && !callGuard(() => guard.mayReplace(), false)) return "unchanged";
+    if (guard) {
+      if (chosen) {
+        try {
+          await guard.hold();
+        } catch {
+          // A failing hold still ends below with replaced(null) or the write.
+        }
+      } else if (!callGuard(() => guard.mayReplace(), false)) {
+        return "unchanged";
+      }
+    }
+    // From here the screen takes no turns until `replaced`.
     let saved = false;
     try {
+      // A save that landed meanwhile (even during the hold) wins: it pushes
+      // next and, with the base untouched, asks again instead of uploading.
+      if (!(await this.localUnchangedSince(id, seen))) return "unchanged";
       await this.deps.local.save(state);
       bases.set(id, state.updatedAt);
       saved = true;

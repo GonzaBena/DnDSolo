@@ -84,4 +84,19 @@ describe("sendAfterRenewal", () => {
     expect(run).toHaveBeenCalledOnce();
     expect(holds.at(-1)).toBe(false);
   });
+
+  it("releases the hold when the renewal check throws before the turn starts", async () => {
+    const sync = {
+      auth: {
+        needsGesture: () => {
+          throw new Error("boom");
+        },
+      },
+    } as unknown as SyncRuntime;
+    const holds: boolean[] = [];
+    const run = vi.fn(async () => undefined);
+    await sendAfterRenewal(sync, (on) => holds.push(on), run).catch(() => undefined);
+    expect(run).not.toHaveBeenCalled();
+    expect(holds).toEqual([true, false]);
+  });
 });

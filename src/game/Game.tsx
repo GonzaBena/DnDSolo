@@ -83,14 +83,26 @@ export default function Game() {
   // the local copy, so a newer Drive copy becomes a conflict for the dialog.
   const changedRef = useRef(false);
   // Nothing may be sent while the Google window is open (a turn is already
-  // waiting on it) or while Drive's copy is being written under the screen.
+  // waiting on it), while Drive's copy is being written under the screen, or
+  // while a newer game from Drive is being opened in its place.
   // The ref answers handlers at once; the state re-renders the controls.
-  const pauseRef = useRef({ renewing: false, replacing: false });
+  const pauseRef = useRef({ renewing: false, replacing: false, opening: false });
   const [paused, setPaused] = useState(false);
-  const isPaused = () => pauseRef.current.renewing || pauseRef.current.replacing;
-  const setPause = useCallback((key: "renewing" | "replacing", on: boolean) => {
+  const isPaused = () => Object.values(pauseRef.current).some(Boolean);
+  const setPause = useCallback((key: "renewing" | "replacing" | "opening", on: boolean) => {
     pauseRef.current[key] = on;
-    setPaused(pauseRef.current.renewing || pauseRef.current.replacing);
+    setPaused(Object.values(pauseRef.current).some(Boolean));
+  }, []);
+  // Bumped when Drive's copy replaces the screen: work started before it
+  // (a turn, a summary, an HP fix) must not touch the new state.
+  const generationRef = useRef(0);
+  // Turns and saves still running, so "use Drive's copy" can wait for them.
+  const workRef = useRef(new Set<Promise<unknown>>());
+  const track = useCallback(<T,>(work: Promise<T>): Promise<T> => {
+    workRef.current.add(work);
+    const done = () => void workRef.current.delete(work);
+    work.then(done, done);
+    return work;
   }, []);
 
   const dismissToast = useCallback((id: string) => {
@@ -130,66 +142,100 @@ export default function Game() {
     // Drive's copy replaced the shown game (a late reconcile, a background
     // sync, or the player chose it in the dialog). TurnEngine caches the
     // latest state per game: a fresh one forgets it.
+    let shownId: string | null = null;
     const showFromDrive = (fresh: GameState) => {
+      generationRef.current += 1;
       abortRef.current?.abort();
       changedRef.current = false;
+      shownId = fresh.id;
       latestStateRef.current = fresh;
+      setInFlight(null);
+      setError(null);
       setScreen({ status: "playing", engine: createEngine(), state: fresh, loadedTurns: fresh.turns.length });
       setWarning(DRIVE_NEWER_NOTICE);
     };
-    // The engine asks before writing Drive's copy of the shown game. Once
-    // this session changed it, the answer is no: the base stays put and the
-    // next save is a conflict for the dialog, never a silent overwrite.
-    let unprotect: (() => void) | undefined;
+    // Drive's copies written before their game was on screen: newer than
+    // whatever the open's read returned.
+    const written = new Map<string, GameState>();
+    // The engine asks before writing Drive's copy of a game. For the shown
+    // one, once this session changed it, the answer is no: the base stays
+    // put and the next save is a conflict for the dialog.
+    const unprotects: (() => void)[] = [];
     const protect = (gameId: string) => {
-      unprotect?.();
-      unprotect = sync?.engine.protectLocal(gameId, {
+      const stop = sync?.engine.protectLocal(gameId, {
         mayReplace: () => {
-          if (changedRef.current || isPaused()) return false;
+          if (gameId !== shownId) return true; // nothing can be playing it yet
+          if (changedRef.current) return false;
           setPause("replacing", true);
           return true;
         },
+        hold: async () => {
+          if (gameId !== shownId) return;
+          setPause("replacing", true);
+          abortRef.current?.abort();
+          // The turn in flight may be past its last abort check: wait for it
+          // and its save, so the engine sees it and asks again.
+          while (workRef.current.size > 0) await Promise.allSettled([...workRef.current]);
+        },
         replaced: (fresh) => {
           setPause("replacing", false);
-          if (fresh) showFromDrive(fresh);
+          if (!fresh) return;
+          if (gameId === shownId) showFromDrive(fresh);
+          else written.set(gameId, fresh);
         },
       });
+      if (stop) unprotects.push(stop);
     };
+    /** Shows `opened`, or Drive's copy if one was written since `protect`. */
+    const show = (opened: GameState, notice: boolean) => {
+      const fresh = written.get(opened.id);
+      if (fresh || notice) return showFromDrive(fresh ?? opened);
+      shownId = opened.id;
+      latestStateRef.current = opened;
+      setScreen({ status: "playing", engine: createEngine(), state: opened, loadedTurns: opened.turns.length });
+    };
+    /** Registers the guard, then re-reads: covers a write before it existed. */
+    const guardAndReread = async (state: GameState) => {
+      protect(state.id);
+      return (await repo.load(state.id).catch(() => null)) ?? state;
+    };
+    // With a known id the guard exists before any read, so nothing slips by.
+    if (id) protect(id);
     void syncBeforeOpen(sync, id).then(({ late }) =>
       load().then(
-        (state) => {
-          latestStateRef.current = state;
-          setScreen(
-            state
-              ? { status: "playing", engine: createEngine(), state, loadedTurns: state.turns.length }
-              : { status: "no_game" },
-          );
-          if (state) protect(state.id);
+        async (loaded) => {
+          if (!loaded) {
+            latestStateRef.current = null;
+            setScreen({ status: "no_game" });
+          } else {
+            // Nothing is on screen yet, so no turn can start during the re-read.
+            show(id || !sync ? loaded : await guardAndReread(loaded), false);
+          }
           // "Continuar" after a slow syncAll: Drive may have brought a newer
           // game (another id). Same-id downloads already went through protect.
-          if (late && !id) {
-            void late.then(() =>
-              repo.loadLatest().then((fresh) => {
-                const shown = latestStateRef.current;
-                if (!fresh || changedRef.current || fresh.id === shown?.id) return;
-                protect(fresh.id);
-                showFromDrive(fresh);
-              }, () => undefined),
-            );
-          }
+          if (!late || id) return;
+          await late;
+          const newest = await repo.loadLatest().catch(() => null);
+          if (!newest || changedRef.current || newest.id === shownId) return;
+          // Hold the old screen while the new game is guarded and re-read.
+          setPause("opening", true);
+          const fresh = await guardAndReread(newest);
+          setPause("opening", false);
+          if (!changedRef.current) show(fresh, true);
         },
         () => setScreen({ status: "load_error" }),
       ),
     );
-    return () => unprotect?.();
+    return () => unprotects.forEach((stop) => stop());
   }, [sync, setPause]);
 
   const send = useCallback(
     async (engine: TurnEngine, shownState: GameState, input: TurnInput, typed?: string) => {
+      // Drive's copy is being written or opened: the screen is about to change.
+      if (pauseRef.current.replacing || pauseRef.current.opening) return;
+      const generation = generationRef.current;
       // A manual HP fix may be newer than the rendered state: start from it,
       // so the model sees it and the toasts don't announce it again.
-      // Drive's copy is being written: the screen is about to change.
-      if (pauseRef.current.replacing) return;
       const state = freshest(shownState, latestStateRef.current);
       changedRef.current = true;
       setBusy(true);
@@ -208,7 +254,7 @@ export default function Game() {
       );
       let outcome: TurnOutcome | null = null;
       try {
-        outcome = await engine.playTurn(
+        outcome = await track(engine.playTurn(
           state,
           input,
           (narration) => typewriter.setTarget(narration),
@@ -216,7 +262,7 @@ export default function Game() {
           // The turn is committed only after the text is fully shown, and a
           // Stop meanwhile doesn't wait for the typewriter.
           () => Promise.race([typewriter.finish(), aborted]),
-        );
+        ));
       } catch (error) {
         // Not a failure playTurn reports; keep the input so the player can retry.
         console.error(error);
@@ -225,6 +271,8 @@ export default function Game() {
         typewriter.cancel();
         setBusy(false);
       }
+      // Drive's copy replaced the screen meanwhile: this turn belongs to the old one.
+      if (generationRef.current !== generation) return;
       if (outcome === null) {
         setInFlight({ input, narration: "", draft: typed });
         setError({ message: describeLLMError(null), suggestSettings: false });
@@ -295,7 +343,10 @@ export default function Game() {
       void engine.summarizeIfDue(shown).then(async (patch) => {
         const latest = latestStateRef.current;
         if (!patch || !latest || latest.id !== shown.id) return;
-        const applied = await engine.applySummary(latest, patch);
+        // Not over Drive's copy, nor while it is being written.
+        if (generationRef.current !== generation || pauseRef.current.replacing) return;
+        const applied = await track(engine.applySummary(latest, patch));
+        if (generationRef.current !== generation) return;
         const appliedState = applied.state;
         // Nothing new to show when the ref already holds this summary.
         if (
@@ -318,7 +369,7 @@ export default function Game() {
         if (applied.saveError) setWarning(SAVE_WARNING);
       });
     },
-    [scrollToBottom],
+    [scrollToBottom, track],
   );
 
   // Turns the app takes on its own, with no player input:
@@ -437,12 +488,14 @@ export default function Game() {
     changedRef.current = true;
     // While a fix is saving no turn may start on the screen's older state.
     setHpPending((count) => count + 1);
+    const generation = generationRef.current;
     let applied: Awaited<ReturnType<TurnEngine["adjustHp"]>>;
     try {
-      applied = await engine.adjustHp(held, playerId, delta);
+      applied = await track(engine.adjustHp(held, playerId, delta));
     } finally {
       setHpPending((count) => count - 1);
     }
+    if (generationRef.current !== generation) return;
     // The toast diffs the exact step, even if clicks overlapped.
     const before = applied.before;
     const current = latestStateRef.current;

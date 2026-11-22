@@ -39,8 +39,13 @@ export function sendAfterRenewal<T>(
   run: () => Promise<T>,
 ): Promise<T> {
   hold(true);
+  let started = false;
   return withRenewal(sync, () => {
+    started = true;
     hold(false);
     return run();
+  }).finally(() => {
+    // The renewal itself threw before the turn could start.
+    if (!started) hold(false);
   });
 }
