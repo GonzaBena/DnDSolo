@@ -1,6 +1,7 @@
 import { findClass } from "../rules";
+import { addFailures } from "./deathSaves";
 import { npcNameFromArchetype } from "./portraits";
-import type { Character, GameState, StateChange, StoryItem } from "./types";
+import { MILESTONES_PER_LEVEL, type Character, type GameState, type StateChange, type StoryItem } from "./types";
 
 export interface RejectedChange {
   change: StateChange;
@@ -43,6 +44,7 @@ function upsert<T>(list: T[], item: T, matches: (existing: T) => boolean): T[] {
 export function applyStateChanges(state: GameState, changes: StateChange[]): ApplyResult {
   let next = state;
   const rejected: RejectedChange[] = [];
+  let milestoneGiven = false;
 
   const updatePlayer = (index: number, update: (player: Character) => Character) => {
     next = { ...next, players: next.players.map((p, i) => (i === index ? update(p) : p)) };
@@ -119,7 +121,26 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
           rejected.push({ change, reason: "Level changes go one at a time." });
           break;
         }
-        updatePlayer(index, (p) => ({ ...p, level: change.level }));
+        // Against `next`, so a quest completed earlier in this reply counts.
+        if (next.players[index]!.milestonesSinceLevel < MILESTONES_PER_LEVEL) {
+          rejected.push({ change, reason: "Not enough milestones for a new level." });
+          break;
+        }
+        updatePlayer(index, (p) => ({ ...p, level: change.level, milestonesSinceLevel: 0 }));
+        break;
+      }
+      case "milestone": {
+        const index = findPlayerIndex(next.players, change.playerId);
+        if (index === -1) {
+          rejected.push({ change, reason: "Unknown player." });
+          break;
+        }
+        if (milestoneGiven) {
+          rejected.push({ change, reason: "One milestone per reply." });
+          break;
+        }
+        milestoneGiven = true;
+        updatePlayer(index, (p) => ({ ...p, milestonesSinceLevel: p.milestonesSinceLevel + 1 }));
         break;
       }
       case "hp": {
@@ -133,11 +154,45 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
           rejected.push({ change, reason: "That character has no hit points tracked." });
           break;
         }
+        if (player.condition === "dead") {
+          rejected.push({ change, reason: "The character is dead." });
+          break;
+        }
         const max = player.stats.maxHp;
-        updatePlayer(index, (p) => ({
-          ...p,
-          currentHp: Math.min(max, Math.max(0, (p.currentHp ?? 0) + change.delta)),
-        }));
+        updatePlayer(index, (p) => {
+          const before = p.currentHp ?? 0;
+          const currentHp = Math.min(max, Math.max(0, before + change.delta));
+          // Damage taken at 0 HP is a failed death save (a stable character starts dying again).
+          if (change.delta < 0 && before === 0) return addFailures({ ...p, currentHp }, 1);
+          if (currentHp === 0) return { ...p, currentHp, condition: "dying" };
+          if (p.condition !== "ok") return { ...p, currentHp, condition: "ok", deathSaves: { successes: 0, failures: 0 } };
+          return { ...p, currentHp };
+        });
+        break;
+      }
+      case "rest": {
+        if (change.kind === "short") break;
+        if (next.scene.inCombat) {
+          rejected.push({ change, reason: "Can't rest during combat." });
+          break;
+        }
+        if (next.players.some((p) => p.condition === "dead")) {
+          rejected.push({ change, reason: "The character is dead." });
+          break;
+        }
+        if (next.players.some((p) => p.condition === "dying")) {
+          rejected.push({ change, reason: "Can't rest while dying." });
+          break;
+        }
+        next = {
+          ...next,
+          players: next.players.map((p) => ({
+            ...p,
+            currentHp: p.stats === null ? p.currentHp : p.stats.maxHp,
+            condition: "ok",
+            deathSaves: { successes: 0, failures: 0 },
+          })),
+        };
         break;
       }
       case "subclass": {
@@ -204,6 +259,13 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
           ...next,
           quests: upsert(next.quests, quest, (q) => sameName(q.title, change.title)),
         };
+        // Finishing a quest the party had taken on is a milestone for everyone.
+        if (existing?.status === "active" && change.status === "completed") {
+          next = {
+            ...next,
+            players: next.players.map((p) => ({ ...p, milestonesSinceLevel: p.milestonesSinceLevel + 1 })),
+          };
+        }
         break;
       }
       case "item": {

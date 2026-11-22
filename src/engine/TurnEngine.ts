@@ -1,4 +1,5 @@
 import { applyStateChanges, type RejectedChange } from "../domain/applyChanges";
+import { applyDeathSave } from "../domain/deathSaves";
 import { diceRolled, rollForEnemy } from "../domain/dice";
 import { dmResponseJsonSchema, parseDMResponse } from "../domain/schemas";
 import type {
@@ -127,7 +128,10 @@ export class TurnEngine {
 
     // Decided once so the prompt and the drop in commit can't disagree.
     const enemyRollsAllowed = this.chainedEnemyRolls(state, input) < MAX_CHAINED_ENEMY_ROLLS;
-    const prompt = buildTurnPrompt(state, input, this.config.recentTurns, { enemyRollsAllowed });
+    // A death save is resolved by code first: the DM narrates the outcome it is sent.
+    const prompt = buildTurnPrompt(resolveInput(state, input), input, this.config.recentTurns, {
+      enemyRollsAllowed,
+    });
 
     // One retry on malformed output, then give up cleanly (Spec, rule 2).
     let lastReason = "";
@@ -185,6 +189,7 @@ export class TurnEngine {
         return state.turns.length === 0 ? null : "The game has already started.";
       case "action":
         if (state.turns.length === 0) return "The game hasn't started yet.";
+        if (findSaver(state, input.playerId)?.condition === "dead") return "That character is dead.";
         if (state.pendingEnemyRolls.length > 0) return "Enemy rolls must be resolved first.";
         return input.text.trim() === "" && !input.roll ? "The action is empty." : null;
       case "enemy_rolls": {
@@ -205,6 +210,15 @@ export class TurnEngine {
           });
         return matches ? null : "The rolls don't match the ones that were requested.";
       }
+      case "death_save": {
+        if (state.turns.length === 0) return "The game hasn't started yet.";
+        if (state.pendingEnemyRolls.length > 0) return "Enemy rolls must be resolved first.";
+        if (!Number.isInteger(input.natural) || input.natural < 1 || input.natural > 20) {
+          return "A death save is a natural d20 between 1 and 20.";
+        }
+        const player = findSaver(state, input.playerId);
+        return player?.condition === "dying" ? null : "That character is not dying.";
+      }
     }
   }
 
@@ -218,7 +232,7 @@ export class TurnEngine {
     // caller holds, with the same turns: apply on top of it, not over it.
     const known = this.latestByGame.get(state.id);
     const base = known && known.turns.length === state.turns.length ? known : state;
-    const applied = applyStateChanges(base, response.stateChanges);
+    const applied = applyStateChanges(resolveInput(base, input), response.stateChanges);
     const turn: Turn = {
       number: state.turns.length + 1,
       input,
@@ -363,4 +377,20 @@ export class TurnEngine {
     this.latestByGame.set(next.id, next);
     return { state: next, saveError: await this.enqueueSave(next) };
   }
+}
+
+/** The player a death save or an action belongs to; a lone player is always meant. */
+function findSaver(state: GameState, playerId: string | undefined) {
+  return state.players.find((p) => p.id === playerId) ?? (state.players.length === 1 ? state.players[0] : undefined);
+}
+
+/** The state once code has resolved what the input itself decides (a death save). */
+function resolveInput(state: GameState, input: TurnInput): GameState {
+  if (input.type !== "death_save") return state;
+  const saver = findSaver(state, input.playerId);
+  if (!saver) return state;
+  return {
+    ...state,
+    players: state.players.map((p) => (p === saver ? applyDeathSave(p, input.natural) : p)),
+  };
 }

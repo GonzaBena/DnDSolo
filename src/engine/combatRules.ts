@@ -34,7 +34,7 @@ COBERTURA
 
 PUNTOS DE GOLPE A 0
 - Un enemigo a 0 puntos de golpe muere o queda fuera de combate, como tenga sentido en la historia.
-- El jugador a 0 cae inconsciente y, al empezar cada uno de sus turnos, tira una salvación contra la muerte: 1d20 con CD 10 sin modificadores. Tres éxitos: se estabiliza. Tres fallos: muere. 1 natural cuenta como dos fallos; 20 natural lo despierta con 1 punto de golpe. Recibir daño estando a 0 es un fallo (un crítico, dos). Cualquier curación lo levanta.
+- El jugador a 0 cae inconsciente. Cuando el jugador está "dying", el sistema le pide la salvación en su turno y te manda el resultado; no la pidas vos en "playerRoll" ni cambies sus contadores. Recibir daño estando a 0 ya cuenta como un fallo (lo aplica el sistema con el cambio "hp"). Cualquier curación lo levanta.
 
 TERMINAR EL COMBATE
 - Cuando no quedan enemigos en pie o la pelea termina (huyen, se rinden), mandá el cambio "scene" con "inCombat": false.`;

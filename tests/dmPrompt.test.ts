@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { TURN_EVENTS } from "../src/domain/types";
-import { buildTurnPrompt, DM_SYSTEM_PROMPT, stateForModel } from "../src/engine/dmPrompt";
+import { buildTurnPrompt, describeInput, DM_SYSTEM_PROMPT, stateForModel } from "../src/engine/dmPrompt";
+import { COMBAT_RULES } from "../src/engine/combatRules";
 import type { GameState } from "../src/domain/types";
 import { newGame } from "./helpers";
 
@@ -247,5 +248,35 @@ describe("compact prompt", () => {
     const json = JSON.stringify(stateForModel(state));
     expect(json).toContain('"armorClass":16');
     expect(json).toContain('"currentHp":9');
+  });
+});
+
+describe("death saves in the prompt", () => {
+  it("describes a past death save from its natural alone", () => {
+    expect(describeInput({ type: "death_save", playerId: "p", natural: 1 })).toBe(
+      "SALVACIÓN CONTRA LA MUERTE (resuelta por el sistema): 1, dos fallos.",
+    );
+    expect(describeInput({ type: "death_save", playerId: "p", natural: 14 })).toBe(
+      "SALVACIÓN CONTRA LA MUERTE (resuelta por el sistema): 14, éxito.",
+    );
+  });
+
+  it("tells the DM not to ask for death saves itself", () => {
+    expect(COMBAT_RULES).toContain('no la pidas vos en "playerRoll" ni cambies sus contadores');
+    expect(DM_SYSTEM_PROMPT).toContain('"players[].condition"');
+  });
+});
+
+describe("levels in the prompt", () => {
+  it("asks for milestones instead of the player's wish", () => {
+    expect(DM_SYSTEM_PROMPT).toContain("Que el jugador lo pida no alcanza");
+    expect(DM_SYSTEM_PROMPT).not.toContain("o el jugador lo pida");
+  });
+});
+
+describe("rests in the prompt", () => {
+  it("explains short and long rests", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('mandá "rest" "long" (el sistema restaura los PG)');
+    expect(DM_SYSTEM_PROMPT).toContain("No se descansa en combate.");
   });
 });

@@ -43,6 +43,12 @@ const stateChange = z.discriminatedUnion("type", [
     level: z.number().int().min(1).max(20),
   }),
   z.object({
+    type: z.literal("milestone"),
+    playerId: z.string(),
+    reason: z.string().min(1),
+  }),
+  z.object({ type: z.literal("rest"), kind: z.enum(["short", "long"]) }),
+  z.object({
     type: z.literal("hp"),
     target: z.string().min(1),
     delta: z.number().int().refine((d) => d !== 0, "delta must not be 0"),
@@ -176,6 +182,11 @@ const turnInput = z.discriminatedUnion("type", [
       enemyRollRequest.extend({ values: z.array(z.number().int()), total: z.number().int() }),
     ),
   }),
+  z.object({
+    type: z.literal("death_save"),
+    playerId: z.string(),
+    natural: z.number().int().min(1).max(20),
+  }),
 ]);
 
 /** For game states that come from outside the engine (an imported file),
@@ -214,6 +225,12 @@ export const gameStateSchema = z.object({
           })
           .nullable(),
         currentHp: z.number().int().nullable(),
+        condition: z.enum(["ok", "dying", "stable", "dead"]),
+        deathSaves: z.object({
+          successes: z.number().int().min(0).max(3),
+          failures: z.number().int().min(0).max(3),
+        }),
+        milestonesSinceLevel: z.number().int().min(0),
       }),
     )
     .min(1),

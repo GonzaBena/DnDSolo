@@ -11,6 +11,7 @@ import { IndexedDBGameRepo } from "../persistence/IndexedDBGameRepo";
 import { isConfigured, loadSettings } from "../persistence/settings";
 import { CharacterPanel } from "./CharacterPanel";
 import { EventToasts, type ToastItem } from "./EventToasts";
+import { GameOver } from "./GameOver";
 import { DieShape } from "./DieShape";
 import { InfoDrawer } from "./InfoDrawer";
 import { RollDialog } from "./RollDialog";
@@ -58,6 +59,7 @@ export default function Game() {
   const [sceneOpen, setSceneOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [rollOpen, setRollOpen] = useState(false);
+  const [deathSaveOpen, setDeathSaveOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [zenMode, setZenMode] = useState(false);
   const { atBottom, scrollToBottom, follow } = useStickToBottom();
@@ -326,6 +328,10 @@ export default function Game() {
 
   const { engine, state } = screen;
   const cast = castOf(state);
+  const hero = state.players[0];
+  // A pending reply still shows how the character fell; the end comes after it.
+  if (hero?.condition === "dead" && !inFlight && !busy) return <GameOver state={state} cast={cast} />;
+  const dying = hero?.condition === "dying";
   // Whose line the typewriter is writing: their face swings in the panel.
   // A retry restarts the narration, which brings it back to null.
   const speaking = busy && inFlight ? speakingNow(inFlight.narration, cast) : null;
@@ -386,6 +392,12 @@ export default function Game() {
       playerId: state.players[0]?.id,
       roll: { ...roll, reason: playerRoll?.reason },
     });
+  };
+
+  const submitDeathSave = (roll: { value: number }) => {
+    setDeathSaveOpen(false);
+    if (!canAct || !hero) return;
+    void send(engine, state, { type: "death_save", playerId: hero.id, natural: roll.value });
   };
 
   return (
@@ -478,7 +490,43 @@ export default function Game() {
           onClose={() => setRollOpen(false)}
           onSubmit={submitRoll}
         />
+        <RollDialog
+          open={deathSaveOpen}
+          request={null}
+          deathSave
+          onClose={() => setDeathSaveOpen(false)}
+          onSubmit={submitDeathSave}
+        />
 
+        {dying && hero ? (
+          <div className="action-form dying-notice" role="status">
+            <p className="dying-notice__title">
+              <strong>Estás inconsciente</strong>
+            </p>
+            <DeathSaveTrack successes={hero.deathSaves.successes} failures={hero.deathSaves.failures} />
+            <div className="dying-notice__actions">
+              <button
+                type="button"
+                className="button button--primary"
+                disabled={!canAct}
+                onClick={() => setDeathSaveOpen(true)}
+              >
+                <DieShape die="d20" className="action-roll__die" />
+                Tirar salvación contra la muerte
+              </button>
+              {busy && (
+                <button
+                  type="button"
+                  className="button"
+                  aria-label="Detener respuesta"
+                  onClick={() => abortRef.current?.abort()}
+                >
+                  Detener
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
         <form className="action-form" onSubmit={submitAction}>
           {!atBottom && (
             <button
@@ -572,8 +620,32 @@ export default function Game() {
             </div>
           </div>
         </form>
+        )}
       </div>
       <ScenePanel state={state} dmActing={busy} speaking={speaking} />
     </section>
+  );
+}
+
+/** Three marks for successes and three for failures. */
+function DeathSaveTrack({ successes, failures }: { successes: number; failures: number }) {
+  const marks = (filled: number, kind: "success" | "failure") =>
+    [0, 1, 2].map((i) => (
+      <span
+        key={i}
+        className={`death-saves__mark death-saves__mark--${kind}${i < filled ? " death-saves__mark--on" : ""}`}
+      />
+    ));
+  return (
+    <div className="death-saves">
+      <span className="death-saves__row" aria-label={`${successes} de 3 éxitos`}>
+        <span className="death-saves__label">Éxitos</span>
+        {marks(successes, "success")}
+      </span>
+      <span className="death-saves__row" aria-label={`${failures} de 3 fallos`}>
+        <span className="death-saves__label">Fallos</span>
+        {marks(failures, "failure")}
+      </span>
+    </div>
   );
 }

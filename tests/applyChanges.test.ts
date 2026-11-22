@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import { applyStateChanges } from "../src/domain/applyChanges";
 import { newGame, PLAYER_ID } from "./helpers";
 
+/** A new game whose player has earned `count` milestones since their last level. */
+function withMilestones(count: number) {
+  const game = newGame();
+  return { ...game, players: game.players.map((p) => ({ ...p, milestonesSinceLevel: count })) };
+}
+
 describe("applyStateChanges", () => {
   it("does not mutate the input state", () => {
     const game = newGame();
@@ -175,14 +181,14 @@ describe("applyStateChanges", () => {
   });
 
   it("applies a level change of exactly +1", () => {
-    const game = newGame();
+    const game = withMilestones(2);
     const result = applyStateChanges(game, [{ type: "level", playerId: PLAYER_ID, level: 4 }]);
     expect(result.state.players[0]!.level).toBe(4);
     expect(result.rejected).toEqual([]);
   });
 
   it("rejects level jumps, repeats and levels above 20", () => {
-    const game = newGame();
+    const game = withMilestones(2);
     const jump = applyStateChanges(game, [{ type: "level", playerId: PLAYER_ID, level: 5 }]);
     expect(jump.state.players[0]!.level).toBe(3);
     expect(jump.rejected).toHaveLength(1);
@@ -195,7 +201,7 @@ describe("applyStateChanges", () => {
   });
 
   it("applies at most one level per player in a reply", () => {
-    const game = newGame(); // level 3
+    const game = withMilestones(2); // level 3
     const result = applyStateChanges(game, [
       { type: "level", playerId: PLAYER_ID, level: 4 },
       { type: "level", playerId: PLAYER_ID, level: 5 },
@@ -241,7 +247,7 @@ describe("applyStateChanges", () => {
     });
 
     it("accepts it right after a level change that reaches the subclass level", () => {
-      const game = newGame();
+      const game = withMilestones(2);
       const low = { ...game, players: [{ ...game.players[0]!, level: 2 }] };
       const result = applyStateChanges(low, [{ type: "level", playerId: PLAYER_ID, level: 3 }, subclass("thief")]);
       expect(result.rejected).toEqual([]);
@@ -377,3 +383,134 @@ describe("hp changes", () => {
   });
 });
 
+
+describe("hp and the character's condition", () => {
+  const stats = {
+    maxHp: 20, armorClass: 14, initiative: 3, speed: 30, hitDice: "3d8",
+    attacks: [], spellSaveDc: null, spellAttackBonus: null,
+  };
+  const at = (currentHp: number, condition: "ok" | "dying" | "stable" | "dead" = "ok", failures = 0) => {
+    const game = newGame();
+    return {
+      ...game,
+      players: game.players.map((p) => ({
+        ...p, stats, currentHp, condition, deathSaves: { successes: 1, failures },
+      })),
+    };
+  };
+  const hp = (delta: number) => [{ type: "hp" as const, target: PLAYER_ID, delta }];
+
+  it("drops to dying at 0 HP", () => {
+    const player = applyStateChanges(at(5), hp(-20)).state.players[0]!;
+    expect(player).toMatchObject({ currentHp: 0, condition: "dying" });
+  });
+
+  it("damage while dying is a failed save", () => {
+    const player = applyStateChanges(at(0, "dying"), hp(-3)).state.players[0]!;
+    expect(player).toMatchObject({ currentHp: 0, condition: "dying", deathSaves: { failures: 1 } });
+  });
+
+  it("damage while dying with two failures kills", () => {
+    const player = applyStateChanges(at(0, "dying", 2), hp(-3)).state.players[0]!;
+    expect(player).toMatchObject({ condition: "dead", deathSaves: { failures: 3 } });
+  });
+
+  it("damage while stable puts them back to dying with a failure", () => {
+    const player = applyStateChanges(at(0, "stable"), hp(-3)).state.players[0]!;
+    expect(player).toMatchObject({ condition: "dying", deathSaves: { failures: 1 } });
+  });
+
+  it("healing from 0 brings them back and clears the saves", () => {
+    for (const condition of ["dying", "stable"] as const) {
+      const player = applyStateChanges(at(0, condition, 2), hp(4)).state.players[0]!;
+      expect(player).toMatchObject({ currentHp: 4, condition: "ok", deathSaves: { successes: 0, failures: 0 } });
+    }
+  });
+
+  it("the dead stay dead", () => {
+    const game = at(0, "dead", 3);
+    const result = applyStateChanges(game, hp(10));
+    expect(result.rejected[0]!.reason).toBe("The character is dead.");
+    expect(result.state).toEqual(game);
+  });
+});
+
+describe("milestones", () => {
+  const quest = (status: "active" | "completed") => ({ type: "quest" as const, title: "El faro", description: "", status });
+  const milestone = (reason = "Venció al jefe") => ({ type: "milestone" as const, playerId: PLAYER_ID, reason });
+  const level = { type: "level" as const, playerId: PLAYER_ID, level: 4 };
+
+  it("completing an active quest earns one, and only once", () => {
+    const active = applyStateChanges(newGame(), [quest("active")]).state;
+    const done = applyStateChanges(active, [quest("completed")]).state;
+    expect(done.players[0]!.milestonesSinceLevel).toBe(1);
+    const again = applyStateChanges(done, [quest("completed")]).state;
+    expect(again.players[0]!.milestonesSinceLevel).toBe(1);
+  });
+
+  it("applies one milestone per reply", () => {
+    const result = applyStateChanges(newGame(), [milestone(), milestone("Otro")]);
+    expect(result.state.players[0]!.milestonesSinceLevel).toBe(1);
+    expect(result.rejected).toEqual([{ change: milestone("Otro"), reason: "One milestone per reply." }]);
+  });
+
+  it("a level needs two milestones and spends them", () => {
+    const short = applyStateChanges(withMilestones(1), [level]);
+    expect(short.state.players[0]!.level).toBe(3);
+    expect(short.rejected[0]!.reason).toBe("Not enough milestones for a new level.");
+    const ready = applyStateChanges(withMilestones(2), [level]);
+    expect(ready.state.players[0]).toMatchObject({ level: 4, milestonesSinceLevel: 0 });
+  });
+
+  it("a quest completed in the same reply counts toward the level", () => {
+    const game = withMilestones(1);
+    const active = { ...game, quests: [{ title: "El faro", description: "Encenderlo", status: "active" as const }] };
+    const result = applyStateChanges(active, [quest("completed"), level]);
+    expect(result.rejected).toEqual([]);
+    expect(result.state.players[0]).toMatchObject({ level: 4, milestonesSinceLevel: 0 });
+  });
+});
+
+describe("rests", () => {
+  const stats = {
+    maxHp: 20, armorClass: 14, initiative: 3, speed: 30, hitDice: "3d8",
+    attacks: [], spellSaveDc: null, spellAttackBonus: null,
+  };
+  const hurt = (currentHp: number, condition: "ok" | "dying" | "stable" | "dead" = "ok") => {
+    const game = newGame();
+    return {
+      ...game,
+      players: game.players.map((p) => ({
+        ...p, stats, currentHp, condition, deathSaves: { successes: 1, failures: 1 },
+      })),
+    };
+  };
+  const long = { type: "rest" as const, kind: "long" as const };
+
+  it("a long rest restores HP and clears death saves", () => {
+    const player = applyStateChanges(hurt(0, "stable"), [long]).state.players[0]!;
+    expect(player).toMatchObject({ currentHp: 20, condition: "ok", deathSaves: { successes: 0, failures: 0 } });
+    expect(applyStateChanges(hurt(7), [long]).state.players[0]!.currentHp).toBe(20);
+  });
+
+  it("no long rest in combat", () => {
+    const game = { ...hurt(7), scene: { inCombat: true, turnOf: null } };
+    const result = applyStateChanges(game, [long]);
+    expect(result.rejected[0]!.reason).toBe("Can't rest during combat.");
+    expect(result.state).toEqual(game);
+  });
+
+  it("a short rest changes nothing by itself and is not rejected", () => {
+    const game = hurt(7);
+    const result = applyStateChanges(game, [{ type: "rest", kind: "short" }]);
+    expect(result.rejected).toEqual([]);
+    expect(result.state).toEqual(game);
+  });
+
+  it("the dead don't rest", () => {
+    const game = hurt(0, "dead");
+    const result = applyStateChanges(game, [long]);
+    expect(result.rejected).toHaveLength(1);
+    expect(result.state).toEqual(game);
+  });
+});

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { GameState } from "../domain/types";
+import { MILESTONES_PER_LEVEL, type GameState } from "../domain/types";
 import { HpDialog } from "./HpDialog";
 import { hpTone } from "./hpBar";
 
@@ -43,6 +43,15 @@ export function CharacterPanel({
           <strong>{player.name}</strong>
           <span>
             {player.race} · {player.characterClass} · Nivel {player.level}
+            <span
+              className="sheet__progress"
+              title="Hitos para el próximo nivel"
+              aria-label={`${Math.min(player.milestonesSinceLevel, MILESTONES_PER_LEVEL)} de ${MILESTONES_PER_LEVEL} hitos para el próximo nivel`}
+            >
+              {" · Progreso "}
+              {"●".repeat(Math.min(player.milestonesSinceLevel, MILESTONES_PER_LEVEL))}
+              {"○".repeat(Math.max(0, MILESTONES_PER_LEVEL - player.milestonesSinceLevel))}
+            </span>
           </span>
         </div>
         {stats && hp && (

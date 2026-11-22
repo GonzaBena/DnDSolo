@@ -164,3 +164,34 @@ describe("v9 -> v10", () => {
   });
 });
 
+
+describe("v10 -> v11", () => {
+  it("adds a healthy condition, no death saves and no milestones to every player", () => {
+    const game = newGame();
+    const players = game.players.map((p) => {
+      const { condition: _c, deathSaves: _d, milestonesSinceLevel: _m, ...legacy } = p;
+      return legacy;
+    });
+    const migrated = migrateSave({ ...game, players, version: 10 });
+    expect(migrated?.version).toBe(GAME_STATE_VERSION);
+    expect(migrated?.players[0]).toMatchObject({
+      condition: "ok",
+      deathSaves: { successes: 0, failures: 0 },
+      milestonesSinceLevel: 0,
+    });
+  });
+
+  it("keeps a v10 player at 0 HP dying rather than healthy", () => {
+    const game = newGame();
+    const stats = {
+      maxHp: 20, armorClass: 14, initiative: 3, speed: 30, hitDice: "3d8",
+      attacks: [], spellSaveDc: null, spellAttackBonus: null,
+    };
+    const players = game.players.map((p) => {
+      const { condition: _c, deathSaves: _d, milestonesSinceLevel: _m, ...legacy } = p;
+      return { ...legacy, stats, currentHp: 0 };
+    });
+    const migrated = migrateSave({ ...game, players, version: 10 });
+    expect(migrated?.players[0]?.condition).toBe("dying");
+  });
+});

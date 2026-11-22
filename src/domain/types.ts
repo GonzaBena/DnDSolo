@@ -22,6 +22,15 @@ export interface CharacterStats {
   spellAttackBonus: number | null;
 }
 
+/** "dying": at 0 HP, rolling death saves. "stable": at 0 HP, no longer
+    rolling. "dead": the story is over for them. */
+export type Condition = "ok" | "dying" | "stable" | "dead";
+
+export interface DeathSaves {
+  successes: number;
+  failures: number;
+}
+
 export interface Character {
   id: string;
   name: string;
@@ -42,6 +51,11 @@ export interface Character {
   stats: CharacterStats | null;
   /** Current hit points; null exactly when `stats` is null. */
   currentHp: number | null;
+  condition: Condition;
+  /** Only meaningful while dying; cleared whenever the character gets up or stabilizes. */
+  deathSaves: DeathSaves;
+  /** Milestones earned since the last level up. */
+  milestonesSinceLevel: number;
 }
 
 export const ROLL_MODES = ["normal", "advantage", "disadvantage"] as const;
@@ -155,7 +169,13 @@ export interface Quest {
 export type StateChange =
   | { type: "inventory_add"; playerId: string; item: string; quantity: number }
   | { type: "inventory_remove"; playerId: string; item: string; quantity: number }
+  /** Needs MILESTONES_PER_LEVEL milestones since the last level, and spends them. */
   | { type: "level"; playerId: string; level: number }
+  /** A big achievement (a boss beaten, a central mystery solved); one per reply. */
+  | { type: "milestone"; playerId: string; reason: string }
+  /** A long rest restores every player's HP; a short one changes nothing by
+      itself (hit dice come as "hp" changes). */
+  | { type: "rest"; kind: "short" | "long" }
   /** Hit points gained (+) or lost (-). `target` is a player id or name. */
   | { type: "hp"; target: string; delta: number }
   /** The SRD subclass of the player's class, once its level is reached. */
@@ -215,7 +235,9 @@ export type TurnInput =
       roll?: PlayerRoll | undefined;
     }
   /** Sent automatically by the app after rolling what the DM asked for. */
-  | { type: "enemy_rolls"; results: EnemyRollResult[] };
+  | { type: "enemy_rolls"; results: EnemyRollResult[] }
+  /** The d20 the player rolled for a death save, resolved by applyDeathSave. */
+  | { type: "death_save"; playerId: string; natural: number };
 
 export interface Turn {
   number: number;
@@ -251,4 +273,7 @@ export interface GameState {
   pendingEnemyRolls: EnemyRollRequest[];
 }
 
-export const GAME_STATE_VERSION = 10;
+/** Milestones needed since the last level to gain a new one. */
+export const MILESTONES_PER_LEVEL = 2;
+
+export const GAME_STATE_VERSION = 11;

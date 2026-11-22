@@ -1296,3 +1296,74 @@
     transition: none;
   }
 }
+
+/* Dying: the composer gives way to the death save. */
+.dying-notice {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-flat);
+}
+.dying-notice__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+}
+.dying-notice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.dying-notice__actions .button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.death-saves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.death-saves__row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.death-saves__label {
+  font-size: var(--text-sm);
+  margin-right: var(--space-1);
+}
+.death-saves__mark {
+  width: 1rem;
+  height: 1rem;
+  border: var(--border);
+  border-radius: 50%;
+  background: var(--color-bg);
+}
+.death-saves__mark--success.death-saves__mark--on {
+  background: var(--color-accent);
+}
+.death-saves__mark--failure.death-saves__mark--on {
+  background: var(--color-primary);
+}
+
+.game-over {
+  display: grid;
+  gap: var(--space-4);
+}
+.game-over__header {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-flat);
+}
+.game-over__title,
+.game-over__subtitle {
+  margin: 0;
+}
