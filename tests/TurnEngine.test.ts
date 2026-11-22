@@ -1012,6 +1012,22 @@ describe("TurnEngine.adjustHp", () => {
     expect((await ctx.repo.load(state.id))!.players[0]!.currentHp).toBe(10);
   });
 
+  it("a turn played on an older state is not applied onto a tracked state with more turns", async () => {
+    const ctx = setup();
+    const older = started0(tracked());
+    ctx.llm.queueStructured(
+      reply({ stateChanges: [{ type: "inventory_add", playerId: PLAYER_ID, item: "Llave", quantity: 1 }] }),
+      reply({ stateChanges: [{ type: "inventory_add", playerId: PLAYER_ID, item: "Daga", quantity: 1 }] }),
+    );
+    const first = await ctx.engine.playTurn(older, { type: "action", text: "Miro", playerId: PLAYER_ID });
+    if (!first.ok) throw new Error("first turn failed");
+    expect(first.state.turns).toHaveLength(2);
+    // The caller still holds the state from before the first turn.
+    const second = await ctx.engine.playTurn(older, { type: "action", text: "Busco", playerId: PLAYER_ID });
+    if (!second.ok) throw new Error("second turn failed");
+    expect(second.state.players[0]!.inventory.map((i) => i.name)).toEqual(["Daga"]);
+  });
+
   it("a later summary keeps the manual fix", async () => {
     const ctx = setup();
     const state = tracked();

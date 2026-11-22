@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { shakeScreen } from "../animations/motion";
 import { castOf, speakingNow } from "../domain/dialogue";
 import { formatDice } from "../domain/dice";
@@ -17,6 +17,7 @@ import { RollDialog } from "./RollDialog";
 import { SceneDrawer } from "./SceneDrawer";
 import { ScenePanel } from "./ScenePanel";
 import { expandSlashCommands } from "./slashCommands";
+import { freshest } from "./freshest";
 import { buildTurnToasts, tookDamage } from "./turnToasts";
 import { InputEntry, Narration, TurnLog } from "./TurnLog";
 import { useStickToBottom } from "./useStickToBottom";
@@ -112,7 +113,10 @@ export default function Game() {
   }, []);
 
   const send = useCallback(
-    async (engine: TurnEngine, state: GameState, input: TurnInput, typed?: string) => {
+    async (engine: TurnEngine, shownState: GameState, input: TurnInput, typed?: string) => {
+      // A manual HP fix may be newer than the rendered state: start from it,
+      // so the model sees it and the toasts don't announce it again.
+      const state = freshest(shownState, latestStateRef.current);
       setBusy(true);
       // Whoever sends wants to see the reply, even if they had scrolled up.
       scrollToBottom();
@@ -272,20 +276,19 @@ export default function Game() {
   const playerRoll = screen.status === "playing" ? screen.state.pendingPlayerRoll : null;
   const enemyRollsPending =
     screen.status === "playing" && screen.state.pendingEnemyRolls.length > 0;
-  const canAct = useMemo(
-    () =>
-      screen.status === "playing" && !busy && !inFlight && !enemyRollsPending && hpPending === 0,
-    [screen.status, busy, inFlight, enemyRollsPending, hpPending],
-  );
+  // The player's turn, apart from a pending HP fix. Focus follows this one,
+  // so adjusting HP doesn't pull focus from the -/+ buttons to the composer.
+  const turnReady = screen.status === "playing" && !busy && !inFlight && !enemyRollsPending;
+  const canAct = turnReady && hpPending === 0;
 
   // Focus the composer whenever it is the player's turn, unless they are
   // already in another field. Skipped on touch screens, where focusing
   // would pop the on-screen keyboard over the story.
   useEffect(() => {
-    if (!canAct || !matchMedia("(pointer: fine)").matches) return;
+    if (!turnReady || !matchMedia("(pointer: fine)").matches) return;
     if (isEditable(document.activeElement)) return;
     draftRef.current?.focus();
-  }, [canAct]);
+  }, [turnReady]);
 
   // Typing anywhere on the page goes into the composer: focusing it on
   // keydown makes the browser deliver that same keystroke to it.
@@ -339,7 +342,7 @@ export default function Game() {
   };
 
   const adjustHp = async (delta: number) => {
-    if (busy) return;
+    if (busy || inFlight) return;
     const held = latestStateRef.current ?? state;
     const playerId = held.players[0]?.id;
     if (!playerId) return;
@@ -401,7 +404,7 @@ export default function Game() {
           onOpenScene={() => setSceneOpen(true)}
           onOpenInfo={() => setInfoOpen(true)}
           onAdjustHp={(delta) => void adjustHp(delta)}
-          hpDisabled={busy}
+          hpDisabled={busy || inFlight !== null}
         />
         <InfoDrawer state={state} open={infoOpen} onClose={() => setInfoOpen(false)} />
         <SceneDrawer
@@ -445,6 +448,7 @@ export default function Game() {
                 <button
                   type="button"
                   className="button button--primary"
+                  disabled={hpPending > 0}
                   onClick={() => void send(engine, state, inFlight.input, inFlight.draft)}
                 >
                   Reintentar
