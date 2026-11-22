@@ -35,3 +35,16 @@ describe("initiative numbers", () => {
     expect(sceneMembers(state, false).map((m) => m.initiative)).toEqual([null, 1, 2, null]);
   });
 });
+
+describe("initiative numbers with someone away", () => {
+  it("count only who is in the scene", () => {
+    const { state } = applyStateChanges(newGame(), [
+      npc("Goblin 1"),
+      { ...npc("Goblin 2"), present: false },
+      { type: "scene", inCombat: true, turnOf: null, order: ["Goblin 2", "Goblin 1", "Lira"] },
+    ]);
+    expect(sceneMembers(state, false).map((m) => [m.name, m.initiative])).toEqual([
+      ["Dungeon Master", null], ["Goblin 1", 1], ["Lira", 2],
+    ]);
+  });
+});

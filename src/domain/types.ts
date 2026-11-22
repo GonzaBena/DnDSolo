@@ -235,7 +235,8 @@ export interface DMResponse {
   enemyRolls: EnemyRollRequest[];
   stateChanges: StateChange[];
   /** Tags such as "damage_taken" or "scene_change", kept to hook animations. */
-  events: TurnEvent[];  /** Up to three short actions the player could take next; [] with a roll pending. */
+  events: TurnEvent[];
+  /** Up to three short actions the player could take next; [] with a roll pending. */
   suggestions: string[];
 }
 

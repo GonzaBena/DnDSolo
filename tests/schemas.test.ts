@@ -169,13 +169,20 @@ describe("hp state change", () => {
 });
 
 describe("suggestions", () => {
-  it("allows up to three short ones", () => {
-    const four = JSON.stringify({ ...reply(), suggestions: ["Corro", "Me escondo", "Grito", "Ataco"] });
-    expect(parseDMResponse(four).ok).toBe(false);
-    const long = JSON.stringify({ ...reply(), suggestions: ["x".repeat(61)] });
-    expect(parseDMResponse(long).ok).toBe(false);
-    const three = JSON.stringify({ ...reply(), suggestions: ["Corro", "Me escondo", "Grito"] });
-    expect(parseDMResponse(three).ok).toBe(true);
+  it("never fails a reply over them: trims, drops empty and repeated ones, cuts long ones and keeps three", () => {
+    const messy = JSON.stringify({
+      ...reply(),
+      suggestions: ["  Corro ", "", "Corro", "x".repeat(70), "Grito", "Ataco"],
+    });
+    const parsed = parseDMResponse(messy);
+    if (!parsed.ok) throw new Error(parsed.reason);
+    expect(parsed.response.suggestions).toEqual(["Corro", "x".repeat(59) + "…", "Grito"]);
+  });
+
+  it("treats missing suggestions as none", () => {
+    const { suggestions: _s, ...rest } = reply();
+    const parsed = parseDMResponse(JSON.stringify(rest));
+    expect(parsed.ok && parsed.response.suggestions).toEqual([]);
   });
 
   it("keeps narration first in the provider schema", () => {

@@ -357,10 +357,12 @@ function settleTurn(given: GameState, changes: StateChange[], rejected: Rejected
     ...given.players.map((p) => p.name),
     ...given.npcs.filter((n) => n.present).map((n) => n.name),
   ];
-  // The initiative order only names who is here, as they are stored, once each.
+  // The initiative order names known characters, as stored, once each. Someone
+  // who steps out keeps their place; the scene only shows who is here.
+  const known = [...given.players.map((p) => p.name), ...given.npcs.map((n) => n.name)];
   const order = [
     ...new Set(
-      given.scene.order.flatMap((name) => inScene.find((member) => sameName(member, name)) ?? []),
+      given.scene.order.flatMap((name) => known.find((member) => sameName(member, name)) ?? []),
     ),
   ];
   const state = { ...given, scene: { ...given.scene, order } };

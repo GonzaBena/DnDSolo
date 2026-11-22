@@ -610,9 +610,16 @@ describe("initiative order", () => {
   const fight = () =>
     applyStateChanges(newGame(), [npc("Goblin 1"), npc("Goblin 2"), npc("Brena", false)]).state;
 
-  it("keeps the order with the names as stored, dropping who isn't in the scene", () => {
-    const { state } = applyStateChanges(fight(), [scene(["goblin 1", "LIRA", "Brena", "Nadie", "Goblin 2"])]);
-    expect(state.scene.order).toEqual(["Goblin 1", "Lira", "Goblin 2"]);
+  it("keeps the order with the names as stored, dropping unknown names and repeats", () => {
+    const { state } = applyStateChanges(fight(), [scene(["goblin 1", "LIRA", "Brena", "Nadie", "Goblin 2", "Goblin 1"])]);
+    expect(state.scene.order).toEqual(["Goblin 1", "Lira", "Brena", "Goblin 2"]);
+  });
+
+  it("someone who steps out keeps their place for when they come back", () => {
+    const ordered = applyStateChanges(fight(), [scene(["Goblin 1", "Lira", "Goblin 2"])]).state;
+    const away = applyStateChanges(ordered, [npc("Goblin 1", false), scene([])]).state;
+    const back = applyStateChanges(away, [npc("Goblin 1"), scene([])]).state;
+    expect(back.scene.order).toEqual(["Goblin 1", "Lira", "Goblin 2"]);
   });
 
   it("an empty order keeps the current one", () => {

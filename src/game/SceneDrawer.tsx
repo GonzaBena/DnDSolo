@@ -31,7 +31,9 @@ export interface SceneMember {
     player. */
 export function sceneMembers(state: GameState, dmActing: boolean): SceneMember[] {
   const members = tableMembers(state, dmActing);
-  const { inCombat, order } = state.scene;
+  const { inCombat } = state.scene;
+  // Numbers count only who is in the scene now.
+  const order = state.scene.order.filter((name) => members.some((m) => m.kind !== "dm" && m.name === name));
   if (!inCombat || order.length === 0) return members;
   // In a fight: the DM at the head, then initiative order, the unlisted last.
   const place = (m: SceneMember) => (m.kind === "dm" ? -1 : order.indexOf(m.name));
@@ -109,7 +111,11 @@ export function SceneDrawer({ state, dmActing, open, onClose }: Props) {
         </header>
 
         <p className="scene-status">
-          {inCombat ? (state.scene.order.length > 0 ? "En combate · Orden de iniciativa" : "En combate") : "Sin combate"}
+          {inCombat
+            ? members.some((m) => m.initiative !== null)
+              ? "En combate · Orden de iniciativa"
+              : "En combate"
+            : "Sin combate"}
         </p>
 
         <ul className="scene-list">

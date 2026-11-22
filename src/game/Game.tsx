@@ -17,6 +17,7 @@ import { InfoDrawer } from "./InfoDrawer";
 import { RollDialog } from "./RollDialog";
 import { SceneDrawer } from "./SceneDrawer";
 import { Suggestions } from "./Suggestions";
+import { withSuggestion } from "./suggestions";
 import { ScenePanel } from "./ScenePanel";
 import { expandSlashCommands } from "./slashCommands";
 import { freshest } from "./freshest";
@@ -505,7 +506,7 @@ export default function Game() {
           <Suggestions
             actions={state.suggestedActions}
             onPick={(action) => {
-              setDraft(action);
+              setDraft((current) => withSuggestion(current, action));
               draftRef.current?.focus();
             }}
           />

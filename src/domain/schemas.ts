@@ -8,6 +8,9 @@ const storyItemStatus = z.enum(["available", "taken", "gone"]);
 
 const diceCount = z.number().int().min(1).max(20);
 
+export const MAX_SUGGESTIONS = 3;
+export const MAX_SUGGESTION_LENGTH = 60;
+
 const playerRollRequest = z.object({
   die: z.enum(DICE),
   count: diceCount,
@@ -98,7 +101,8 @@ export const dmResponseSchema = z.object({
   enemyRolls: z.array(enemyRollRequest),
   stateChanges: z.array(stateChange),
   events: z.array(z.enum(TURN_EVENTS)),
-  suggestions: z.array(z.string().min(1).max(60)).max(3),
+  // The limits are hints for the model; parseDMResponse enforces them by cleaning.
+  suggestions: z.array(z.string().min(1).max(MAX_SUGGESTION_LENGTH)).max(MAX_SUGGESTIONS),
 });
 
 // Compile-time guarantee that the schema and the hand-written type agree.
@@ -145,9 +149,28 @@ export function parseDMResponse(raw: string): ParseResult {
     const known: readonly unknown[] = TURN_EVENTS;
     json = { ...json, events: json.events.filter((tag: unknown) => known.includes(tag)) };
   }
+  // Suggestions are an extra: a long, empty or repeated one is fixed here
+  // instead of failing (and retrying) a reply that is otherwise fine.
+  if (typeof json === "object" && json !== null) {
+    json = { ...json, suggestions: cleanSuggestions((json as { suggestions?: unknown }).suggestions) };
+  }
   const parsed = dmResponseSchema.safeParse(json);
   if (!parsed.success) return { ok: false, reason: z.prettifyError(parsed.error) };
   return { ok: true, response: normalizeRollCounts(parsed.data) };
+}
+
+function cleanSuggestions(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const kept: string[] = [];
+  for (const item of raw) {
+    if (typeof item !== "string") continue;
+    const text = item.trim().replace(/\s+/g, " ");
+    const cut = text.length > MAX_SUGGESTION_LENGTH ? `${text.slice(0, MAX_SUGGESTION_LENGTH - 1).trimEnd()}…` : text;
+    if (cut === "" || kept.some((k) => k.toLowerCase() === cut.toLowerCase())) continue;
+    kept.push(cut);
+    if (kept.length === MAX_SUGGESTIONS) break;
+  }
+  return kept;
 }
 
 /** Advantage and disadvantage are always two d20 of a single roll: a model

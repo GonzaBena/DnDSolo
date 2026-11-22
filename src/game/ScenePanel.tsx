@@ -20,7 +20,7 @@ export function ScenePanel({
   return (
     <aside className="scene-panel" aria-label="Personajes en escena" data-mode={state.scene.inCombat ? "combat" : "calm"}>
       <p className="scene-panel__place">{state.location.name || "Lugar desconocido"}</p>
-      {state.scene.inCombat && state.scene.order.length > 0 && (
+      {members.some((m) => m.initiative !== null) && (
         <p className="scene-panel__order">Orden de iniciativa</p>
       )}
       <ul className="scene-panel__list">
