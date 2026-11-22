@@ -5,7 +5,8 @@ import { BrowserDriveAuth } from "./BrowserDriveAuth";
 import { loadSyncConfig, type SyncConfig } from "./config";
 import type { DriveAuth } from "./DriveAuth";
 import { DriveGameStore } from "./DriveGameStore";
-import { gisTokenApi, loadGis } from "./gis";
+import { gisCodeApi, gisTokenApi, loadGis } from "./gis";
+import { ServerDriveAuth } from "./ServerDriveAuth";
 import { SyncedGameRepo } from "./SyncedGameRepo";
 import { SyncEngine, type ConflictChoice, type SyncConflict } from "./SyncEngine";
 
@@ -33,16 +34,17 @@ export function resolveConflict(c: SyncConflict): Promise<ConflictChoice> {
   return conflictResolver(c);
 }
 
-function createAuth(_config: SyncConfig): DriveAuth {
-  // Task 6 seam: `if (config.autoRenew) return new ServerDriveAuth(...)`.
+function createAuth(config: SyncConfig): DriveAuth {
   const startLoad = () => void loadGis().catch(() => undefined);
   startLoad();
-  const gis = () => {
-    // Not loaded yet (or the load failed): this gesture fails fast, the next one finds it.
+  /** Not loaded yet (or the load failed): this gesture fails fast, the next one finds it. */
+  const loaded = <T>(api: () => T) => () => {
     startLoad();
-    return gisTokenApi();
+    return api();
   };
-  return new BrowserDriveAuth({ clientId: import.meta.env.PUBLIC_GOOGLE_CLIENT_ID ?? "", gis });
+  const clientId = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID ?? "";
+  if (config.autoRenew) return new ServerDriveAuth({ clientId, gis: loaded(gisCodeApi) });
+  return new BrowserDriveAuth({ clientId, gis: loaded(gisTokenApi) });
 }
 
 let runtime: SyncRuntime | null = null;
