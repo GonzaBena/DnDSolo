@@ -75,6 +75,15 @@ describe("applyStateChanges", () => {
     expect(later.npcs[0]).toMatchObject({ present: false, voice: "Seca, frases cortas" });
   });
 
+  it("keeps the existing description when a later npc change sends it empty", () => {
+    const berta = { type: "npc", name: "Berta", description: "Posadera", attitude: "neutral", present: true, voice: "", portrait: null } as const;
+    const first = applyStateChanges(newGame(), [berta]).state;
+    const back = applyStateChanges(first, [{ ...berta, description: "  " }]).state;
+    expect(back.npcs[0]!.description).toBe("Posadera");
+    const renewed = applyStateChanges(first, [{ ...berta, description: "Posadera cansada" }]).state;
+    expect(renewed.npcs[0]!.description).toBe("Posadera cansada");
+  });
+
   it("records an NPC's portrait and keeps it when a later change sends null", () => {
     const berta = { type: "npc", name: "Berta", description: "Posadera", attitude: "neutral", present: true, voice: "" } as const;
     const first = applyStateChanges(newGame(), [{ ...berta, portrait: "guard-male" }]).state;

@@ -145,7 +145,8 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
         const existing = next.npcs.find((n) => sameName(n.name, name));
         const npc = {
           name,
-          description: change.description,
+          // Like voice: an empty description keeps the stored one (absent NPCs reach the model without it).
+          description: change.description.trim() || existing?.description || "",
           attitude: change.attitude,
           present: change.present,
           voice: change.voice.trim() || existing?.voice || "",

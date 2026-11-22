@@ -38,7 +38,7 @@ describe("three-layer memory", () => {
     await playUntil(ctx, newGame(), 1);
     const prompt = lastPrompt(ctx);
     expect(prompt).toContain("ESTADO");
-    expect(prompt).toContain('"name": "Lira"');
+    expect(prompt).toContain('"name":"Lira"');
     expect(prompt).toContain("RESUMEN");
     expect(prompt).toContain("TURNOS RECIENTES");
   });
