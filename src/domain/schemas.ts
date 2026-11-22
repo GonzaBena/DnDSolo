@@ -43,6 +43,11 @@ const stateChange = z.discriminatedUnion("type", [
     level: z.number().int().min(1).max(20),
   }),
   z.object({
+    type: z.literal("milestone"),
+    playerId: z.string(),
+    reason: z.string().min(1),
+  }),
+  z.object({
     type: z.literal("hp"),
     target: z.string().min(1),
     delta: z.number().int().refine((d) => d !== 0, "delta must not be 0"),

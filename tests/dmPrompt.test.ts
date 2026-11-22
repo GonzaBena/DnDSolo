@@ -266,3 +266,10 @@ describe("death saves in the prompt", () => {
     expect(DM_SYSTEM_PROMPT).toContain('"players[].condition"');
   });
 });
+
+describe("levels in the prompt", () => {
+  it("asks for milestones instead of the player's wish", () => {
+    expect(DM_SYSTEM_PROMPT).toContain("Que el jugador lo pida no alcanza");
+    expect(DM_SYSTEM_PROMPT).not.toContain("o el jugador lo pida");
+  });
+});

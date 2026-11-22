@@ -169,7 +169,10 @@ export interface Quest {
 export type StateChange =
   | { type: "inventory_add"; playerId: string; item: string; quantity: number }
   | { type: "inventory_remove"; playerId: string; item: string; quantity: number }
+  /** Needs MILESTONES_PER_LEVEL milestones since the last level, and spends them. */
   | { type: "level"; playerId: string; level: number }
+  /** A big achievement (a boss beaten, a central mystery solved); one per reply. */
+  | { type: "milestone"; playerId: string; reason: string }
   /** Hit points gained (+) or lost (-). `target` is a player id or name. */
   | { type: "hp"; target: string; delta: number }
   /** The SRD subclass of the player's class, once its level is reached. */
@@ -266,5 +269,8 @@ export interface GameState {
   /** Enemy rolls the DM asked for and the app still has to roll and send. */
   pendingEnemyRolls: EnemyRollRequest[];
 }
+
+/** Milestones needed since the last level to gain a new one. */
+export const MILESTONES_PER_LEVEL = 2;
 
 export const GAME_STATE_VERSION = 11;

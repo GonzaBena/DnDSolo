@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import { applyStateChanges } from "../src/domain/applyChanges";
 import { newGame, PLAYER_ID } from "./helpers";
 
+/** A new game whose player has earned `count` milestones since their last level. */
+function withMilestones(count: number) {
+  const game = newGame();
+  return { ...game, players: game.players.map((p) => ({ ...p, milestonesSinceLevel: count })) };
+}
+
 describe("applyStateChanges", () => {
   it("does not mutate the input state", () => {
     const game = newGame();
@@ -175,14 +181,14 @@ describe("applyStateChanges", () => {
   });
 
   it("applies a level change of exactly +1", () => {
-    const game = newGame();
+    const game = withMilestones(2);
     const result = applyStateChanges(game, [{ type: "level", playerId: PLAYER_ID, level: 4 }]);
     expect(result.state.players[0]!.level).toBe(4);
     expect(result.rejected).toEqual([]);
   });
 
   it("rejects level jumps, repeats and levels above 20", () => {
-    const game = newGame();
+    const game = withMilestones(2);
     const jump = applyStateChanges(game, [{ type: "level", playerId: PLAYER_ID, level: 5 }]);
     expect(jump.state.players[0]!.level).toBe(3);
     expect(jump.rejected).toHaveLength(1);
@@ -195,7 +201,7 @@ describe("applyStateChanges", () => {
   });
 
   it("applies at most one level per player in a reply", () => {
-    const game = newGame(); // level 3
+    const game = withMilestones(2); // level 3
     const result = applyStateChanges(game, [
       { type: "level", playerId: PLAYER_ID, level: 4 },
       { type: "level", playerId: PLAYER_ID, level: 5 },
@@ -241,7 +247,7 @@ describe("applyStateChanges", () => {
     });
 
     it("accepts it right after a level change that reaches the subclass level", () => {
-      const game = newGame();
+      const game = withMilestones(2);
       const low = { ...game, players: [{ ...game.players[0]!, level: 2 }] };
       const result = applyStateChanges(low, [{ type: "level", playerId: PLAYER_ID, level: 3 }, subclass("thief")]);
       expect(result.rejected).toEqual([]);
@@ -426,5 +432,41 @@ describe("hp and the character's condition", () => {
     const result = applyStateChanges(game, hp(10));
     expect(result.rejected[0]!.reason).toBe("The character is dead.");
     expect(result.state).toEqual(game);
+  });
+});
+
+describe("milestones", () => {
+  const quest = (status: "active" | "completed") => ({ type: "quest" as const, title: "El faro", description: "", status });
+  const milestone = (reason = "Venció al jefe") => ({ type: "milestone" as const, playerId: PLAYER_ID, reason });
+  const level = { type: "level" as const, playerId: PLAYER_ID, level: 4 };
+
+  it("completing an active quest earns one, and only once", () => {
+    const active = applyStateChanges(newGame(), [quest("active")]).state;
+    const done = applyStateChanges(active, [quest("completed")]).state;
+    expect(done.players[0]!.milestonesSinceLevel).toBe(1);
+    const again = applyStateChanges(done, [quest("completed")]).state;
+    expect(again.players[0]!.milestonesSinceLevel).toBe(1);
+  });
+
+  it("applies one milestone per reply", () => {
+    const result = applyStateChanges(newGame(), [milestone(), milestone("Otro")]);
+    expect(result.state.players[0]!.milestonesSinceLevel).toBe(1);
+    expect(result.rejected).toEqual([{ change: milestone("Otro"), reason: "One milestone per reply." }]);
+  });
+
+  it("a level needs two milestones and spends them", () => {
+    const short = applyStateChanges(withMilestones(1), [level]);
+    expect(short.state.players[0]!.level).toBe(3);
+    expect(short.rejected[0]!.reason).toBe("Not enough milestones for a new level.");
+    const ready = applyStateChanges(withMilestones(2), [level]);
+    expect(ready.state.players[0]).toMatchObject({ level: 4, milestonesSinceLevel: 0 });
+  });
+
+  it("a quest completed in the same reply counts toward the level", () => {
+    const game = withMilestones(1);
+    const active = { ...game, quests: [{ title: "El faro", description: "Encenderlo", status: "active" as const }] };
+    const result = applyStateChanges(active, [quest("completed"), level]);
+    expect(result.rejected).toEqual([]);
+    expect(result.state.players[0]).toMatchObject({ level: 4, milestonesSinceLevel: 0 });
   });
 });
