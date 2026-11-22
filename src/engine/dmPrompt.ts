@@ -99,6 +99,8 @@ export function describeInput(input: TurnInput): string {
           return `- ${r.reason}: ${formatDice(r)} con ${rollModeLabel(r.mode)} = ${r.total} (dados: ${r.values.join(", ")}; queda ${kept})`;
         }),
       ].join("\n");
+    case "death_save":
+      return `SALVACIÓN CONTRA LA MUERTE: ${input.natural}`;
   }
 }
 

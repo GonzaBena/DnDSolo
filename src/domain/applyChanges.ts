@@ -1,4 +1,5 @@
 import { findClass } from "../rules";
+import { addFailures } from "./deathSaves";
 import { npcNameFromArchetype } from "./portraits";
 import type { Character, GameState, StateChange, StoryItem } from "./types";
 
@@ -133,11 +134,20 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
           rejected.push({ change, reason: "That character has no hit points tracked." });
           break;
         }
+        if (player.condition === "dead") {
+          rejected.push({ change, reason: "The character is dead." });
+          break;
+        }
         const max = player.stats.maxHp;
-        updatePlayer(index, (p) => ({
-          ...p,
-          currentHp: Math.min(max, Math.max(0, (p.currentHp ?? 0) + change.delta)),
-        }));
+        updatePlayer(index, (p) => {
+          const before = p.currentHp ?? 0;
+          const currentHp = Math.min(max, Math.max(0, before + change.delta));
+          // Damage taken at 0 HP is a failed death save (a stable character starts dying again).
+          if (change.delta < 0 && before === 0) return addFailures({ ...p, currentHp }, 1);
+          if (currentHp === 0) return { ...p, currentHp, condition: "dying" };
+          if (p.condition !== "ok") return { ...p, currentHp, condition: "ok", deathSaves: { successes: 0, failures: 0 } };
+          return { ...p, currentHp };
+        });
         break;
       }
       case "subclass": {

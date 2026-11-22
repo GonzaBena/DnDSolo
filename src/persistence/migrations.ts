@@ -142,6 +142,25 @@ function fromV9(raw: Raw): Raw {
   return { ...raw, version: 10, players };
 }
 
+/** v10 -> v11. Characters know whether they are up, dying, stable or dead,
+    and count milestones toward their next level. A player left at 0 HP is
+    dying; nobody has saves or milestones yet. */
+function fromV10(raw: Raw): Raw {
+  const players = Array.isArray(raw.players)
+    ? raw.players.map((p: unknown) =>
+        isObject(p)
+          ? {
+              ...p,
+              condition: p.currentHp === 0 ? "dying" : "ok",
+              deathSaves: { successes: 0, failures: 0 },
+              milestonesSinceLevel: 0,
+            }
+          : p,
+      )
+    : raw.players;
+  return { ...raw, version: 11, players };
+}
+
 /** Turns whatever was stored into a GameState of the current version, or
     null if it can't be trusted (unknown version or wrong shape). Loading
     code must go through here so the screens never see a malformed save. */
@@ -157,6 +176,7 @@ export function migrateSave(raw: unknown): GameState | null {
   if (current.version === 7) current = fromV7(current);
   if (current.version === 8) current = fromV8(current);
   if (current.version === 9) current = fromV9(current);
+  if (current.version === 10) current = fromV10(current);
   if (current.version !== GAME_STATE_VERSION) return null;
   const parsed = gameStateSchema.safeParse(current);
   return parsed.success ? normalizeHp(parsed.data) : null;

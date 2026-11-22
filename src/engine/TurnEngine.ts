@@ -205,6 +205,8 @@ export class TurnEngine {
           });
         return matches ? null : "The rolls don't match the ones that were requested.";
       }
+      case "death_save":
+        return "Death saves are not supported yet.";
     }
   }
 

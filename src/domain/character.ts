@@ -64,6 +64,9 @@ export function createCharacter(input: CharacterInput, newId: () => string): Cha
     inventory: (input.startingInventory ?? []).map((item) => ({ ...item })),
     stats: input.stats ?? null,
     currentHp: input.stats?.maxHp ?? null,
+    condition: "ok",
+    deathSaves: { successes: 0, failures: 0 },
+    milestonesSinceLevel: 0,
   };
 }
 

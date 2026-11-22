@@ -377,3 +377,54 @@ describe("hp changes", () => {
   });
 });
 
+
+describe("hp and the character's condition", () => {
+  const stats = {
+    maxHp: 20, armorClass: 14, initiative: 3, speed: 30, hitDice: "3d8",
+    attacks: [], spellSaveDc: null, spellAttackBonus: null,
+  };
+  const at = (currentHp: number, condition: "ok" | "dying" | "stable" | "dead" = "ok", failures = 0) => {
+    const game = newGame();
+    return {
+      ...game,
+      players: game.players.map((p) => ({
+        ...p, stats, currentHp, condition, deathSaves: { successes: 1, failures },
+      })),
+    };
+  };
+  const hp = (delta: number) => [{ type: "hp" as const, target: PLAYER_ID, delta }];
+
+  it("drops to dying at 0 HP", () => {
+    const player = applyStateChanges(at(5), hp(-20)).state.players[0]!;
+    expect(player).toMatchObject({ currentHp: 0, condition: "dying" });
+  });
+
+  it("damage while dying is a failed save", () => {
+    const player = applyStateChanges(at(0, "dying"), hp(-3)).state.players[0]!;
+    expect(player).toMatchObject({ currentHp: 0, condition: "dying", deathSaves: { failures: 1 } });
+  });
+
+  it("damage while dying with two failures kills", () => {
+    const player = applyStateChanges(at(0, "dying", 2), hp(-3)).state.players[0]!;
+    expect(player).toMatchObject({ condition: "dead", deathSaves: { failures: 3 } });
+  });
+
+  it("damage while stable puts them back to dying with a failure", () => {
+    const player = applyStateChanges(at(0, "stable"), hp(-3)).state.players[0]!;
+    expect(player).toMatchObject({ condition: "dying", deathSaves: { failures: 1 } });
+  });
+
+  it("healing from 0 brings them back and clears the saves", () => {
+    for (const condition of ["dying", "stable"] as const) {
+      const player = applyStateChanges(at(0, condition, 2), hp(4)).state.players[0]!;
+      expect(player).toMatchObject({ currentHp: 4, condition: "ok", deathSaves: { successes: 0, failures: 0 } });
+    }
+  });
+
+  it("the dead stay dead", () => {
+    const game = at(0, "dead", 3);
+    const result = applyStateChanges(game, hp(10));
+    expect(result.rejected[0]!.reason).toBe("The character is dead.");
+    expect(result.state).toEqual(game);
+  });
+});
