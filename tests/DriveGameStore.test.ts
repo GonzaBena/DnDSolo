@@ -164,6 +164,68 @@ describe("DriveGameStore", () => {
     expect(drive.files.filter((f) => f.name === "account.json")).toHaveLength(1);
   });
 
+  it("concurrent accountId calls create a single account.json", async () => {
+    const drive = makeDrive();
+    const store = new DriveGameStore(token, drive.fetchFn);
+    const [a, b] = await Promise.all([store.accountId(), store.accountId()]);
+    expect(a).toBe(b);
+    expect(drive.files.filter((f) => f.name === "account.json")).toHaveLength(1);
+  });
+
+  it("accountId picks the smallest id among several markers", async () => {
+    const drive = makeDrive();
+    for (const id of ["f9", "f2", "f5"]) {
+      drive.files.push({ id, name: "account.json", appProperties: {}, content: "{}" });
+    }
+    expect(await new DriveGameStore(token, drive.fetchFn).accountId()).toBe("f2");
+  });
+
+  it("accountId retries after a failure", async () => {
+    const drive = makeDrive();
+    const store = new DriveGameStore(token, drive.fetchFn);
+    drive.setStatus(500);
+    await expect(store.accountId()).rejects.toThrow();
+    drive.setStatus(0);
+    await expect(store.accountId()).resolves.toBeTruthy();
+  });
+
+  it("put recreates a game whose cached file was deleted elsewhere", async () => {
+    const drive = makeDrive();
+    const store = new DriveGameStore(token, drive.fetchFn);
+    await store.put(game("a"));
+    drive.files.splice(0, 1);
+    await store.put(game("a", "2026-04-04T00:00:00.000Z"));
+    expect(drive.files).toHaveLength(1);
+    expect((await store.list())[0].updatedAt).toBe("2026-04-04T00:00:00.000Z");
+  });
+
+  it("tombstone recreates a missing cached file; get returns null for it", async () => {
+    const drive = makeDrive();
+    const store = new DriveGameStore(token, drive.fetchFn);
+    await store.put(game("a"));
+    drive.files.splice(0, 1);
+    expect(await store.get("a")).toBeNull();
+    await store.put(game("b"));
+    drive.files.splice(0, 1);
+    await store.tombstone("b");
+    expect((await store.list())[0]).toMatchObject({ id: "b", deleted: true });
+  });
+
+  it("list returns one entry per gameId, the newest", async () => {
+    const drive = makeDrive();
+    const props = (updatedAt: string) => ({ gameId: "a", updatedAt, turnCount: "1" });
+    drive.files.push(
+      { id: "f1", name: "game-a.json", appProperties: props("2026-01-01T00:00:00.000Z"), content: "{}" },
+      { id: "f2", name: "game-a.json", appProperties: props("2026-05-01T00:00:00.000Z"), content: "{}" },
+    );
+    const store = new DriveGameStore(token, drive.fetchFn);
+    const list = await store.list();
+    expect(list).toHaveLength(1);
+    expect(list[0].updatedAt).toBe("2026-05-01T00:00:00.000Z");
+    await store.get("a");
+    expect(drive.requests.at(-1)!.url).toContain("/files/f2?");
+  });
+
   it("list ignores the account marker", async () => {
     const store = new DriveGameStore(token, makeDrive().fetchFn);
     await store.accountId();

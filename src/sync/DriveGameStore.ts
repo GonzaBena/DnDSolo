@@ -11,6 +11,14 @@ const UPLOAD = "https://www.googleapis.com/upload/drive/v3/files";
 const ACCOUNT_FILE = "account.json";
 const BOUNDARY = "dnsolo_boundary_7f3a9c";
 
+class DriveStatusError extends Error {
+  constructor(readonly status: number) {
+    super(`Drive request failed with status ${status}`);
+  }
+}
+
+const isNotFound = (e: unknown) => e instanceof DriveStatusError && e.status === 404;
+
 interface DriveFile {
   id: string;
   name: string;
@@ -21,7 +29,7 @@ const gameFileName = (id: string) => `game-${id}.json`;
 
 export class DriveGameStore implements RemoteGameStore {
   private readonly fetchFn: typeof fetch;
-  private accountFileId: string | null = null;
+  private accountFileId: Promise<string> | null = null;
   /** game id -> Drive file id, refreshed on every list. */
   private fileIds = new Map<string, string>();
 
@@ -43,7 +51,7 @@ export class DriveGameStore implements RemoteGameStore {
       throw new OfflineError(`Network error: ${String(cause)}`);
     }
     if (response.status === 401) throw new AuthExpiredError("Drive token expired");
-    if (!response.ok) throw new Error(`Drive request failed with status ${response.status}`);
+    if (!response.ok) throw new DriveStatusError(response.status);
     return response;
   }
 
@@ -91,28 +99,46 @@ export class DriveGameStore implements RemoteGameStore {
     return ((await response.json()) as { id: string }).id;
   }
 
-  async accountId(): Promise<string> {
-    if (this.accountFileId) return this.accountFileId;
-    const existing = (await this.listFiles()).find((f) => f.name === ACCOUNT_FILE);
-    this.accountFileId = existing?.id ?? (await this.writeFile(null, ACCOUNT_FILE, {}, {}));
+  accountId(): Promise<string> {
+    if (!this.accountFileId) {
+      const pending = this.findOrCreateAccountFile();
+      this.accountFileId = pending;
+      // A failure must not stick: let a later call retry.
+      pending.catch(() => {
+        if (this.accountFileId === pending) this.accountFileId = null;
+      });
+    }
     return this.accountFileId;
   }
 
+  private async findOrCreateAccountFile(): Promise<string> {
+    // Smallest id wins so every device agrees if several markers exist.
+    const ids = (await this.listFiles())
+      .filter((f) => f.name === ACCOUNT_FILE)
+      .map((f) => f.id)
+      .sort();
+    return ids[0] ?? (await this.writeFile(null, ACCOUNT_FILE, {}, {}));
+  }
+
   async list(): Promise<RemoteEntry[]> {
-    const entries: RemoteEntry[] = [];
+    const entries = new Map<string, RemoteEntry>();
     this.fileIds.clear();
     for (const file of await this.listFiles()) {
       const props = file.appProperties;
       if (!props?.gameId) continue; // account marker or foreign file
-      this.fileIds.set(props.gameId, file.id);
-      entries.push({
+      const entry: RemoteEntry = {
         id: props.gameId,
         updatedAt: props.updatedAt ?? "",
         turnCount: Number(props.turnCount ?? 0),
         deleted: props.deleted === "true",
-      });
+      };
+      // Duplicates of one game: keep the newest.
+      const current = entries.get(entry.id);
+      if (current && current.updatedAt >= entry.updatedAt) continue;
+      entries.set(entry.id, entry);
+      this.fileIds.set(entry.id, file.id);
     }
-    return entries;
+    return [...entries.values()];
   }
 
   /** File id from the cache, re-listing once on a miss. */
@@ -124,7 +150,14 @@ export class DriveGameStore implements RemoteGameStore {
   async get(id: string): Promise<unknown | null> {
     const fileId = await this.findFileId(id);
     if (!fileId) return null;
-    const response = await this.request(`${API}/${fileId}?alt=media`);
+    let response: Response;
+    try {
+      response = await this.request(`${API}/${fileId}?alt=media`);
+    } catch (e) {
+      if (!isNotFound(e)) throw e;
+      this.fileIds.delete(id);
+      return null;
+    }
     const raw = (await response.json()) as unknown;
     if (raw && typeof raw === "object" && (raw as { deleted?: unknown }).deleted === true) {
       return null;
@@ -132,10 +165,27 @@ export class DriveGameStore implements RemoteGameStore {
     return raw;
   }
 
+  /** Writes a game file; if the cached file vanished (404), re-lists once and retries. */
+  private async writeGameFile(
+    id: string,
+    name: string,
+    appProperties: Record<string, string>,
+    content: unknown,
+  ): Promise<string> {
+    const fileId = await this.findFileId(id);
+    if (!fileId) return this.writeFile(null, name, appProperties, content);
+    try {
+      return await this.writeFile(fileId, name, appProperties, content);
+    } catch (e) {
+      if (!isNotFound(e)) throw e;
+      this.fileIds.delete(id);
+      return this.writeFile(await this.findFileId(id), name, appProperties, content);
+    }
+  }
+
   async put(state: GameState): Promise<void> {
-    const fileId = await this.findFileId(state.id);
-    const newId = await this.writeFile(
-      fileId,
+    const newId = await this.writeGameFile(
+      state.id,
       gameFileName(state.id),
       {
         gameId: state.id,
@@ -148,9 +198,8 @@ export class DriveGameStore implements RemoteGameStore {
   }
 
   async tombstone(id: string): Promise<void> {
-    const fileId = await this.findFileId(id);
-    const newId = await this.writeFile(
-      fileId,
+    const newId = await this.writeGameFile(
+      id,
       gameFileName(id),
       { gameId: id, updatedAt: new Date().toISOString(), turnCount: "0", deleted: "true" },
       { deleted: true, deletedAt: new Date().toISOString() },
