@@ -152,7 +152,13 @@ describe("v8 -> v9", () => {
 describe("v9 -> v10", () => {
   it("adds untracked stats and hit points to every player", () => {
     const game = newGame();
-    const migrated = migrateSave({ ...game, version: 9 });
+    // A real v9 save has no stats or currentHp on its players.
+    const players = game.players.map((p) => {
+      const { stats: _stats, currentHp: _currentHp, ...legacy } = p;
+      return legacy;
+    });
+    expect(players.every((p) => !("stats" in p) && !("currentHp" in p))).toBe(true);
+    const migrated = migrateSave({ ...game, players, version: 9 });
     expect(migrated?.version).toBe(GAME_STATE_VERSION);
     expect(migrated?.players.every((p) => p.stats === null && p.currentHp === null)).toBe(true);
   });

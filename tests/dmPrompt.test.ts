@@ -208,6 +208,12 @@ describe("compact prompt", () => {
     expect(DM_SYSTEM_PROMPT).not.toContain("No hay cambio de estado para eso");
   });
 
+  it("asks for any stats field that is null or empty, and no longer claims the inventory is only story items", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('un dato de "stats" es null o está vacío (como "spellSaveDc" o "attacks")');
+    expect(DM_SYSTEM_PROMPT).toContain("arranca con el equipo inicial del personaje");
+    expect(DM_SYSTEM_PROMPT).not.toContain("son solo los objetos que entregaste vos");
+  });
+
   it("documents the hp change and the null-stats fallback", () => {
     expect(DM_SYSTEM_PROMPT).toContain('"hp"');
     expect(DM_SYSTEM_PROMPT).toContain('Si "stats" es null');
@@ -224,7 +230,8 @@ describe("compact prompt", () => {
     expect(fight).toContain('Compará el ataque con la CA de "stats" del jugador');
     expect(fight).toContain('con un cambio "hp"');
     expect(fight).toContain('"spellSaveDc" de "stats"');
-    expect(fight).toContain('preguntásela solo si "stats" es null');
+    expect(fight).toContain('si es null, no la tenés: preguntásela');
+    expect(fight).not.toContain('solo si "stats" es null');
     expect(fight).not.toContain("preguntásela si no la sabés");
   });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyBuildChange, mergeReviewedStats, parseLevel, parseWholeNumber } from "../src/character/buildChange";
+import { applyBuildChange, levelTextFor, mergeReviewedStats, parseLevel, parseWholeNumber } from "../src/character/buildChange";
 import { formValuesFromOption } from "../src/character/formValues";
 import { buildSheet } from "../src/rules/buildSheet";
 import type { GeneratedOption } from "../src/rules/generateOptions";
@@ -101,5 +101,15 @@ describe("parseWholeNumber", () => {
     expect(parseWholeNumber("18.7")).toBe(18);
     expect(parseWholeNumber("")).toBeNull();
     expect(parseWholeNumber("x")).toBeNull();
+  });
+});
+
+describe("levelTextFor", () => {
+  it("follows a level that changed from outside", () => {
+    expect(levelTextFor("1", 3)).toBe("3");
+    expect(levelTextFor("", 3)).toBe("3");
+  });
+  it("keeps typed text that already means the level", () => {
+    expect(levelTextFor("03", 3)).toBe("03");
   });
 });

@@ -5,10 +5,12 @@ interface Props {
   onClose: () => void;
   /** Signed: negative for damage, positive for healing. */
   onSubmit: (delta: number) => void;
+  /** A turn is running: a fix would be dropped, so it cannot be applied. */
+  disabled?: boolean;
 }
 
 /** Manual hit point fix: an amount plus whether it is damage or healing. */
-export function HpDialog({ open, onClose, onSubmit }: Props) {
+export function HpDialog({ open, onClose, onSubmit, disabled = false }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [amount, setAmount] = useState("");
   const [kind, setKind] = useState<"damage" | "healing">("damage");
@@ -42,7 +44,7 @@ export function HpDialog({ open, onClose, onSubmit }: Props) {
         className="roll-dialog__panel"
         onSubmit={(event) => {
           event.preventDefault();
-          if (!valid) return;
+          if (!valid || disabled) return;
           onSubmit(kind === "damage" ? -parsed : parsed);
         }}
       >
@@ -87,7 +89,7 @@ export function HpDialog({ open, onClose, onSubmit }: Props) {
           <button type="button" className="button" onClick={onClose}>
             Cancelar
           </button>
-          <button type="submit" className="button button--primary" disabled={!valid}>
+          <button type="submit" className="button button--primary" disabled={!valid || disabled}>
             Aplicar
           </button>
         </div>

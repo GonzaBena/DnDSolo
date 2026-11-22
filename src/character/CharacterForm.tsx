@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { CharacterInput } from "../domain/character";
 import { BACKGROUND_OPTIONS, CLASSES, MAX_LEVEL, MIN_LEVEL, SPECIES_OPTIONS, createGame } from "../domain/character";
 import { statsFromForm } from "../domain/stats";
-import { applyBuildChange, mergeReviewedStats, parseLevel, parseWholeNumber } from "./buildChange";
+import { applyBuildChange, levelTextFor, mergeReviewedStats, parseLevel, parseWholeNumber } from "./buildChange";
 import { IndexedDBGameRepo } from "../persistence/IndexedDBGameRepo";
 import { findClass } from "../rules";
 
@@ -24,6 +24,10 @@ export function CharacterForm({ values, onChange }: Props) {
   const [manualAc, setManualAc] = useState("");
   // The level is typed as text so clearing the field mid-edit doesn't change the build.
   const [levelText, setLevelText] = useState(String(values.level));
+  // A generated sheet arrives after mount: follow the level when it changes from outside.
+  useEffect(() => {
+    setLevelText((text) => levelTextFor(text, values.level));
+  }, [values.level]);
   const set = (patch: Partial<CharacterInput>) => onChange({ ...values, ...patch });
   // The generated stats and gear describe one exact build: see applyBuildChange.
   const setBuild = (patch: Partial<CharacterInput>) => {

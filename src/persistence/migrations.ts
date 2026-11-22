@@ -167,10 +167,11 @@ export function migrateSave(raw: unknown): GameState | null {
     instead of rejecting the whole save. */
 function normalizeHp(state: GameState): GameState {
   const players = state.players.map((p) => {
-    const currentHp =
-      p.stats === null
-        ? null
-        : Math.min(p.stats.maxHp, Math.max(0, p.currentHp ?? p.stats.maxHp));
+    // A non-positive maximum is not a real sheet: treat the player as untracked.
+    if (p.stats === null || p.stats.maxHp < 1) {
+      return p.stats === null && p.currentHp === null ? p : { ...p, stats: null, currentHp: null };
+    }
+    const currentHp = Math.min(p.stats.maxHp, Math.max(0, p.currentHp ?? p.stats.maxHp));
     return currentHp === p.currentHp ? p : { ...p, currentHp };
   });
   return { ...state, players };

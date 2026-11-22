@@ -142,6 +142,7 @@ export function CharacterPanel({
       {stats && hp && onAdjustHp && (
         <HpDialog
           open={hpOpen}
+          disabled={hpDisabled}
           onClose={() => setHpOpen(false)}
           onSubmit={(delta) => {
             setHpOpen(false);

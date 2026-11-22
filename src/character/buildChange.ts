@@ -56,6 +56,12 @@ export function parseLevel(text: string): number | null {
   return Number.isInteger(level) && level >= MIN_LEVEL && level <= MAX_LEVEL ? level : null;
 }
 
+/** Text for the level field after `level` changed. Keeps what the player typed
+    when it already means that level ("03"), otherwise shows the new level. */
+export function levelTextFor(text: string, level: number): string {
+  return parseLevel(text) === level ? text : String(level);
+}
+
 /** Review mode: the player's edited PG and CA over the kept stats. A field
     that is empty, invalid or below 1 keeps the previous number. */
 export function mergeReviewedStats(kept: CharacterStats, hpText: string, acText: string): CharacterStats {

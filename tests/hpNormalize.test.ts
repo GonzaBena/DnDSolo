@@ -20,6 +20,13 @@ describe("save load hp normalization", () => {
   it("drops current HP when there are no stats", () => {
     expect(migrateSave(withPlayer({ stats: null, currentHp: 7 }))?.players[0]?.currentHp).toBeNull();
   });
+  it("treats a non-positive maximum as untracked instead of loading negative HP", () => {
+    const bad = { ...stats, maxHp: 0 };
+    const player = migrateSave(withPlayer({ stats: bad, currentHp: 0 }))?.players[0];
+    expect(player?.stats).toBeNull();
+    expect(player?.currentHp).toBeNull();
+    expect(migrateSave(withPlayer({ stats: { ...stats, maxHp: -4 }, currentHp: null }))?.players[0]?.currentHp).toBeNull();
+  });
   it("leaves a consistent save untouched", () => {
     expect(migrateSave(withPlayer({ stats, currentHp: 13 }))?.players[0]?.currentHp).toBe(13);
   });

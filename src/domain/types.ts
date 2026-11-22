@@ -35,8 +35,8 @@ export interface Character {
   srdBackgroundId: string | null;
   level: number;
   background: string | null;
-  /** Story items the DM handed out. The player's real sheet (HP, stats,
-      modifiers) lives with the player, not here. */
+  /** Starts with the character's starting gear (from the sheet, when there is
+      one) and then changes only through the DM's inventory changes. */
   inventory: InventoryItem[];
   /** Combat stats; null until the sheet fills them in (and for older saves). */
   stats: CharacterStats | null;

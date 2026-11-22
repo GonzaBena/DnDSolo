@@ -369,12 +369,7 @@ export default function Game() {
     );
     const hpToasts = buildTurnToasts(before, applied.state, [], Date.now());
     if (hpToasts.length > 0) setToasts((prev) => [...prev, ...hpToasts]);
-    if (tookDamage([], before, applied.state) && gameRef.current) {
-      const el = gameRef.current;
-      shakeScreen(el);
-      el.classList.add("game--damage-flash");
-      setTimeout(() => el.classList.remove("game--damage-flash"), 400);
-    }
+    // No shake or flash: the player made this correction themselves.
     if (applied.saveError) setWarning(SAVE_WARNING);
   };
 
