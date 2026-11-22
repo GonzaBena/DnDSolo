@@ -8,8 +8,8 @@ import { GeminiClient } from "../llm/GeminiClient";
 import { describeLLMError } from "../llm/errorMessages";
 import { describeFailure, type FailureNotice } from "./failureNotice";
 import { mountSyncIndicator } from "../sync/indicator";
-import { syncBeforeOpen } from "../sync/openGame";
-import { createGameRepo, getSyncRuntime, withRenewal } from "../sync/runtime";
+import { sendAfterRenewal, syncBeforeOpen } from "../sync/openGame";
+import { createGameRepo, getSyncRuntime } from "../sync/runtime";
 import { isConfigured, loadSettings } from "../persistence/settings";
 import { CharacterPanel } from "./CharacterPanel";
 import { EventToasts, type ToastItem } from "./EventToasts";
@@ -79,9 +79,19 @@ export default function Game() {
   // Null when sync is off: then nothing below talks to Google.
   const [sync] = useState(getSyncRuntime);
   // Set once this session changed the game (a turn, even one still waiting
-  // on the Google window, or an HP fix): from then on a newer Drive copy is
-  // a conflict for the dialog, not a silent swap.
+  // on the Google window, or an HP fix): from then on the sync engine keeps
+  // the local copy, so a newer Drive copy becomes a conflict for the dialog.
   const changedRef = useRef(false);
+  // Nothing may be sent while the Google window is open (a turn is already
+  // waiting on it) or while Drive's copy is being written under the screen.
+  // The ref answers handlers at once; the state re-renders the controls.
+  const pauseRef = useRef({ renewing: false, replacing: false });
+  const [paused, setPaused] = useState(false);
+  const isPaused = () => pauseRef.current.renewing || pauseRef.current.replacing;
+  const setPause = useCallback((key: "renewing" | "replacing", on: boolean) => {
+    pauseRef.current[key] = on;
+    setPaused(pauseRef.current.renewing || pauseRef.current.replacing);
+  }, []);
 
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -117,25 +127,33 @@ export default function Game() {
     // /play?id=... opens a specific campaign; without it, the latest one.
     const id = new URLSearchParams(location.search).get("id");
     const load = () => (id ? repo.load(id) : repo.loadLatest());
-    // A reconcile that outlived the budget: show what it brought, unless the
-    // player already changed the game, which makes it a conflict.
-    const applyLate = (outcome: "downloaded" | "unchanged", opened: GameState | null) => {
-      if (id && outcome !== "downloaded") return;
-      if (changedRef.current) {
-        if (opened) void sync?.engine.syncGame(opened.id);
-        return;
-      }
-      load().then(
-        (fresh) => {
-          if (!fresh || changedRef.current) return;
-          if (opened && fresh.id === opened.id && fresh.updatedAt === opened.updatedAt) return;
-          // TurnEngine caches the latest state per game: a fresh one forgets it.
-          latestStateRef.current = fresh;
-          setScreen({ status: "playing", engine: createEngine(), state: fresh, loadedTurns: fresh.turns.length });
-          setWarning(DRIVE_NEWER_NOTICE);
+    // Drive's copy replaced the shown game (a late reconcile, a background
+    // sync, or the player chose it in the dialog). TurnEngine caches the
+    // latest state per game: a fresh one forgets it.
+    const showFromDrive = (fresh: GameState) => {
+      abortRef.current?.abort();
+      changedRef.current = false;
+      latestStateRef.current = fresh;
+      setScreen({ status: "playing", engine: createEngine(), state: fresh, loadedTurns: fresh.turns.length });
+      setWarning(DRIVE_NEWER_NOTICE);
+    };
+    // The engine asks before writing Drive's copy of the shown game. Once
+    // this session changed it, the answer is no: the base stays put and the
+    // next save is a conflict for the dialog, never a silent overwrite.
+    let unprotect: (() => void) | undefined;
+    const protect = (gameId: string) => {
+      unprotect?.();
+      unprotect = sync?.engine.protectLocal(gameId, {
+        mayReplace: () => {
+          if (changedRef.current || isPaused()) return false;
+          setPause("replacing", true);
+          return true;
         },
-        () => undefined,
-      );
+        replaced: (fresh) => {
+          setPause("replacing", false);
+          if (fresh) showFromDrive(fresh);
+        },
+      });
     };
     void syncBeforeOpen(sync, id).then(({ late }) =>
       load().then(
@@ -146,17 +164,32 @@ export default function Game() {
               ? { status: "playing", engine: createEngine(), state, loadedTurns: state.turns.length }
               : { status: "no_game" },
           );
-          if (late) void late.then((outcome) => applyLate(outcome, state));
+          if (state) protect(state.id);
+          // "Continuar" after a slow syncAll: Drive may have brought a newer
+          // game (another id). Same-id downloads already went through protect.
+          if (late && !id) {
+            void late.then(() =>
+              repo.loadLatest().then((fresh) => {
+                const shown = latestStateRef.current;
+                if (!fresh || changedRef.current || fresh.id === shown?.id) return;
+                protect(fresh.id);
+                showFromDrive(fresh);
+              }, () => undefined),
+            );
+          }
         },
         () => setScreen({ status: "load_error" }),
       ),
     );
-  }, [sync]);
+    return () => unprotect?.();
+  }, [sync, setPause]);
 
   const send = useCallback(
     async (engine: TurnEngine, shownState: GameState, input: TurnInput, typed?: string) => {
       // A manual HP fix may be newer than the rendered state: start from it,
       // so the model sees it and the toasts don't announce it again.
+      // Drive's copy is being written: the screen is about to change.
+      if (pauseRef.current.replacing) return;
       const state = freshest(shownState, latestStateRef.current);
       changedRef.current = true;
       setBusy(true);
@@ -295,7 +328,7 @@ export default function Game() {
   // `inFlight` being set also blocks this after a failure, so a failed
   // send waits for "Reintentar" instead of re-rolling in a loop.
   useEffect(() => {
-    if (screen.status !== "playing" || busy || inFlight || hpPending > 0) return;
+    if (screen.status !== "playing" || busy || inFlight || hpPending > 0 || paused) return;
     const { engine, state } = screen;
     if (state.turns.length === 0) {
       if (startedRef.current) return;
@@ -304,7 +337,7 @@ export default function Game() {
     } else if (state.pendingEnemyRolls.length > 0) {
       void send(engine, state, { type: "enemy_rolls", results: engine.rollEnemyDice(state) });
     }
-  }, [screen, busy, inFlight, hpPending, send]);
+  }, [screen, busy, inFlight, hpPending, paused, send]);
 
   const turnCount = screen.status === "playing" ? screen.state.turns.length : 0;
   const streamed = inFlight?.narration ?? "";
@@ -326,7 +359,7 @@ export default function Game() {
   // The player's turn, apart from a pending HP fix. Focus follows this one,
   // so adjusting HP doesn't pull focus from the -/+ buttons to the composer.
   const turnReady = screen.status === "playing" && !busy && !inFlight && !enemyRollsPending;
-  const canAct = turnReady && hpPending === 0;
+  const canAct = turnReady && hpPending === 0 && !paused;
 
   // Focus the composer whenever it is the player's turn, unless they are
   // already in another field. Skipped on touch screens, where focusing
@@ -384,20 +417,20 @@ export default function Game() {
   const submitAction = (event: { preventDefault(): void }) => {
     event.preventDefault();
     const raw = draft.trim();
-    if (!canAct || raw === "") return;
+    if (!canAct || isPaused() || raw === "") return;
 
     const text = expandSlashCommands(raw);
     setDraft("");
-    // Solo game: the one player is always the author. withRenewal opens the
-    // Google window (if due) before any await, inside this gesture.
+    // Solo game: the one player is always the author. The Google window (if
+    // due) opens before any await, inside this gesture.
     changedRef.current = true;
-    void withRenewal(sync, () =>
+    void sendAfterRenewal(sync, (on) => setPause("renewing", on), () =>
       send(engine, state, { type: "action", text, playerId: state.players[0]?.id }, raw),
     );
   };
 
   const adjustHp = async (delta: number) => {
-    if (busy || inFlight) return;
+    if (busy || inFlight || isPaused()) return;
     const held = latestStateRef.current ?? state;
     const playerId = held.players[0]?.id;
     if (!playerId) return;
@@ -433,11 +466,11 @@ export default function Game() {
   // becomes a single turn.
   const submitRoll = (roll: Omit<PlayerRoll, "reason">) => {
     setRollOpen(false);
-    if (!canAct) return;
+    if (!canAct || isPaused()) return;
     const raw = draft.trim();
     setDraft("");
     changedRef.current = true;
-    void withRenewal(sync, () =>
+    void sendAfterRenewal(sync, (on) => setPause("renewing", on), () =>
       send(engine, state, {
         type: "action",
         text: raw === "" ? "" : expandSlashCommands(raw),
@@ -449,9 +482,9 @@ export default function Game() {
 
   const submitDeathSave = (roll: { value: number }) => {
     setDeathSaveOpen(false);
-    if (!canAct || !hero) return;
+    if (!canAct || isPaused() || !hero) return;
     changedRef.current = true;
-    void withRenewal(sync, () =>
+    void sendAfterRenewal(sync, (on) => setPause("renewing", on), () =>
       send(engine, state, { type: "death_save", playerId: hero.id, natural: roll.value }),
     );
   };
@@ -468,7 +501,7 @@ export default function Game() {
           onOpenScene={() => setSceneOpen(true)}
           onOpenInfo={() => setInfoOpen(true)}
           onAdjustHp={(delta) => void adjustHp(delta)}
-          hpDisabled={busy || inFlight !== null}
+          hpDisabled={busy || inFlight !== null || paused}
         />
         <InfoDrawer state={state} open={infoOpen} onClose={() => setInfoOpen(false)} />
         <SceneDrawer
@@ -512,8 +545,14 @@ export default function Game() {
                 <button
                   type="button"
                   className="button button--primary"
-                  disabled={hpPending > 0}
-                  onClick={() => void send(engine, state, inFlight.input, inFlight.draft)}
+                  disabled={hpPending > 0 || paused}
+                  onClick={() => {
+                    if (isPaused()) return;
+                    changedRef.current = true;
+                    void sendAfterRenewal(sync, (on) => setPause("renewing", on), () =>
+                      send(engine, state, inFlight.input, inFlight.draft),
+                    );
+                  }}
                 >
                   Reintentar
                 </button>

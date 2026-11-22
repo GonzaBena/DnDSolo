@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { syncBeforeOpen } from "../src/sync/openGame";
+import { sendAfterRenewal, syncBeforeOpen } from "../src/sync/openGame";
 import { OfflineError } from "../src/sync/RemoteGameStore";
 import type { SyncRuntime } from "../src/sync/runtime";
 
@@ -51,5 +51,37 @@ describe("syncBeforeOpen", () => {
     await vi.advanceTimersByTimeAsync(500);
     await expect(done).resolves.toEqual({ late: null });
     expect(syncAll).toHaveBeenCalledOnce();
+  });
+});
+
+describe("sendAfterRenewal", () => {
+  it("holds the screen synchronously while the Google window is open, and releases it when the turn starts", async () => {
+    let finishRenewal!: () => void;
+    const sync = {
+      auth: {
+        needsGesture: () => true,
+        renewWithGesture: () => new Promise<boolean>((r) => (finishRenewal = () => r(true))),
+      },
+    } as unknown as SyncRuntime;
+    const holds: boolean[] = [];
+    const run = vi.fn(async () => {
+      holds.push(holds.at(-1)!); // what the turn sees when it starts
+    });
+
+    void sendAfterRenewal(sync, (on) => holds.push(on), run);
+    expect(holds).toEqual([true]);
+    expect(run).not.toHaveBeenCalled();
+
+    finishRenewal();
+    await vi.waitFor(() => expect(run).toHaveBeenCalledOnce());
+    expect(holds).toEqual([true, false, false]);
+  });
+
+  it("runs at once and leaves nothing held with sync off", () => {
+    const holds: boolean[] = [];
+    const run = vi.fn(async () => undefined);
+    void sendAfterRenewal(null, (on) => holds.push(on), run);
+    expect(run).toHaveBeenCalledOnce();
+    expect(holds.at(-1)).toBe(false);
   });
 });

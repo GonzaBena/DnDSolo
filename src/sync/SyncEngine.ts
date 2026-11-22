@@ -16,6 +16,17 @@ export interface SyncConflict {
 
 export type ConflictChoice = "local" | "remote";
 
+/** Held by the screen that shows a game, so Drive never swaps it underneath. */
+export interface LocalGuard {
+  /** Asked synchronously right before Drive's copy replaces the local one.
+      False keeps local and the base, so the next save becomes a conflict;
+      true means the screen stops taking turns until `replaced`. */
+  mayReplace(): boolean;
+  /** After a replacement: the new local state, or null when the write failed.
+      Also called when the player chose Drive's copy in the dialog. */
+  replaced(state: GameState | null): void;
+}
+
 interface Deps {
   local: GameRepo;
   remote: RemoteGameStore;
@@ -44,6 +55,7 @@ export class SyncEngine {
   private readonly queued = new Set<string>();
   /** State of the last failed task, shown while its ids are still pending. */
   private lastFailure: SyncState | null = null;
+  private readonly guards = new Map<string, LocalGuard>();
 
   constructor(private readonly deps: Deps) {}
 
@@ -79,6 +91,14 @@ export class SyncEngine {
   syncGame(id: string): Promise<Outcome> {
     this.pending.add(id);
     return this.enqueue(() => this.syncOne(id)).then((outcome) => outcome ?? "unchanged");
+  }
+
+  /** Registers the guard for `id`; returns the unregister. */
+  protectLocal(id: string, guard: LocalGuard): () => void {
+    this.guards.set(id, guard);
+    return () => {
+      if (this.guards.get(id) === guard) this.guards.delete(id);
+    };
   }
 
   /** Uploads the game in the background. One run queued per id at most; it
@@ -203,13 +223,23 @@ export class SyncEngine {
     return "unchanged";
   }
 
-  private async download(id: string, bases: SyncBases, seen: GameState | null): Promise<Outcome> {
+  /** `chosen`: the player picked Drive's copy in the dialog, so no guard can veto it. */
+  private async download(id: string, bases: SyncBases, seen: GameState | null, chosen = false): Promise<Outcome> {
     const state = await this.readRemote(id);
     if (!state) return "unchanged"; // missing, or from an unknown version: leave local alone
     if (!(await this.localUnchangedSince(id, seen))) return "unchanged"; // a newer save will push
-    await this.deps.local.save(state);
-    bases.set(id, state.updatedAt);
-    return "downloaded";
+    const guard = this.guards.get(id);
+    // Same tick as the write below starts: no turn can begin in between.
+    if (guard && !chosen && !callGuard(() => guard.mayReplace(), false)) return "unchanged";
+    let saved = false;
+    try {
+      await this.deps.local.save(state);
+      bases.set(id, state.updatedAt);
+      saved = true;
+      return "downloaded";
+    } finally {
+      if (guard) callGuard(() => guard.replaced(saved ? state : null), undefined);
+    }
   }
 
   private async deleteLocal(id: string, seen: GameState | null): Promise<boolean> {
@@ -229,7 +259,7 @@ export class SyncEngine {
     if (kind === "both_changed" && !remote) return "unchanged";
     const choice = await this.deps.resolveConflict({ id, kind, local: seen, remote });
     if (choice === "local") return this.upload(id, bases);
-    if (kind === "both_changed") return this.download(id, bases, seen);
+    if (kind === "both_changed") return this.download(id, bases, seen, true);
     if (await this.deleteLocal(id, seen)) bases.forget(id);
     return "unchanged";
   }
@@ -243,6 +273,15 @@ export class SyncEngine {
   private async localUnchangedSince(id: string, seen: GameState | null): Promise<boolean> {
     const now = await this.deps.local.load(id);
     return (now?.updatedAt ?? null) === (seen?.updatedAt ?? null);
+  }
+}
+
+/** A throwing guard must not break syncing; `fallback` is its answer then. */
+function callGuard<T>(fn: () => T, fallback: T): T {
+  try {
+    return fn();
+  } catch {
+    return fallback;
   }
 }
 

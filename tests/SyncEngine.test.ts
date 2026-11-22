@@ -340,4 +340,81 @@ describe("SyncEngine", () => {
     await b.engine.syncAll();
     expect(resolve).toHaveBeenCalledWith(expect.objectContaining({ kind: "both_changed" }));
   });
+
+  describe("protectLocal (the open game screen)", () => {
+    /** B opened the game at minute 1; A then saved a newer copy to Drive. */
+    async function openedThenNewerOnDrive(resolve?: (c: SyncConflict) => Promise<ConflictChoice>) {
+      const remote = new InMemoryRemoteGameStore();
+      const a = device("A", remote);
+      const b = device("B", remote, resolve);
+      const opened = game(1, 1);
+      await a.repo.save(opened);
+      await a.engine.flush();
+      await b.engine.syncAll();
+      const drive = game(2, 3);
+      await a.repo.save(drive);
+      await a.engine.flush();
+      return { remote, a, b, opened, drive };
+    }
+
+    it("skips a late download once the player played on the opened state, and the turn's save asks", async () => {
+      const resolve = vi.fn(async (_c: SyncConflict): Promise<ConflictChoice> => "local");
+      const { remote, b, opened, drive } = await openedThenNewerOnDrive(resolve);
+      let changed = false;
+      const replaced = vi.fn();
+      b.engine.protectLocal(opened.id, { mayReplace: () => !changed, replaced });
+
+      changed = true; // a turn is streaming, not saved yet
+      expect(await b.engine.syncGame(opened.id)).toBe("unchanged");
+      expect(await b.local.load(opened.id)).toEqual(opened);
+      expect(replaced).not.toHaveBeenCalled();
+      expect(await remote.get(opened.id)).toEqual(drive);
+
+      const branch = game(3, 2); // the turn, built on the opened state
+      await b.repo.save(branch);
+      await b.engine.flush();
+      expect(resolve).toHaveBeenCalledTimes(1);
+      expect(resolve.mock.calls[0]![0]).toMatchObject({ kind: "both_changed", local: branch, remote: drive });
+    });
+
+    it("never uploads silently over Drive while the dialog is pending", async () => {
+      const { remote, opened, drive } = await openedThenNewerOnDrive();
+      const never = new Promise<ConflictChoice>(() => undefined);
+      // Same bases as B (base = opened), but a dialog that never answers.
+      const b2 = device("B", remote, () => never);
+      await b2.local.save(opened);
+      b2.engine.protectLocal(opened.id, { mayReplace: () => false, replaced: () => undefined });
+      void b2.engine.syncGame(opened.id);
+      await b2.repo.save(game(3, 2));
+      await new Promise((r) => setTimeout(r, 0));
+      expect(await remote.get(opened.id)).toEqual(drive);
+    });
+
+    it("lets the screen take Drive's copy when the player has not played", async () => {
+      const { b, opened, drive } = await openedThenNewerOnDrive();
+      const replaced = vi.fn();
+      b.engine.protectLocal(opened.id, { mayReplace: () => true, replaced });
+      expect(await b.engine.syncGame(opened.id)).toBe("downloaded");
+      expect(await b.local.load(opened.id)).toEqual(drive);
+      expect(replaced).toHaveBeenCalledWith(drive);
+    });
+
+    it("takes Drive's copy when the player picks it in the dialog, guard or not", async () => {
+      const { b, opened, drive } = await openedThenNewerOnDrive(async () => "remote");
+      const replaced = vi.fn();
+      b.engine.protectLocal(opened.id, { mayReplace: () => false, replaced });
+      await b.repo.save(game(3, 2));
+      await b.engine.flush();
+      expect(await b.local.load(opened.id)).toEqual(drive);
+      expect(replaced).toHaveBeenCalledWith(drive);
+    });
+
+    it("stops guarding once unregistered", async () => {
+      const { b, opened, drive } = await openedThenNewerOnDrive();
+      const stop = b.engine.protectLocal(opened.id, { mayReplace: () => false, replaced: () => undefined });
+      stop();
+      expect(await b.engine.syncGame(opened.id)).toBe("downloaded");
+      expect(await b.local.load(opened.id)).toEqual(drive);
+    });
+  });
 });

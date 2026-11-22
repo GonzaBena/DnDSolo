@@ -1,4 +1,4 @@
-import type { SyncRuntime } from "./runtime";
+import { withRenewal, type SyncRuntime } from "./runtime";
 
 export type OpenOutcome = "downloaded" | "unchanged";
 
@@ -26,4 +26,21 @@ export async function syncBeforeOpen(
   const late = await Promise.race([run.then(() => false), timedOut]);
   clearTimeout(timer);
   return { late: late ? run : null };
+}
+
+/**
+ * A turn sent from a click: `hold(true)` right away, so nothing else can be
+ * sent while the Google window may be open (up to ~20 s), and `hold(false)`
+ * the moment the turn itself starts. Call it synchronously in the handler.
+ */
+export function sendAfterRenewal<T>(
+  sync: SyncRuntime | null,
+  hold: (on: boolean) => void,
+  run: () => Promise<T>,
+): Promise<T> {
+  hold(true);
+  return withRenewal(sync, () => {
+    hold(false);
+    return run();
+  });
 }
