@@ -4,7 +4,7 @@ import type { Npc } from "../src/domain/types";
 import { newGame } from "./helpers";
 
 function npc(name: string): Npc {
-  return { name, description: "", attitude: "neutral", present: true, voice: "", portrait: null };
+  return { name, description: "", attitude: "neutral", present: true, voice: "", portrait: null, hp: null, maxHp: null };
 }
 
 const cast: Cast = { npcs: [npc("Brena"), npc("Goblin 1")], playerNames: ["Lira"] };

@@ -68,6 +68,7 @@ const stateChange = z.discriminatedUnion("type", [
     present: z.boolean(),
     voice: z.string(),
     portrait: z.enum(PORTRAIT_IDS).nullable(),
+    maxHp: z.number().int().min(1).nullable(),
   }),
   z.object({
     type: z.literal("scene"),
@@ -244,9 +245,11 @@ export const gameStateSchema = z.object({
       present: z.boolean(),
       voice: z.string(),
       portrait: z.string().nullable(),
+      hp: z.number().int().nullable(),
+      maxHp: z.number().int().nullable(),
     }),
   ),
-  scene: z.object({ inCombat: z.boolean(), turnOf: z.string().nullable() }),
+  scene: z.object({ inCombat: z.boolean(), turnOf: z.string().nullable(), order: z.array(z.string()) }),
   quests: z.array(z.object({ title: z.string(), description: z.string(), status: questStatus })),
   storyItems: z.array(
     z.object({ name: z.string(), description: z.string(), location: z.string(), status: storyItemStatus }),
@@ -263,6 +266,7 @@ export const gameStateSchema = z.object({
   ),
   pendingPlayerRoll: playerRollRequest.nullable(),
   pendingEnemyRolls: z.array(enemyRollRequest),
+  suggestedActions: z.array(z.string()),
 });
 
 type InferredState = z.infer<typeof gameStateSchema>;

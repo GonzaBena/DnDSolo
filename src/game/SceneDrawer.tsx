@@ -1,3 +1,4 @@
+import { healthLabel, type HealthLabel } from "../domain/health";
 import type { Attitude, GameState } from "../domain/types";
 import { initials } from "./NpcAvatar";
 import { useDrawer } from "./useDrawer";
@@ -17,6 +18,8 @@ export interface SceneMember {
   tag: string;
   kind: "player" | "dm" | Attitude;
   hasTurn: boolean;
+  /** How a hostile NPC with hit points looks; never numbers. */
+  health: HealthLabel | null;
 }
 
 /** Everyone at the table: the DM at the head, the players, then the NPCs
@@ -33,6 +36,7 @@ export function sceneMembers(state: GameState, dmActing: boolean): SceneMember[]
       tag: "Narrador",
       kind: "dm" as const,
       hasTurn: dmActing,
+      health: null,
     },
     ...state.players.map((p) => ({
       name: p.name,
@@ -40,6 +44,7 @@ export function sceneMembers(state: GameState, dmActing: boolean): SceneMember[]
       tag: "Jugador",
       kind: "player" as const,
       hasTurn: p.name === turnOf,
+      health: null,
     })),
     ...state.npcs
       .filter((n) => n.present)
@@ -49,6 +54,7 @@ export function sceneMembers(state: GameState, dmActing: boolean): SceneMember[]
         tag: ATTITUDE_LABEL[n.attitude],
         kind: n.attitude,
         hasTurn: n.name === turnOf,
+        health: n.attitude === "hostile" ? healthLabel(n) : null,
       })),
   ];
 }
@@ -104,6 +110,7 @@ export function SceneDrawer({ state, dmActing, open, onClose }: Props) {
               <div className="scene-card__body">
                 <strong>{member.name}</strong>
                 <span className="scene-card__tag">{member.tag}</span>
+                {member.health && <HealthTag label={member.health} />}
                 <p className="scene-card__detail">{member.detail}</p>
               </div>
               {member.hasTurn && (
@@ -116,5 +123,20 @@ export function SceneDrawer({ state, dmActing, open, onClose }: Props) {
         {npcsInScene === 0 && <p className="drawer__empty">No hay nadie más en la escena.</p>}
       </div>
     </dialog>
+  );
+}
+
+const HEALTH_TONE: Record<HealthLabel, string> = {
+  Ileso: "fine",
+  Herido: "hurt",
+  Malherido: "bad",
+  "Fuera de combate": "out",
+};
+
+export function HealthTag({ label }: { label: HealthLabel }) {
+  return (
+    <span className="health-tag" data-tone={HEALTH_TONE[label]}>
+      {label}
+    </span>
   );
 }

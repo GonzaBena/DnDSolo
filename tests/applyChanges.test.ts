@@ -72,8 +72,8 @@ describe("applyStateChanges", () => {
 
   it("updates NPCs and quests in place instead of duplicating them", () => {
     const state = applyStateChanges(newGame(), [
-      { type: "npc", name: "Berta", description: "Posadera", attitude: "neutral", present: true, voice: "", portrait: null },
-      { type: "npc", name: "berta", description: "Posadera agradecida", attitude: "friendly", present: true, voice: "", portrait: null },
+      { type: "npc", name: "Berta", description: "Posadera", attitude: "neutral", present: true, voice: "", portrait: null, maxHp: null },
+      { type: "npc", name: "berta", description: "Posadera agradecida", attitude: "friendly", present: true, voice: "", portrait: null, maxHp: null },
       { type: "quest", title: "El anillo", description: "Encontrarlo", status: "active" },
       { type: "quest", title: "El anillo", description: "Encontrarlo", status: "completed" },
     ]).state;
@@ -85,7 +85,7 @@ describe("applyStateChanges", () => {
   });
 
   it("records how an NPC speaks and keeps it when a later change leaves it blank", () => {
-    const berta = { type: "npc", name: "Berta", description: "Posadera", attitude: "neutral", present: true, portrait: null } as const;
+    const berta = { type: "npc", name: "Berta", description: "Posadera", attitude: "neutral", present: true, portrait: null, maxHp: null } as const;
     const first = applyStateChanges(newGame(), [{ ...berta, voice: "Seca, frases cortas" }]).state;
     expect(first.npcs[0]!.voice).toBe("Seca, frases cortas");
     const later = applyStateChanges(first, [{ ...berta, present: false, voice: "" }]).state;
@@ -93,7 +93,7 @@ describe("applyStateChanges", () => {
   });
 
   it("keeps the existing description when a later npc change sends it empty", () => {
-    const berta = { type: "npc", name: "Berta", description: "Posadera", attitude: "neutral", present: true, voice: "", portrait: null } as const;
+    const berta = { type: "npc", name: "Berta", description: "Posadera", attitude: "neutral", present: true, voice: "", portrait: null, maxHp: null } as const;
     const first = applyStateChanges(newGame(), [berta]).state;
     const back = applyStateChanges(first, [{ ...berta, description: "  " }]).state;
     expect(back.npcs[0]!.description).toBe("Posadera");
@@ -102,7 +102,7 @@ describe("applyStateChanges", () => {
   });
 
   it("records an NPC's portrait and keeps it when a later change sends null", () => {
-    const berta = { type: "npc", name: "Berta", description: "Posadera", attitude: "neutral", present: true, voice: "" } as const;
+    const berta = { type: "npc", name: "Berta", description: "Posadera", attitude: "neutral", present: true, voice: "", maxHp: null } as const;
     const first = applyStateChanges(newGame(), [{ ...berta, portrait: "guard-male" }]).state;
     expect(first.npcs[0]!.portrait).toBe("guard-male");
     const later = applyStateChanges(first, [{ ...berta, present: false, portrait: null }]).state;
@@ -110,14 +110,14 @@ describe("applyStateChanges", () => {
   });
 
   it("keeps an NPC's face when a later change names another portrait", () => {
-    const berta = { type: "npc", name: "Berta", description: "Posadera", attitude: "neutral", present: true, voice: "" } as const;
+    const berta = { type: "npc", name: "Berta", description: "Posadera", attitude: "neutral", present: true, voice: "", maxHp: null } as const;
     const first = applyStateChanges(newGame(), [{ ...berta, portrait: "guard-female" }]).state;
     const later = applyStateChanges(first, [{ ...berta, portrait: "soldier-female" }]).state;
     expect(later.npcs[0]!.portrait).toBe("guard-female");
   });
 
   it("names an NPC called after their portrait archetype in Spanish", () => {
-    const change = { type: "npc", name: "innkeeper-male", description: "", attitude: "neutral", present: true, voice: "", portrait: "innkeeper-male" } as const;
+    const change = { type: "npc", name: "innkeeper-male", description: "", attitude: "neutral", present: true, voice: "", portrait: "innkeeper-male", maxHp: null } as const;
     const first = applyStateChanges(newGame(), [change]).state;
     const later = applyStateChanges(first, [{ ...change, present: false }]).state;
     expect(later.npcs).toHaveLength(1);
@@ -125,13 +125,13 @@ describe("applyStateChanges", () => {
   });
 
   it("gives a new NPC without a portrait null", () => {
-    const change = { type: "npc", name: "Berta", description: "", attitude: "neutral", present: true, voice: "", portrait: null } as const;
+    const change = { type: "npc", name: "Berta", description: "", attitude: "neutral", present: true, voice: "", portrait: null, maxHp: null } as const;
     expect(applyStateChanges(newGame(), [change]).state.npcs[0]!.portrait).toBeNull();
   });
 
   describe("scene", () => {
     const goblin = (present = true) =>
-      ({ type: "npc", name: "Goblin 1", description: "Flaco", attitude: "hostile", present, voice: "", portrait: null }) as const;
+      ({ type: "npc", name: "Goblin 1", description: "Flaco", attitude: "hostile", present, voice: "", portrait: null, maxHp: null }) as const;
 
     it("starts a fight and hands the turn to someone in the scene, matching their name", () => {
       const { state, rejected } = applyStateChanges(newGame(), [
@@ -139,7 +139,7 @@ describe("applyStateChanges", () => {
         { type: "scene", inCombat: true, turnOf: "goblin 1" },
       ]);
       expect(rejected).toEqual([]);
-      expect(state.scene).toEqual({ inCombat: true, turnOf: "Goblin 1" });
+      expect(state.scene).toEqual({ inCombat: true, turnOf: "Goblin 1", order: [] });
     });
 
     it("gives the turn back to the player when it names nobody in the scene", () => {
@@ -148,7 +148,7 @@ describe("applyStateChanges", () => {
         { type: "scene", inCombat: true, turnOf: "Goblin 1" },
       ]);
       expect(rejected).toHaveLength(1);
-      expect(state.scene).toEqual({ inCombat: true, turnOf: null });
+      expect(state.scene).toEqual({ inCombat: true, turnOf: null, order: [] });
     });
 
     it("clears the scene on a new location, whatever order the changes come in", () => {
@@ -158,7 +158,7 @@ describe("applyStateChanges", () => {
         { type: "scene", inCombat: false, turnOf: "Goblin 1" },
       ]).state;
       const after = applyStateChanges(before, [
-        { type: "npc", name: "Berta", description: "Posadera", attitude: "friendly", present: true, voice: "", portrait: null },
+        { type: "npc", name: "Berta", description: "Posadera", attitude: "friendly", present: true, voice: "", portrait: null, maxHp: null },
         { type: "location", name: "Bosque", description: "" },
       ]).state;
       expect(after.npcs.map((n) => [n.name, n.present])).toEqual([
@@ -494,7 +494,7 @@ describe("rests", () => {
   });
 
   it("no long rest in combat", () => {
-    const game = { ...hurt(7), scene: { inCombat: true, turnOf: null } };
+    const game = { ...hurt(7), scene: { inCombat: true, turnOf: null, order: [] } };
     const result = applyStateChanges(game, [long]);
     expect(result.rejected[0]!.reason).toBe("Can't rest during combat.");
     expect(result.state).toEqual(game);
@@ -559,5 +559,46 @@ describe("review details", () => {
     ]);
     expect(result.rejected).toEqual([]);
     expect(result.state.players[0]).toMatchObject({ level: 4, milestonesSinceLevel: 0 });
+  });
+});
+
+describe("enemy hit points", () => {
+  const goblin = (maxHp: number | null, name = "Goblin 1") =>
+    ({ type: "npc", name, description: "Flaco", attitude: "hostile", present: true, voice: "", portrait: null, maxHp }) as const;
+  const hit = (target: string, delta: number) => ({ type: "hp" as const, target, delta });
+
+  it("an NPC gets its hit points the first time, and keeps them", () => {
+    const first = applyStateChanges(newGame(), [goblin(7)]).state;
+    expect(first.npcs[0]).toMatchObject({ hp: 7, maxHp: 7 });
+    const again = applyStateChanges(first, [goblin(20)]).state;
+    expect(again.npcs[0]).toMatchObject({ hp: 7, maxHp: 7 });
+  });
+
+  it("an NPC first seen without hit points can get them later", () => {
+    const plain = applyStateChanges(newGame(), [goblin(null)]).state;
+    expect(plain.npcs[0]).toMatchObject({ hp: null, maxHp: null });
+    expect(applyStateChanges(plain, [goblin(9)]).state.npcs[0]).toMatchObject({ hp: 9, maxHp: 9 });
+  });
+
+  it("damage by name goes to the NPC, not to the lone player", () => {
+    const game = applyStateChanges(newGame(), [goblin(7)]).state;
+    const result = applyStateChanges(game, [hit("goblin 1", -4)]);
+    expect(result.rejected).toEqual([]);
+    expect(result.state.npcs[0]!.hp).toBe(3);
+    expect(result.state.players).toEqual(game.players);
+  });
+
+  it("an NPC at 0 stays in the scene, clamped", () => {
+    const game = applyStateChanges(newGame(), [goblin(7)]).state;
+    const down = applyStateChanges(game, [hit("Goblin 1", -40)]).state;
+    expect(down.npcs[0]).toMatchObject({ hp: 0, present: true });
+    expect(applyStateChanges(down, [hit("Goblin 1", 50)]).state.npcs[0]!.hp).toBe(7);
+  });
+
+  it("rejects damage to an NPC without hit points", () => {
+    const game = applyStateChanges(newGame(), [goblin(null)]).state;
+    const result = applyStateChanges(game, [hit("Goblin 1", -3)]);
+    expect(result.rejected[0]!.reason).toBe("That NPC has no hit points tracked.");
+    expect(result.state).toEqual(game);
   });
 });

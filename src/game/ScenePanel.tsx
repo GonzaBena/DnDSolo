@@ -1,7 +1,7 @@
 import { findNpc } from "../domain/dialogue";
 import type { GameState } from "../domain/types";
 import { NpcAvatar } from "./NpcAvatar";
-import { sceneMembers } from "./SceneDrawer";
+import { HealthTag, sceneMembers } from "./SceneDrawer";
 
 /** The table at a glance, beside the log on wide screens: everyone in the
     scene with their face, whoever has the turn marked, and whoever is
@@ -37,7 +37,11 @@ export function ScenePanel({
                 speaking={npc !== undefined && npc.name === speaking}
               />
               <span className="scene-panel__name">{member.name}</span>
-              <span className="scene-panel__tag">{member.tag}</span>
+              {/* Inside the tag: the card has two rows beside the face. */}
+              <span className="scene-panel__tag">
+                {member.tag}
+                {member.health && <> <HealthTag label={member.health} /></>}
+              </span>
             </li>
           );
         })}

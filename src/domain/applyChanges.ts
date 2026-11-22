@@ -149,6 +149,19 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
         break;
       }
       case "hp": {
+        // An NPC by name first: with a lone player any unknown target would be them.
+        const npcName = npcNameFromArchetype(change.target);
+        const npc = next.npcs.find((n) => sameName(n.name, npcName));
+        const isPlayer = next.players.some((p) => p.id === change.target || sameName(p.name, change.target));
+        if (npc && !isPlayer) {
+          if (npc.maxHp === null || npc.hp === null) {
+            rejected.push({ change, reason: "That NPC has no hit points tracked." });
+            break;
+          }
+          const hp = Math.min(npc.maxHp, Math.max(0, npc.hp + change.delta));
+          next = { ...next, npcs: next.npcs.map((n) => (n === npc ? { ...n, hp } : n)) };
+          break;
+        }
         const index = findPlayerByTarget(next.players, change.target);
         if (index === -1) {
           rejected.push({ change, reason: "Unknown player." });
@@ -240,6 +253,10 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
           voice: change.voice.trim() || existing?.voice || "",
           // The first portrait sticks: an NPC keeps their face for the whole game.
           portrait: existing?.portrait ?? change.portrait ?? null,
+          // Hit points too: set once, then only "hp" changes move them.
+          ...(existing && existing.maxHp !== null
+            ? { hp: existing.hp, maxHp: existing.maxHp }
+            : { hp: change.maxHp, maxHp: change.maxHp }),
         };
         next = { ...next, npcs: upsert(next.npcs, npc, (n) => sameName(n.name, name)) };
         break;
@@ -248,6 +265,7 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
         next = {
           ...next,
           scene: {
+            ...next.scene,
             inCombat: change.inCombat,
             turnOf: change.turnOf === null ? null : npcNameFromArchetype(change.turnOf),
           },

@@ -367,7 +367,7 @@ describe("TurnEngine.playTurn", () => {
   describe("scene when the enemy-roll chain hits its limit", () => {
     const npc = {
       type: "npc" as const, name: "Goblin", description: "Un goblin", attitude: "hostile" as const,
-      present: true, voice: "", portrait: null,
+      present: true, voice: "", portrait: null, maxHp: null,
     };
     const fight = reply({
       enemyRolls: [{ die: "d20", count: 1, modifier: 0, reason: "Otro", mode: "normal" }],
@@ -390,13 +390,13 @@ describe("TurnEngine.playTurn", () => {
     it("keeps turnOf and the rolls while rolls are still allowed (2nd chained turn)", async () => {
       const state = await chain(2);
       expect(state.pendingEnemyRolls).toHaveLength(1);
-      expect(state.scene).toEqual({ inCombat: true, turnOf: "Goblin" });
+      expect(state.scene).toEqual({ inCombat: true, turnOf: "Goblin", order: [] });
     });
 
     it("on the dropping turn only turnOf is reset; inCombat stays true", async () => {
       const state = await chain(3);
       expect(state.pendingEnemyRolls).toEqual([]);
-      expect(state.scene).toEqual({ inCombat: true, turnOf: null });
+      expect(state.scene).toEqual({ inCombat: true, turnOf: null, order: [] });
     });
   });
 

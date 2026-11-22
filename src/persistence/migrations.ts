@@ -161,6 +161,16 @@ function fromV10(raw: Raw): Raw {
   return { ...raw, version: 11, players };
 }
 
+/** v11 -> v12. NPCs can carry hit points, the scene keeps the initiative
+    order and the DM's suggested actions are stored; old saves have none. */
+function fromV11(raw: Raw): Raw {
+  const npcs = Array.isArray(raw.npcs)
+    ? raw.npcs.map((n: unknown) => (isObject(n) ? { ...n, hp: null, maxHp: null } : n))
+    : raw.npcs;
+  const scene = isObject(raw.scene) ? { ...raw.scene, order: [] } : raw.scene;
+  return { ...raw, version: 12, npcs, scene, suggestedActions: [] };
+}
+
 /** Turns whatever was stored into a GameState of the current version, or
     null if it can't be trusted (unknown version or wrong shape). Loading
     code must go through here so the screens never see a malformed save. */
@@ -177,6 +187,7 @@ export function migrateSave(raw: unknown): GameState | null {
   if (current.version === 8) current = fromV8(current);
   if (current.version === 9) current = fromV9(current);
   if (current.version === 10) current = fromV10(current);
+  if (current.version === 11) current = fromV11(current);
   if (current.version !== GAME_STATE_VERSION) return null;
   const parsed = gameStateSchema.safeParse(current);
   return parsed.success ? normalizeHp(parsed.data) : null;

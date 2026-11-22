@@ -133,6 +133,9 @@ export interface Npc {
       string, not PortraitId, so an archetype dropped later keeps old saves
       loading. */
   portrait: string | null;
+  /** Hit points, tracked by code once the DM sets `maxHp`; null for NPCs nobody fights. */
+  hp: number | null;
+  maxHp: number | null;
 }
 
 /** What is happening right now, for the scene drawer. */
@@ -141,6 +144,8 @@ export interface Scene {
   /** Name of whoever acts now: a player or an NPC in the scene. null means
       the player, which is the resting state between DM replies. */
   turnOf: string | null;
+  /** Initiative order during a fight, highest first; [] outside one. */
+  order: string[];
 }
 
 /** "available": seen and within reach of being taken. "taken": some player
@@ -196,6 +201,8 @@ export type StateChange =
       present: boolean;
       voice: string;
       portrait: PortraitId | null;
+      /** Only counts the first time it is set; null means it has no hit points. */
+      maxHp: number | null;
     }
   | { type: "scene"; inCombat: boolean; turnOf: string | null }
   | { type: "quest"; title: string; description: string; status: QuestStatus }
@@ -277,9 +284,11 @@ export interface GameState {
   pendingPlayerRoll: PlayerRollRequest | null;
   /** Enemy rolls the DM asked for and the app still has to roll and send. */
   pendingEnemyRolls: EnemyRollRequest[];
+  /** Short actions the DM suggested for the player's next move. */
+  suggestedActions: string[];
 }
 
 /** Milestones needed since the last level to gain a new one. */
 export const MILESTONES_PER_LEVEL = 2;
 
-export const GAME_STATE_VERSION = 11;
+export const GAME_STATE_VERSION = 12;
