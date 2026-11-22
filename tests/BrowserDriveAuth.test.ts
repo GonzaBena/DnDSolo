@@ -37,12 +37,26 @@ function fakeGis() {
 
 const MIN = 60_000;
 
-function setup() {
+/** In-memory stand-in for sessionStorage. */
+function memoryStorage() {
+  const data = new Map<string, string>();
+  return {
+    data,
+    getItem: (k: string) => data.get(k) ?? null,
+    setItem: (k: string, v: string) => void data.set(k, v),
+    removeItem: (k: string) => void data.delete(k),
+  };
+}
+
+function setup(storage = memoryStorage()) {
   let now = 1_000_000;
   const gis = fakeGis();
-  const auth = new BrowserDriveAuth({ clientId: "cid", gis: () => gis.api, now: () => now });
-  return { gis, auth, advance: (ms: number) => (now += ms) };
+  const make = () => new BrowserDriveAuth({ clientId: "cid", gis: () => gis.api, now: () => now, storage });
+  const auth = make();
+  return { gis, auth, storage, make, advance: (ms: number) => (now += ms) };
 }
+
+const TOKEN_KEY = "dnsolo.sync.token.cid";
 
 afterEach(() => vi.useRealTimers());
 
@@ -153,6 +167,86 @@ describe("BrowserDriveAuth", () => {
     expect(gis.revoke).not.toHaveBeenCalled();
     expect(auth.needsGesture()).toBe(true);
     await expect(auth.getAccessToken()).rejects.toBeInstanceOf(AuthExpiredError);
+  });
+});
+
+describe("BrowserDriveAuth token in sessionStorage", () => {
+  it("a new page in the same tab gets the token back without a gesture", async () => {
+    const { gis, make } = setup();
+    const first = make();
+    const done = first.connect();
+    gis.grant({ access_token: "abc", expires_in: 3600 });
+    await done;
+
+    const next = make(); // the next page load
+    expect(next.needsGesture()).toBe(false);
+    await expect(next.getAccessToken()).resolves.toBe("abc");
+  });
+
+  it("stores the token under a key that names the client id", async () => {
+    const { gis, auth, storage } = setup();
+    const done = auth.renewWithGesture();
+    gis.grant({ access_token: "abc", expires_in: 3600 });
+    await done;
+    expect(JSON.parse(storage.data.get(TOKEN_KEY)!)).toEqual({ value: "abc", expiresAt: 1_000_000 + 3600_000 });
+  });
+
+  it("ignores a stored token that already expired", async () => {
+    const storage = memoryStorage();
+    storage.setItem(TOKEN_KEY, JSON.stringify({ value: "old", expiresAt: 999_999 }));
+    const { auth } = setup(storage);
+    expect(auth.needsGesture()).toBe(true);
+    await expect(auth.getAccessToken()).rejects.toBeInstanceOf(AuthExpiredError);
+  });
+
+  it("ignores corrupt or malformed stored values", async () => {
+    for (const raw of ["{not json", "null", JSON.stringify({ value: 3, expiresAt: "x" })]) {
+      const storage = memoryStorage();
+      storage.setItem(TOKEN_KEY, raw);
+      const { auth } = setup(storage);
+      expect(auth.needsGesture()).toBe(true);
+      await expect(auth.getAccessToken()).rejects.toBeInstanceOf(AuthExpiredError);
+    }
+  });
+
+  it("disconnect and forget remove the stored token", async () => {
+    for (const method of ["disconnect", "forget"] as const) {
+      const { gis, auth, storage, make } = setup();
+      const done = auth.connect();
+      gis.grant({ access_token: "abc" });
+      await done;
+      await auth[method]();
+      expect(storage.data.has(TOKEN_KEY)).toBe(false);
+      expect(make().needsGesture()).toBe(true);
+    }
+  });
+
+  it("disconnect revokes a token that only the storage remembers", async () => {
+    const { gis, make } = setup();
+    const done = make().connect();
+    gis.grant({ access_token: "abc" });
+    await done;
+    await make().disconnect();
+    expect(gis.revoke).toHaveBeenCalledWith("abc", expect.any(Function));
+  });
+
+  it("keeps working in memory when the storage throws", async () => {
+    const boom = () => {
+      throw new Error("SecurityError");
+    };
+    const { gis, auth } = setup({ data: new Map(), getItem: boom, setItem: boom, removeItem: boom });
+    expect(auth.needsGesture()).toBe(true);
+    const done = auth.connect();
+    gis.grant({ access_token: "abc" });
+    expect(await done).toBe(true);
+    await expect(auth.getAccessToken()).resolves.toBe("abc");
+    await expect(auth.forget()).resolves.toBeUndefined();
+    await expect(auth.getAccessToken()).rejects.toBeInstanceOf(AuthExpiredError);
+  });
+
+  it("works without any sessionStorage (SSR, tests)", () => {
+    const auth = new BrowserDriveAuth({ clientId: "cid", gis: () => fakeGis().api });
+    expect(auth.needsGesture()).toBe(true);
   });
 });
 
