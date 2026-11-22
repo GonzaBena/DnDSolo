@@ -202,4 +202,23 @@ describe("compact prompt", () => {
     expect(DM_SYSTEM_PROMPT).toContain("Los NPCs ausentes figuran solo con nombre y actitud");
     expect(DM_SYSTEM_PROMPT).toContain("mandala vacía");
   });
+
+  it("no longer says the DM lacks the character sheet or an hp change", () => {
+    expect(DM_SYSTEM_PROMPT).not.toContain("No tenés su hoja de personaje");
+    expect(DM_SYSTEM_PROMPT).not.toContain("No hay cambio de estado para eso");
+  });
+
+  it("documents the hp change and the null-stats fallback", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('"hp"');
+    expect(DM_SYSTEM_PROMPT).toContain('Si "stats" es null');
+  });
+
+  it("shows the DM a player's stats and current hp", () => {
+    const state = newGame();
+    const stats = { maxHp: 12, armorClass: 16, initiative: 1, speed: 30, hitDice: "1d10", attacks: [], spellSaveDc: null, spellAttackBonus: null };
+    state.players = [{ ...state.players[0]!, stats, currentHp: 9 }];
+    const json = JSON.stringify(stateForModel(state));
+    expect(json).toContain('"armorClass":16');
+    expect(json).toContain('"currentHp":9');
+  });
 });

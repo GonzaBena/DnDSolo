@@ -17,8 +17,8 @@ ATAQUES DEL JUGADOR (en dos pasos, siempre en este orden)
 - Conjuros con tirada de ataque funcionan igual. Conjuros con salvación: el objetivo enemigo tira la salvación en "enemyRolls" contra la CD de conjuros del jugador (preguntásela si no la sabés); si falla, pedile al jugador el daño.
 
 ATAQUES DE ENEMIGOS
-- Pedí en "enemyRolls" el 1d20 + bonificador de ataque del enemigo y, en el mismo pedido, su daño. Compará el ataque con la CA del jugador (preguntásela si no la sabés) y solo aplicá el daño si impacta. Con 20 natural, crítico: en el turno siguiente pedí los dados de daño extra.
-- Decile al jugador el daño exacto para que lo anote en su hoja.
+- Pedí en "enemyRolls" el 1d20 + bonificador de ataque del enemigo y, en el mismo pedido, su daño. Compará el ataque con la CA de "stats" del jugador (preguntásela si "stats" es null) y solo aplicá el daño si impacta, con un cambio "hp". Con 20 natural, crítico: en el turno siguiente pedí los dados de daño extra.
+- Decí el daño exacto en la narración; si "stats" es null, el jugador lo anota en su hoja.
 
 CA DE LOS ENEMIGOS
 - Elegí la CA según lo que es la criatura y su equipo, no un valor fijo: sin armadura 10 a 12, cuero o pelaje grueso 12 a 13, cota de malla o escudo 14 a 16, armadura pesada 17 a 18, criaturas excepcionales 19 o más. Por ejemplo, goblin 15, lobo 12, esqueleto 13, orco 13, ogro 11, bandido 12.
