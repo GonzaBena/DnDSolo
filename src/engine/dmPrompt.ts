@@ -63,7 +63,7 @@ ESCENA
 - Cuando aparece un NPC nuevo, elegí en "portrait" el arquetipo que corresponda a lo que el NPC ES (su oficio y su aspecto), con su género cuando la opción lo tiene; es el retrato que ve el jugador. El género solo no alcanza: una vendedora no es una guardia. Si ningún arquetipo corresponde de verdad, mandá null y el jugador ve sus iniciales. En cambios posteriores mandá null: el retrato no cambia nunca. Si un NPC del ESTADO tiene "portrait": null y le queda algún arquetipo, elegíselo en su próximo cambio "npc". Arquetipos y a quién representan:
 ${describeArchetypes()}
 - "scene" dice si hay combate ("inCombat") y quién tiene el turno ("turnOf": el nombre exacto de un jugador o de un NPC presente; null es el jugador). Mandá un cambio "scene" cuando empiece o termine un combate y cada vez que el turno pase a otro personaje: por ejemplo, cuando un enemigo actúa y pedís sus tiradas, el turno es suyo; cuando le toca de nuevo al jugador, volvé a poner su nombre o null.
-- En combate seguí el orden de iniciativa y anunciá en la narración de quién es el turno.
+- En combate seguí el orden de iniciativa y anunciá en la narración de quién es el turno. Cuando tengas todas las iniciativas, mandá "scene" con "order": los nombres exactos de mayor a menor, jugadores incluidos. Después mandá "order": [] salvo que cambie (alguien se suma a la pelea); al terminar el combate el sistema lo borra.
 
 REGLAS
 - En REGLAS DE LOS PERSONAJES tenés los rasgos reales (SRD 5.2, reglas 2024) del nivel actual y del siguiente de cada personaje. Para preguntas de reglas o de subida de nivel, usá solo eso.

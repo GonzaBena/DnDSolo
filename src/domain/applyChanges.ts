@@ -265,9 +265,14 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
         next = {
           ...next,
           scene: {
-            ...next.scene,
             inCombat: change.inCombat,
             turnOf: change.turnOf === null ? null : npcNameFromArchetype(change.turnOf),
+            // Checked against who is in the scene once every change is in (settleTurn).
+            order: !change.inCombat
+              ? []
+              : change.order.length > 0
+                ? change.order.map(npcNameFromArchetype)
+                : next.scene.order,
           },
         };
         break;
@@ -347,13 +352,20 @@ function syncStoryItems(state: GameState): GameState {
 /** The turn can only belong to someone who is in the scene. A name that
     matches nobody (or someone who just left) hands it back to the player
     instead of leaving the drawer with no one highlighted. */
-function settleTurn(state: GameState, changes: StateChange[], rejected: RejectedChange[]): GameState {
+function settleTurn(given: GameState, changes: StateChange[], rejected: RejectedChange[]): GameState {
+  const inScene = [
+    ...given.players.map((p) => p.name),
+    ...given.npcs.filter((n) => n.present).map((n) => n.name),
+  ];
+  // The initiative order only names who is here, as they are stored, once each.
+  const order = [
+    ...new Set(
+      given.scene.order.flatMap((name) => inScene.find((member) => sameName(member, name)) ?? []),
+    ),
+  ];
+  const state = { ...given, scene: { ...given.scene, order } };
   const { turnOf } = state.scene;
   if (turnOf === null) return state;
-  const inScene = [
-    ...state.players.map((p) => p.name),
-    ...state.npcs.filter((n) => n.present).map((n) => n.name),
-  ];
   const match = inScene.find((name) => sameName(name, turnOf));
   if (match !== undefined) return { ...state, scene: { ...state.scene, turnOf: match } };
   const change = changes.findLast((c) => c.type === "scene");

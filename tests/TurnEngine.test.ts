@@ -350,7 +350,7 @@ describe("TurnEngine.playTurn", () => {
     let state = await started(ctx);
     const more = reply({
       enemyRolls: [{ die: "d20", count: 1, modifier: 0, reason: "Otro", mode: "normal" }],
-      stateChanges: [{ type: "scene", inCombat: true, turnOf: "Lira" }],
+      stateChanges: [{ type: "scene", inCombat: true, turnOf: "Lira", order: [] }],
     });
     ctx.llm.queueStructured(more, more, more, more);
     state = (await ctx.engine.playTurn(state, { type: "action", text: "Avanzo" })).state;
@@ -371,7 +371,7 @@ describe("TurnEngine.playTurn", () => {
     };
     const fight = reply({
       enemyRolls: [{ die: "d20", count: 1, modifier: 0, reason: "Otro", mode: "normal" }],
-      stateChanges: [npc, { type: "scene", inCombat: true, turnOf: "Goblin" }],
+      stateChanges: [npc, { type: "scene", inCombat: true, turnOf: "Goblin", order: [] }],
     });
 
     async function chain(turns: number) {

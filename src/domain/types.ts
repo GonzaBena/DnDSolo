@@ -204,7 +204,9 @@ export type StateChange =
       /** Only counts the first time it is set; null means it has no hit points. */
       maxHp: number | null;
     }
-  | { type: "scene"; inCombat: boolean; turnOf: string | null }
+  /** `order`: initiative, highest first; [] keeps the current one. Ending
+      the fight clears it. */
+  | { type: "scene"; inCombat: boolean; turnOf: string | null; order: string[] }
   | { type: "quest"; title: string; description: string; status: QuestStatus }
   /** An object the narration put within reach, or that stopped being there.
       Taking it is an inventory_add with the same name. */

@@ -136,7 +136,7 @@ describe("applyStateChanges", () => {
     it("starts a fight and hands the turn to someone in the scene, matching their name", () => {
       const { state, rejected } = applyStateChanges(newGame(), [
         goblin(),
-        { type: "scene", inCombat: true, turnOf: "goblin 1" },
+        { type: "scene", inCombat: true, turnOf: "goblin 1", order: [] },
       ]);
       expect(rejected).toEqual([]);
       expect(state.scene).toEqual({ inCombat: true, turnOf: "Goblin 1", order: [] });
@@ -145,7 +145,7 @@ describe("applyStateChanges", () => {
     it("gives the turn back to the player when it names nobody in the scene", () => {
       const { state, rejected } = applyStateChanges(newGame(), [
         goblin(false),
-        { type: "scene", inCombat: true, turnOf: "Goblin 1" },
+        { type: "scene", inCombat: true, turnOf: "Goblin 1", order: [] },
       ]);
       expect(rejected).toHaveLength(1);
       expect(state.scene).toEqual({ inCombat: true, turnOf: null, order: [] });
@@ -155,7 +155,7 @@ describe("applyStateChanges", () => {
       const before = applyStateChanges(newGame(), [
         { type: "location", name: "Posada", description: "" },
         goblin(),
-        { type: "scene", inCombat: false, turnOf: "Goblin 1" },
+        { type: "scene", inCombat: false, turnOf: "Goblin 1", order: [] },
       ]).state;
       const after = applyStateChanges(before, [
         { type: "npc", name: "Berta", description: "Posadera", attitude: "friendly", present: true, voice: "", portrait: null, maxHp: null },
@@ -600,5 +600,28 @@ describe("enemy hit points", () => {
     const result = applyStateChanges(game, [hit("Goblin 1", -3)]);
     expect(result.rejected[0]!.reason).toBe("That NPC has no hit points tracked.");
     expect(result.state).toEqual(game);
+  });
+});
+
+describe("initiative order", () => {
+  const npc = (name: string, present = true) =>
+    ({ type: "npc", name, description: "", attitude: "hostile", present, voice: "", portrait: null, maxHp: 7 }) as const;
+  const scene = (order: string[], inCombat = true) => ({ type: "scene" as const, inCombat, turnOf: null, order });
+  const fight = () =>
+    applyStateChanges(newGame(), [npc("Goblin 1"), npc("Goblin 2"), npc("Brena", false)]).state;
+
+  it("keeps the order with the names as stored, dropping who isn't in the scene", () => {
+    const { state } = applyStateChanges(fight(), [scene(["goblin 1", "LIRA", "Brena", "Nadie", "Goblin 2"])]);
+    expect(state.scene.order).toEqual(["Goblin 1", "Lira", "Goblin 2"]);
+  });
+
+  it("an empty order keeps the current one", () => {
+    const ordered = applyStateChanges(fight(), [scene(["Goblin 1", "Lira", "Goblin 2"])]).state;
+    expect(applyStateChanges(ordered, [scene([])]).state.scene.order).toEqual(["Goblin 1", "Lira", "Goblin 2"]);
+  });
+
+  it("the end of the fight clears it", () => {
+    const ordered = applyStateChanges(fight(), [scene(["Goblin 1", "Lira", "Goblin 2"])]).state;
+    expect(applyStateChanges(ordered, [scene(["Goblin 1"], false)]).state.scene.order).toEqual([]);
   });
 });

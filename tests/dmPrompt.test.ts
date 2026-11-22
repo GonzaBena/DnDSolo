@@ -294,3 +294,9 @@ describe("enemy hit points in the prompt", () => {
     expect(DM_SYSTEM_PROMPT).toContain('"maxHp"');
   });
 });
+
+describe("initiative order in the prompt", () => {
+  it("asks for the order once every initiative is in", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('mandá "scene" con "order"');
+  });
+});

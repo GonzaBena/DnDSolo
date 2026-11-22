@@ -20,6 +20,9 @@ export function ScenePanel({
   return (
     <aside className="scene-panel" aria-label="Personajes en escena" data-mode={state.scene.inCombat ? "combat" : "calm"}>
       <p className="scene-panel__place">{state.location.name || "Lugar desconocido"}</p>
+      {state.scene.inCombat && state.scene.order.length > 0 && (
+        <p className="scene-panel__order">Orden de iniciativa</p>
+      )}
       <ul className="scene-panel__list">
         {members.map((member) => {
           const npc = member.kind === "dm" || member.kind === "player" ? undefined : findNpc(state.npcs, member.name);
@@ -36,7 +39,14 @@ export function ScenePanel({
                 kind={member.kind}
                 speaking={npc !== undefined && npc.name === speaking}
               />
-              <span className="scene-panel__name">{member.name}</span>
+              <span className="scene-panel__name">
+                {member.initiative !== null && (
+                  <span className="initiative-number" aria-label={`Iniciativa ${member.initiative}`}>
+                    {member.initiative}
+                  </span>
+                )}
+                {member.name}
+              </span>
               {/* Inside the tag: the card has two rows beside the face. */}
               <span className="scene-panel__tag">
                 {member.tag}

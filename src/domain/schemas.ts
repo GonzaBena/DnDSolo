@@ -74,6 +74,7 @@ const stateChange = z.discriminatedUnion("type", [
     type: z.literal("scene"),
     inCombat: z.boolean(),
     turnOf: z.string().nullable(),
+    order: z.array(z.string()),
   }),
   z.object({
     type: z.literal("quest"),
