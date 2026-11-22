@@ -1,3 +1,4 @@
+import { clearDismissedConflicts } from "./conflictDialog";
 import { getSyncRuntime, withRenewal } from "./runtime";
 import { syncStatus, type SyncState, type SyncStatus } from "./status";
 
@@ -16,7 +17,7 @@ export function mountSyncIndicator(host: HTMLElement): () => void {
     host.hidden = state === "off";
     host.replaceChildren();
     if (state === "off") return;
-    host.className = "sync-indicator";
+    host.classList.add("sync-indicator");
     host.dataset.state = state;
     if (state === "reconnect") {
       const button = document.createElement("button");
@@ -24,6 +25,7 @@ export function mountSyncIndicator(host: HTMLElement): () => void {
       button.className = "button sync-indicator__button";
       button.textContent = STATUS_LABEL.reconnect;
       button.addEventListener("click", () => {
+        clearDismissedConflicts();
         const sync = getSyncRuntime();
         if (sync) void withRenewal(sync, () => sync.engine.flush());
       });

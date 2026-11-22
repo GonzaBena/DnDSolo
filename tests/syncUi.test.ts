@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { GameState, Turn } from "../src/domain/types";
-import { describeVersion } from "../src/sync/conflictDialog";
+import { vi } from "vitest";
+import { clearDismissedConflicts, describeVersion, rememberDismissals } from "../src/sync/conflictDialog";
+import { ConflictPendingError } from "../src/sync/errors";
 import { STATUS_LABEL } from "../src/sync/indicator";
 import { newGame } from "./helpers";
 
@@ -41,5 +43,31 @@ describe("STATUS_LABEL", () => {
       reconnect: "Reconectar",
       error: "No se pudo sincronizar",
     });
+  });
+});
+
+describe("rememberDismissals", () => {
+  const conflict = { id: "g1", kind: "both_changed" as const, local: null, remote: null };
+
+  it("does not ask again for a dismissed id until cleared", async () => {
+    clearDismissedConflicts();
+    const show = vi.fn().mockRejectedValueOnce(new ConflictPendingError("x")).mockResolvedValue("local");
+    const resolve = rememberDismissals(show);
+
+    await expect(resolve(conflict)).rejects.toBeInstanceOf(ConflictPendingError);
+    await expect(resolve(conflict)).rejects.toBeInstanceOf(ConflictPendingError);
+    expect(show).toHaveBeenCalledTimes(1);
+
+    clearDismissedConflicts();
+    await expect(resolve(conflict)).resolves.toBe("local");
+    expect(show).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not remember other failures", async () => {
+    clearDismissedConflicts();
+    const show = vi.fn().mockRejectedValueOnce(new Error("boom")).mockResolvedValue("remote");
+    const resolve = rememberDismissals(show);
+    await expect(resolve(conflict)).rejects.toThrow("boom");
+    await expect(resolve(conflict)).resolves.toBe("remote");
   });
 });
