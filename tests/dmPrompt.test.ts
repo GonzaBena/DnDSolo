@@ -307,3 +307,42 @@ describe("suggestions in the prompt", () => {
     expect(DM_SYSTEM_PROMPT).toContain("Si pedís una tirada, mandá []");
   });
 });
+
+describe("campaign threads in the prompt", () => {
+  it("has a HILOS section with the first-turn rule", () => {
+    expect(DM_SYSTEM_PROMPT).toContain("HILOS");
+    expect(DM_SYSTEM_PROMPT).toContain('En el primer turno creá un hilo "goal"');
+  });
+
+  it("sends resolved threads compact and open ones whole", () => {
+    const game = {
+      ...newGame(),
+      threads: [
+        { title: "A", kind: "goal" as const, description: "Larga", status: "open" as const, secret: false },
+        { title: "B", kind: "mystery" as const, description: "Larga", status: "resolved" as const, secret: false },
+      ],
+    };
+    expect(stateForModel(game)).toMatchObject({
+      threads: [game.threads[0], { title: "B", kind: "mystery", status: "resolved" }],
+    });
+    const resolved = (stateForModel(game) as { threads: Record<string, unknown>[] }).threads[1]!;
+    expect(resolved).not.toHaveProperty("description");
+  });
+});
+
+describe("secret threads stay secret", () => {
+  it("a resolved secret thread still says it is secret", () => {
+    const game = {
+      ...newGame(),
+      threads: [{ title: "Culto", kind: "threat" as const, description: "x", status: "resolved" as const, secret: true }],
+    };
+    expect((stateForModel(game) as { threads: unknown[] }).threads[0]).toEqual({
+      title: "Culto", kind: "threat", status: "resolved", secret: true,
+    });
+  });
+
+  it("keeps secrets out of suggestions, quests and NPCs, and opens threads in games that have none", () => {
+    expect(DM_SYSTEM_PROMPT).toContain("ni en la narración, ni en sugerencias, misiones o NPCs");
+    expect(DM_SYSTEM_PROMPT).toContain('Si "threads" está vacío');
+  });
+});

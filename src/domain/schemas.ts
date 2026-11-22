@@ -5,6 +5,8 @@ import { DICE, ROLL_MODES, TURN_EVENTS, type DMResponse, type GameState } from "
 const attitude = z.enum(["friendly", "neutral", "hostile"]);
 const questStatus = z.enum(["active", "completed", "failed"]);
 const storyItemStatus = z.enum(["available", "taken", "gone"]);
+const threadKind = z.enum(["goal", "threat", "mystery"]);
+const threadStatus = z.enum(["open", "resolved"]);
 
 const diceCount = z.number().int().min(1).max(20);
 
@@ -84,6 +86,14 @@ const stateChange = z.discriminatedUnion("type", [
     title: z.string().min(1),
     description: z.string(),
     status: questStatus,
+  }),
+  z.object({
+    type: z.literal("thread"),
+    title: z.string().trim().min(1),
+    kind: threadKind,
+    description: z.string(),
+    status: threadStatus,
+    secret: z.boolean(),
   }),
   z.object({
     type: z.literal("item"),
@@ -276,6 +286,15 @@ export const gameStateSchema = z.object({
   ),
   scene: z.object({ inCombat: z.boolean(), turnOf: z.string().nullable(), order: z.array(z.string()) }),
   quests: z.array(z.object({ title: z.string(), description: z.string(), status: questStatus })),
+  threads: z.array(
+    z.object({
+      title: z.string(),
+      kind: threadKind,
+      description: z.string(),
+      status: threadStatus,
+      secret: z.boolean(),
+    }),
+  ),
   storyItems: z.array(
     z.object({ name: z.string(), description: z.string(), location: z.string(), status: storyItemStatus }),
   ),

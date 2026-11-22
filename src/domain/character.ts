@@ -92,6 +92,7 @@ export function createGame(input: CharacterInput, options: CreateOptions = {}): 
     npcs: [],
     scene: { inCombat: false, turnOf: null, order: [] },
     quests: [],
+    threads: [],
     storyItems,
     summary: "",
     summarizedThroughTurn: 0,

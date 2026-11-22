@@ -213,3 +213,12 @@ describe("v11 -> v12", () => {
     expect(migrated?.suggestedActions).toEqual([]);
   });
 });
+
+describe("v12 -> v13", () => {
+  it("starts with no campaign threads", () => {
+    const { threads: _t, ...rest } = newGame();
+    const migrated = migrateSave({ ...rest, version: 12 });
+    expect(migrated?.version).toBe(GAME_STATE_VERSION);
+    expect(migrated?.threads).toEqual([]);
+  });
+});
