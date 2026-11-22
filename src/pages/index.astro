@@ -200,7 +200,10 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
       })
       .catch(() => undefined);
 
-    void firstPaint.then(() => sync.engine.syncAll()).then(() => refresh().catch(showRefreshError));
+    void firstPaint
+      .then(() => sync.engine.syncAll())
+      .catch(() => undefined)
+      .then(() => refresh().catch(showRefreshError));
 
     gestureButton?.addEventListener("click", () => {
       // Synchronous inside the click, before any await: browsers block the popup otherwise.
@@ -224,8 +227,15 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
       const id = new URL(href).searchParams.get("id");
       // A closed or failed Google window still opens the local copy.
       void withRenewal(sync, () => syncBeforeOpen(sync, id)).finally(() => {
+        opening = false;
         location.href = href;
       });
+    });
+    // Back from /play restores this page from the bfcache with its old state: unlock the links.
+    window.addEventListener("pageshow", (event) => {
+      if (!event.persisted) return;
+      opening = false;
+      updateGesture();
     });
   }
 

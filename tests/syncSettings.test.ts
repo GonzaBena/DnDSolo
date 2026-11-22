@@ -29,6 +29,15 @@ describe("describeConnection", () => {
     expect(describeConnection({ state: "off", lastSyncedAt: null }, NOW)).toBe("Conectado a Google Drive");
     expect(describeConnection({ state: "idle", lastSyncedAt: null }, NOW)).toBe("Conectado a Google Drive");
   });
+  it("softly suggests syncing when the browser token is gone and nothing synced yet", () => {
+    expect(describeConnection({ state: "off", lastSyncedAt: null }, NOW, true)).toBe(
+      "Conectado a Google Drive · tocá «Sincronizar ahora» para actualizar",
+    );
+    // A real state wins over the hint.
+    expect(describeConnection({ state: "syncing", lastSyncedAt: null }, NOW, true)).toBe(
+      "Conectado a Google Drive · Sincronizando…",
+    );
+  });
   it("says it is syncing", () => {
     expect(describeConnection({ state: "syncing", lastSyncedAt: null }, NOW)).toBe(
       "Conectado a Google Drive · Sincronizando…",

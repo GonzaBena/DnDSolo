@@ -10,5 +10,8 @@ export interface DriveAuth {
   renewWithGesture(): Promise<boolean>;
   /** First consent; false if closed/denied. */
   connect(): Promise<boolean>;
+  /** Revokes at Google: ends the whole grant for this client (both modes share it). */
   disconnect(): Promise<void>;
+  /** Drops this auth's credentials without revoking at Google, so a grant made by the other mode survives. */
+  forget(): Promise<void>;
 }

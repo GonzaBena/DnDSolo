@@ -92,6 +92,16 @@ export class ServerDriveAuth implements DriveAuth {
     }
   }
 
+  /** Clears the cookie (and the token here) without the server revoking at Google. */
+  async forget(): Promise<void> {
+    this.token = null;
+    try {
+      await this.post("/api/drive/disconnect", { revoke: false });
+    } catch {
+      // Unreachable server: the cookie stays until it expires; this page no longer uses it.
+    }
+  }
+
   private async refresh(): Promise<string> {
     let response: Response;
     try {

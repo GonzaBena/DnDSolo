@@ -149,6 +149,26 @@ describe("ServerDriveAuth", () => {
     await expect(auth.getAccessToken()).rejects.toBeInstanceOf(AuthExpiredError);
   });
 
+  it("disconnect asks the server to revoke at Google", async () => {
+    const { fetchFn, auth } = await connected(60, [() => new Response(null, { status: 204 })]);
+    await auth.disconnect();
+    expect(JSON.parse(String(fetchFn.mock.calls[1]![1]?.body))).toEqual({});
+  });
+
+  it("forget clears the cookie without revoking and forgets the token", async () => {
+    const { fetchFn, auth } = await connected(60, [() => new Response(null, { status: 204 }), () => jsonResponse(401)]);
+    await auth.forget();
+    const [url, init] = fetchFn.mock.calls[1]!;
+    expect(url).toBe("/api/drive/disconnect");
+    expect(JSON.parse(String(init?.body))).toEqual({ revoke: false });
+    await expect(auth.getAccessToken()).rejects.toBeInstanceOf(AuthExpiredError);
+  });
+
+  it("forget does not throw when the server is unreachable", async () => {
+    const { auth } = await connected(60, [() => Promise.reject(new TypeError("Failed to fetch"))]);
+    await expect(auth.forget()).resolves.toBeUndefined();
+  });
+
   it("disconnect does not throw when the server is unreachable", async () => {
     const { auth } = await connected(60, [() => Promise.reject(new TypeError("Failed to fetch"))]);
     await expect(auth.disconnect()).resolves.toBeUndefined();

@@ -56,6 +56,10 @@ export class BrowserDriveAuth implements DriveAuth {
     }
   }
 
+  async forget(): Promise<void> {
+    this.token = null;
+  }
+
   /** Opens the Google window synchronously (popups need the live gesture). */
   private request(overrides: { prompt: string } | undefined, timeoutMs: number): Promise<boolean> {
     this.settle?.(false); // a newer request supersedes one still waiting

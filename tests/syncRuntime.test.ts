@@ -22,6 +22,7 @@ function fakeAuth(): DriveAuth & { disconnect: ReturnType<typeof vi.fn> } {
     renewWithGesture: async () => true,
     connect: async () => true,
     disconnect: vi.fn(async () => undefined),
+    forget: vi.fn(async () => undefined),
   };
 }
 

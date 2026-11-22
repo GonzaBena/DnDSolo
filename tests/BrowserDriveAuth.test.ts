@@ -142,6 +142,18 @@ describe("BrowserDriveAuth", () => {
     expect(auth.needsGesture()).toBe(true);
     await expect(auth.getAccessToken()).rejects.toBeInstanceOf(AuthExpiredError);
   });
+
+  it("forget drops the token locally without revoking at Google", async () => {
+    const { gis, auth } = setup();
+    const done = auth.connect();
+    gis.grant({ access_token: "abc" });
+    await done;
+
+    await auth.forget();
+    expect(gis.revoke).not.toHaveBeenCalled();
+    expect(auth.needsGesture()).toBe(true);
+    await expect(auth.getAccessToken()).rejects.toBeInstanceOf(AuthExpiredError);
+  });
 });
 
 describe("withRenewal", () => {
