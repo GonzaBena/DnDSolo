@@ -239,10 +239,12 @@ export class TurnEngine {
       narration: response.narration,
       events: response.events,
     };
+    // Nobody can answer a roll while unconscious or dead: death saves are asked by the system.
+    const canRoll = applied.state.players.some((p) => p.condition === "ok");
     let next: GameState = {
       ...applied.state,
       turns: [...state.turns, turn],
-      pendingPlayerRoll: response.playerRoll,
+      pendingPlayerRoll: canRoll ? response.playerRoll : null,
       pendingEnemyRolls: enemyRollsAllowed ? response.enemyRolls : [],
       // Whose turn it is only matters while enemy rolls are pending.
       ...(enemyRollsAllowed ? {} : { scene: { ...applied.state.scene, turnOf: null } }),
@@ -280,6 +282,9 @@ export class TurnEngine {
   ): Promise<{ state: GameState; saveError: unknown | null; before: GameState }> {
     const tracked = this.latestByGame.get(given.id);
     const base = tracked && tracked.turns.length >= given.turns.length ? tracked : given;
+    // A correction is not damage taken: at 0 HP it never counts as a failed death save.
+    const player = findSaver(base, playerId);
+    if (delta < 0 && player?.currentHp === 0) return { state: base, saveError: null, before: base };
     const applied = applyStateChanges(base, [{ type: "hp", target: playerId, delta }]);
     if (applied.rejected.length > 0) return { state: base, saveError: null, before: base };
     const next: GameState = { ...applied.state, updatedAt: this.now().toISOString() };

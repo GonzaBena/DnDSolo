@@ -949,6 +949,21 @@ describe("TurnEngine.adjustHp", () => {
     return { ...game, players: [{ ...game.players[0]!, stats, currentHp: 15 }] };
   };
 
+  it("a manual correction at 0 HP never counts as a failed death save", async () => {
+    const ctx = setup();
+    const down: GameState = {
+      ...tracked(),
+      players: [{ ...tracked().players[0]!, currentHp: 0, condition: "dying", deathSaves: { successes: 0, failures: 2 } }],
+    };
+    const out = await ctx.engine.adjustHp(down, PLAYER_ID, -5);
+    expect(out.state.players[0]).toMatchObject({ condition: "dying", deathSaves: { failures: 2 } });
+  });
+
+  it("a manual correction that drops to 0 still leaves the character dying", async () => {
+    const out = await setup().engine.adjustHp(tracked(), PLAYER_ID, -15);
+    expect(out.state.players[0]).toMatchObject({ currentHp: 0, condition: "dying" });
+  });
+
   it("changes the hit points without adding a turn, and saves", async () => {
     const ctx = setup();
     const state = tracked();
@@ -1105,5 +1120,27 @@ describe("death saves", () => {
     const outcome = await ctx.engine.playTurn(game, save(8));
     expect(outcome.ok).toBe(false);
     expect(outcome.state.players[0]!.deathSaves.failures).toBe(0);
+  });
+});
+
+describe("a roll asked while the player can't act", () => {
+  it("is dropped when the reply leaves the player dying", async () => {
+    const ctx = setup();
+    const game = await started(setup());
+    const stats = {
+      maxHp: 20, armorClass: 14, initiative: 3, speed: 30, hitDice: "3d8",
+      attacks: [], spellSaveDc: null, spellAttackBonus: null,
+    };
+    const up = { ...game, players: game.players.map((p) => ({ ...p, stats, currentHp: 3 })) };
+    ctx.llm.queueStructured(
+      reply({
+        stateChanges: [{ type: "hp", target: PLAYER_ID, delta: -10 }],
+        playerRoll: { die: "d20", count: 1, reason: "Salvación de Constitución", difficulty: 12, mode: "normal" },
+      }),
+    );
+    const outcome = await ctx.engine.playTurn(up, { type: "action", text: "Resisto" });
+    if (!outcome.ok) throw new Error("turn failed");
+    expect(outcome.state.players[0]!.condition).toBe("dying");
+    expect(outcome.state.pendingPlayerRoll).toBeNull();
   });
 });

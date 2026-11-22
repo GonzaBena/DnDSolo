@@ -69,7 +69,12 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
     };
   }
 
-  for (const change of changes) {
+  // Levels (and the subclass a level unlocks) are settled last, so the
+  // milestones earned anywhere in this reply count whatever the order.
+  const levelsLast = (c: StateChange) => c.type === "level" || c.type === "subclass";
+  const ordered = [...changes.filter((c) => !levelsLast(c)), ...changes.filter(levelsLast)];
+
+  for (const change of ordered) {
     switch (change.type) {
       case "inventory_add": {
         const index = findPlayerIndex(next.players, change.playerId);
@@ -163,7 +168,7 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
           const before = p.currentHp ?? 0;
           const currentHp = Math.min(max, Math.max(0, before + change.delta));
           // Damage taken at 0 HP is a failed death save (a stable character starts dying again).
-          if (change.delta < 0 && before === 0) return addFailures({ ...p, currentHp }, 1);
+          if (change.delta < 0 && before === 0) return addFailures({ ...p, currentHp }, change.critical ? 2 : 1);
           if (currentHp === 0) return { ...p, currentHp, condition: "dying" };
           if (p.condition !== "ok") return { ...p, currentHp, condition: "ok", deathSaves: { successes: 0, failures: 0 } };
           return { ...p, currentHp };
@@ -188,7 +193,9 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
           ...next,
           players: next.players.map((p) => ({
             ...p,
-            currentHp: p.stats === null ? p.currentHp : p.stats.maxHp,
+            // Stable at 0 HP: the rest gets them back on their feet with 1 HP,
+            // but its benefits need at least 1 HP at the start.
+            currentHp: p.stats === null ? p.currentHp : p.condition === "stable" ? 1 : p.stats.maxHp,
             condition: "ok",
             deathSaves: { successes: 0, failures: 0 },
           })),
@@ -248,6 +255,11 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
         break;
       case "quest": {
         const existing = next.quests.find((q) => sameName(q.title, change.title));
+        // Completing a quest earns a milestone, so a finished one stays finished.
+        if (existing?.status === "completed" && change.status !== "completed") {
+          rejected.push({ change, reason: "A completed quest can't be reopened." });
+          break;
+        }
         const quest = {
           title: change.title,
           // Closed quests are sent back to the DM without a description, so an

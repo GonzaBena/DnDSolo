@@ -34,7 +34,7 @@ COBERTURA
 
 PUNTOS DE GOLPE A 0
 - Un enemigo a 0 puntos de golpe muere o queda fuera de combate, como tenga sentido en la historia.
-- El jugador a 0 cae inconsciente. Cuando el jugador está "dying", el sistema le pide la salvación en su turno y te manda el resultado; no la pidas vos en "playerRoll" ni cambies sus contadores. Recibir daño estando a 0 ya cuenta como un fallo (lo aplica el sistema con el cambio "hp"). Cualquier curación lo levanta.
+- El jugador a 0 cae inconsciente. Cuando el jugador está "dying", el sistema le pide la salvación en su turno y te manda el resultado; no la pidas vos en "playerRoll" ni cambies sus contadores. Recibir daño estando a 0 ya cuenta como un fallo, y un crítico, dos (lo aplica el sistema con el cambio "hp"; marcá el crítico con "critical": true). Cualquier curación lo levanta.
 
 TERMINAR EL COMBATE
 - Cuando no quedan enemigos en pie o la pelea termina (huyen, se rinden), mandá el cambio "scene" con "inCombat": false.`;
