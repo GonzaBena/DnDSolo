@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { copyText } from "../src/character/clipboard";
 import { formValuesFromOption } from "../src/character/formValues";
+import { inventoryFromSheet, statsFromSheet } from "../src/domain/stats";
 import { buildSheet } from "../src/rules/buildSheet";
 import { findClass } from "../src/rules";
 import type { GeneratedOption } from "../src/rules/generateOptions";
@@ -23,6 +24,8 @@ describe("formValuesFromOption", () => {
       srdBackgroundId: "soldier",
       level: 1,
       background: "Una soldado retirada.",
+      stats: statsFromSheet(optionAt(1).sheet),
+      startingInventory: inventoryFromSheet(optionAt(1).sheet),
     });
   });
 

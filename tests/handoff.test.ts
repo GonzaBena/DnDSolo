@@ -30,6 +30,23 @@ describe("character handoff", () => {
     expect(takeCharacter(storage)).toBeNull();
   });
 
+  it("carries stats and the starting inventory", () => {
+    const storage = memoryStorage();
+    const full: CharacterInput = {
+      ...VALUES,
+      stats: { maxHp: 12, armorClass: 16, initiative: 1, speed: 9, hitDice: "1d10", attacks: [{ name: "Espada", attackBonus: 5, damage: "1d8+3" }], spellSaveDc: null, spellAttackBonus: null },
+      startingInventory: [{ name: "Espada larga", quantity: 1 }],
+    };
+    stashCharacter(storage, full);
+    expect(takeCharacter(storage)).toEqual(full);
+  });
+
+  it("drops values with malformed stats", () => {
+    const storage = memoryStorage();
+    storage.setItem(HANDOFF_KEY, JSON.stringify({ ...VALUES, stats: { maxHp: "mucho" } }));
+    expect(takeCharacter(storage)).toBeNull();
+  });
+
   it("returns null when nothing was stashed", () => {
     expect(takeCharacter(memoryStorage())).toBeNull();
   });

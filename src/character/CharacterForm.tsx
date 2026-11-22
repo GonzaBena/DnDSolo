@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { CharacterInput } from "../domain/character";
 import { BACKGROUND_OPTIONS, CLASSES, MAX_LEVEL, MIN_LEVEL, SPECIES_OPTIONS, createGame } from "../domain/character";
+import { statsFromForm } from "../domain/stats";
 import { IndexedDBGameRepo } from "../persistence/IndexedDBGameRepo";
 import { findClass } from "../rules";
 
@@ -15,14 +16,23 @@ export function CharacterForm({ values, onChange }: Props) {
 
   const subclass = findClass(values.classId)?.subclass;
   const subclassOption = subclass && values.level >= subclass.level ? subclass : null;
+  // Numbers that came with a generated sheet are shown, not edited.
+  const fromSheet = values.stats != null && values.startingInventory !== undefined;
+  const [manualHp, setManualHp] = useState("");
+  const [manualAc, setManualAc] = useState("");
   const set = (patch: Partial<CharacterInput>) => onChange({ ...values, ...patch });
+  // The generated stats and gear describe one exact build, so changing it makes them stale.
+  const setBuild = (patch: Partial<CharacterInput>) =>
+    set({ ...patch, ...(fromSheet ? { stats: null, startingInventory: undefined } : {}) });
+  const toNumber = (text: string) => (text.trim() === "" || !Number.isFinite(Number(text)) ? null : Math.trunc(Number(text)));
 
   async function submit(event: { preventDefault(): void }) {
     event.preventDefault();
     setSaving(true);
     setError(null);
     try {
-      const game = createGame({ ...values, subclassId: subclassOption ? values.subclassId : null });
+      const stats = fromSheet ? values.stats : statsFromForm(toNumber(manualHp), toNumber(manualAc));
+      const game = createGame({ ...values, stats, subclassId: subclassOption ? values.subclassId : null });
       // The new game becomes the latest save, which is what /play opens.
       await new IndexedDBGameRepo().save(game);
       location.href = "/play";
@@ -48,7 +58,7 @@ export function CharacterForm({ values, onChange }: Props) {
 
       <label className="field">
         <span>Especie</span>
-        <select value={values.speciesId} onChange={(e) => set({ speciesId: e.target.value })}>
+        <select value={values.speciesId} onChange={(e) => setBuild({ speciesId: e.target.value })}>
           {SPECIES_OPTIONS.map((o) => (
             <option key={o.id} value={o.id}>
               {o.label}
@@ -59,7 +69,7 @@ export function CharacterForm({ values, onChange }: Props) {
 
       <label className="field">
         <span>Clase</span>
-        <select value={values.classId} onChange={(e) => set({ classId: e.target.value, subclassId: null })}>
+        <select value={values.classId} onChange={(e) => setBuild({ classId: e.target.value, subclassId: null })}>
           {CLASSES.map((o) => (
             <option key={o.id} value={o.id}>
               {o.label}
@@ -76,7 +86,7 @@ export function CharacterForm({ values, onChange }: Props) {
           max={MAX_LEVEL}
           required
           value={values.level}
-          onChange={(e) => set({ level: Number(e.target.value) })}
+          onChange={(e) => setBuild({ level: Number(e.target.value) })}
         />
       </label>
 
@@ -97,7 +107,7 @@ export function CharacterForm({ values, onChange }: Props) {
 
       <label className="field">
         <span>Trasfondo (reglas)</span>
-        <select value={values.srdBackgroundId ?? ""} onChange={(e) => set({ srdBackgroundId: e.target.value || null })}>
+        <select value={values.srdBackgroundId ?? ""} onChange={(e) => setBuild({ srdBackgroundId: e.target.value || null })}>
           <option value="">Ninguno</option>
           {BACKGROUND_OPTIONS.map((o) => (
             <option key={o.id} value={o.id}>
@@ -118,6 +128,41 @@ export function CharacterForm({ values, onChange }: Props) {
           onChange={(e) => set({ background: e.target.value })}
           placeholder="Ej: ex soldado que busca a su hermana desaparecida."
         />
+      </label>
+
+      <label className="field">
+        <span>
+          PG máximos <small>(opcional)</small>
+        </span>
+        <input
+          type="number"
+          min={1}
+          max={999}
+          inputMode="numeric"
+          readOnly={fromSheet}
+          value={fromSheet ? values.stats!.maxHp : manualHp}
+          onChange={(e) => setManualHp(e.target.value)}
+        />
+      </label>
+
+      <label className="field">
+        <span>
+          Clase de armadura <small>(opcional)</small>
+        </span>
+        <input
+          type="number"
+          min={1}
+          max={40}
+          inputMode="numeric"
+          readOnly={fromSheet}
+          value={fromSheet ? values.stats!.armorClass : manualAc}
+          onChange={(e) => setManualAc(e.target.value)}
+        />
+        <small>
+          {fromSheet
+            ? "De la ficha generada"
+            : "Si los completás, la app lleva tus PG (hacen falta los dos)."}
+        </small>
       </label>
 
       <p className="status" role="status" aria-live="polite" data-tone={error ? "error" : undefined}>
