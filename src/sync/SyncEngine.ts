@@ -4,7 +4,7 @@ import { migrateSave } from "../persistence/migrations";
 import type { SyncBases } from "./bases";
 import { reconcile } from "./reconcile";
 import { AuthExpiredError, OfflineError, type RemoteGameStore } from "./RemoteGameStore";
-import { syncStatus } from "./status";
+import { syncStatus, type SyncStatus, type SyncState } from "./status";
 import type { LocalEntry, SyncAction } from "./types";
 
 export interface SyncConflict {
@@ -42,6 +42,8 @@ export class SyncEngine {
   private readonly pending = new Set<string>();
   /** Ids with a per-game sync queued but not started (collapses pushes). */
   private readonly queued = new Set<string>();
+  /** State of the last failed task, shown while its ids are still pending. */
+  private lastFailure: SyncState | null = null;
 
   constructor(private readonly deps: Deps) {}
 
@@ -101,18 +103,32 @@ export class SyncEngine {
       the task's result, or undefined when it failed (status already set). */
   private enqueue<T>(task: () => Promise<T>): Promise<T | undefined> {
     const run = this.chain.then(async () => {
-      syncStatus.set({ state: "syncing" });
+      setStatus({ state: "syncing" });
       try {
         const result = await task();
-        syncStatus.set({ state: "idle", lastSyncedAt: new Date().toISOString() });
+        this.settleStatus();
         return result;
       } catch (error) {
-        syncStatus.set({ state: failureState(error) });
+        this.lastFailure = failureState(error);
+        setStatus({ state: this.lastFailure });
         return undefined;
       }
     });
-    this.chain = run;
-    return run;
+    // Belt and braces: nothing may reject the chain, or every later task is skipped.
+    this.chain = run.catch(() => undefined);
+    return this.chain as Promise<T | undefined>;
+  }
+
+  /** After a success: "idle" only when nothing is left to send. */
+  private settleStatus(): void {
+    if (this.pending.size === 0) {
+      this.lastFailure = null;
+      setStatus({ state: "idle", lastSyncedAt: new Date().toISOString() });
+    } else if (this.queued.size > 0) {
+      setStatus({ state: "syncing" });
+    } else {
+      setStatus({ state: this.lastFailure ?? "error" });
+    }
   }
 
   private async syncOne(id: string): Promise<Outcome> {
@@ -155,7 +171,8 @@ export class SyncEngine {
         bases.forget(id);
         return "unchanged";
       case "forget_base":
-        bases.forget(id);
+        // After a delete_local the guard may have kept the game: keep its base too.
+        if (!(await this.deps.local.load(id))) bases.forget(id);
         return "unchanged";
       case "mark_synced":
         bases.set(id, action.updatedAt);
@@ -184,9 +201,10 @@ export class SyncEngine {
     return "downloaded";
   }
 
-  private async deleteLocal(id: string, seen: GameState | null): Promise<void> {
-    if (!(await this.localUnchangedSince(id, seen))) return;
+  private async deleteLocal(id: string, seen: GameState | null): Promise<boolean> {
+    if (!(await this.localUnchangedSince(id, seen))) return false;
     await this.deps.local.delete(id);
+    return true;
   }
 
   private async conflict(
@@ -201,8 +219,7 @@ export class SyncEngine {
     const choice = await this.deps.resolveConflict({ id, kind, local: seen, remote });
     if (choice === "local") return this.upload(id, bases);
     if (kind === "both_changed") return this.download(id, bases, seen);
-    await this.deleteLocal(id, seen);
-    bases.forget(id);
+    if (await this.deleteLocal(id, seen)) bases.forget(id);
     return "unchanged";
   }
 
@@ -210,10 +227,20 @@ export class SyncEngine {
     return migrateSave(await this.deps.remote.get(id));
   }
 
-  /** Guards local writes against a save that landed while Drive was answering. */
+  /** Guards local writes against a save that landed while Drive was answering.
+      Best-effort: a save inside this single IndexedDB round trip can still race. */
   private async localUnchangedSince(id: string, seen: GameState | null): Promise<boolean> {
     const now = await this.deps.local.load(id);
     return (now?.updatedAt ?? null) === (seen?.updatedAt ?? null);
+  }
+}
+
+/** A throwing status listener must not break syncing. */
+function setStatus(patch: Partial<SyncStatus>): void {
+  try {
+    syncStatus.set(patch);
+  } catch {
+    // The listener's bug is its own; the status value is already updated.
   }
 }
 

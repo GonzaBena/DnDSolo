@@ -125,6 +125,7 @@ describe("SyncEngine", () => {
 
     expect((await remote.list())[0]!.turnCount).toBe(3);
     expect(uploaded.at(-1)).toBe(3);
+    expect(uploaded.length).toBeLessThanOrEqual(2); // one in flight + one collapsed
     expect(uploaded).toEqual([...uploaded].sort((x, y) => x - y));
   });
 
@@ -221,5 +222,96 @@ describe("SyncEngine", () => {
     expect(resolve).toHaveBeenCalledWith(expect.objectContaining({ kind: "deleted_remotely", remote: null }));
     const entry = (await remote.list())[0]!;
     expect(entry).toMatchObject({ deleted: false, updatedAt: played.updatedAt });
+  });
+
+  it("does not report synced while another game is still waiting to upload", async () => {
+    const remote = new InMemoryRemoteGameStore();
+    const put = remote.put.bind(remote);
+    remote.put = async (state) => {
+      if (state.id === "x") throw new OfflineError();
+      await put(state);
+    };
+    const a = device("A", remote);
+
+    await a.repo.save({ ...game(1), id: "x" });
+    await a.engine.flush();
+    await a.repo.save({ ...game(2), id: "y" });
+    await a.engine.syncGame("y");
+    expect(syncStatus.get().state).toBe("offline");
+
+    remote.put = put;
+    await a.engine.flush();
+    expect(syncStatus.get().state).toBe("idle");
+    expect((await remote.list()).map((r) => r.id).sort()).toEqual(["x", "y"]);
+  });
+
+  it("keeps the base when a save during the dialog stops the local delete", async () => {
+    const remote = new InMemoryRemoteGameStore();
+    const a = device("A", remote);
+    let b: ReturnType<typeof device>;
+    const resolve = vi.fn(async (_c: SyncConflict): Promise<ConflictChoice> => {
+      await b.local.save(game(3, 2)); // the player kept playing while the dialog was open
+      return "remote";
+    });
+    b = device("B", remote, resolve);
+    const state = game(1);
+    await a.repo.save(state);
+    await a.engine.flush();
+    await b.engine.syncAll();
+    await a.repo.delete(state.id);
+    await a.engine.flush();
+    await b.local.save(game(2, 1));
+
+    await b.engine.syncAll();
+
+    expect(resolve).toHaveBeenCalledTimes(1);
+    expect((await b.local.load(state.id))?.turns).toHaveLength(2);
+    expect(new SyncBases("B:in-memory-account").all()[state.id]).toBe(state.updatedAt);
+  });
+
+  it("keeps syncing after a status listener throws", async () => {
+    const remote = new InMemoryRemoteGameStore();
+    const a = device("A", remote);
+    let thrown = false;
+    const unsubscribe = syncStatus.subscribe(() => {
+      if (thrown) return;
+      thrown = true;
+      throw new Error("listener bug");
+    });
+    try {
+      await a.repo.save(game(1));
+      await expect(a.engine.flush()).resolves.toBeUndefined();
+      await a.repo.save(game(2, 1));
+      await a.engine.flush();
+      expect(thrown).toBe(true);
+      expect((await remote.list())[0]!.turnCount).toBe(1);
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it("does not overwrite a save that lands while a download is in flight", async () => {
+    const remote = new InMemoryRemoteGameStore();
+    const resolve = vi.fn(async (_c: SyncConflict): Promise<ConflictChoice> => "local");
+    const a = device("A", remote);
+    const b = device("B", remote, resolve);
+    await a.repo.save(game(1));
+    await a.engine.flush();
+    await b.engine.syncAll();
+    await a.repo.save(game(2, 1));
+    await a.engine.flush();
+
+    const played = game(3, 2);
+    const get = remote.get.bind(remote);
+    remote.get = async (id) => {
+      remote.get = get;
+      await b.local.save(played); // saved locally, push not scheduled yet
+      return get(id);
+    };
+    await b.engine.syncAll();
+    expect(await b.local.load(played.id)).toEqual(played);
+
+    await b.engine.syncAll();
+    expect(resolve).toHaveBeenCalledWith(expect.objectContaining({ kind: "both_changed" }));
   });
 });
