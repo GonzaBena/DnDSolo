@@ -57,7 +57,7 @@ export function CharacterForm({ values, onChange }: Props) {
           ? mergeReviewedStats(values.stats, manualHp, manualAc)
           : fromSheet
             ? values.stats
-            : statsFromForm(toNumber(manualHp), toNumber(manualAc));
+            : statsFromForm(toNumber(manualHp), toNumber(manualAc), values.speciesId);
       const game = createGame({ ...values, stats, subclassId: subclassOption ? values.subclassId : null });
       // The new game becomes the latest save, which is what /play opens.
       await new IndexedDBGameRepo().save(game);

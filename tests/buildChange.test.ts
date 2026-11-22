@@ -33,6 +33,13 @@ describe("applyBuildChange", () => {
     expect(result.values.startingInventory).toEqual(human.startingInventory);
   });
 
+  it("sets the new species' base speed on the kept stats when the rebuild fails", () => {
+    const result = applyBuildChange(human, { speciesId: "goliath" });
+    expect(result.review).toBe(true);
+    expect(human.stats!.speed).toBe(30);
+    expect(result.values.stats).toEqual({ ...human.stats, speed: 35 });
+  });
+
   it("keeps the previous stats for review when there are no original choices", () => {
     const result = applyBuildChange({ ...human, choices: undefined }, { speciesId: "elf" });
     expect(result.review).toBe(true);

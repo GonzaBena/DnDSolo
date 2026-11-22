@@ -3,7 +3,7 @@ import { migrateSave } from "../src/persistence/migrations";
 import { statsFromForm } from "../src/domain/stats";
 import { newGame } from "./helpers";
 
-const stats = statsFromForm(20, 14)!;
+const stats = statsFromForm(20, 14, "human")!;
 const withPlayer = (patch: Record<string, unknown>) => {
   const game = newGame();
   return { ...game, players: game.players.map((p) => ({ ...p, ...patch })) };

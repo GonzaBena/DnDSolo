@@ -64,25 +64,32 @@ describe("inventoryFromSheet", () => {
 
 describe("statsFromForm", () => {
   it("needs both numbers", () => {
-    expect(statsFromForm(18, 16)).toEqual({
-      maxHp: 18, armorClass: 16, initiative: 0, speed: 9, hitDice: "", attacks: [], spellSaveDc: null, spellAttackBonus: null,
+    expect(statsFromForm(18, 16, "human")).toEqual({
+      maxHp: 18, armorClass: 16, initiative: 0, speed: 30, hitDice: "", attacks: [], spellSaveDc: null, spellAttackBonus: null,
     });
-    expect(statsFromForm(18, null)).toBeNull();
-    expect(statsFromForm(null, 16)).toBeNull();
+    expect(statsFromForm(18, null, "human")).toBeNull();
+    expect(statsFromForm(null, 16, "human")).toBeNull();
+  });
+
+  it("takes the speed in feet from the species", () => {
+    expect(statsFromForm(18, 16, "gnome")!.speed).toBe(30);
+    expect(statsFromForm(18, 16, "human")!.speed).toBe(30);
+    expect(statsFromForm(18, 16, "goliath")!.speed).toBe(35);
+    expect(statsFromForm(18, 16, "unknown")!.speed).toBe(30);
   });
 
   it("needs positive whole numbers", () => {
-    expect(statsFromForm(0, 16)).toBeNull();
-    expect(statsFromForm(18, 0)).toBeNull();
-    expect(statsFromForm(-4, 16)).toBeNull();
-    expect(statsFromForm(18.5, 16)).toBeNull();
-    expect(statsFromForm(18, NaN)).toBeNull();
-    expect(statsFromForm(1, 1)).not.toBeNull();
+    expect(statsFromForm(0, 16, "human")).toBeNull();
+    expect(statsFromForm(18, 0, "human")).toBeNull();
+    expect(statsFromForm(-4, 16, "human")).toBeNull();
+    expect(statsFromForm(18.5, 16, "human")).toBeNull();
+    expect(statsFromForm(18, NaN, "human")).toBeNull();
+    expect(statsFromForm(1, 1, "human")).not.toBeNull();
   });
 });
 
 describe("createGame with a sheet", () => {
-  const stats = statsFromForm(18, 16)!;
+  const stats = statsFromForm(18, 16, "human")!;
   const startingInventory = [{ name: "Daga", quantity: 2 }];
 
   it("starts at full HP with the inventory, already marked as taken", () => {

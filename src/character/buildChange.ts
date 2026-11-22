@@ -1,6 +1,6 @@
 import { MAX_LEVEL, MIN_LEVEL, type CharacterInput } from "../domain/character";
 import type { CharacterStats } from "../domain/types";
-import { inventoryFromSheet, statsFromSheet } from "../domain/stats";
+import { baseSpeed, inventoryFromSheet, statsFromSheet } from "../domain/stats";
 import { buildSheet } from "../rules/buildSheet";
 
 export interface BuildChangeResult {
@@ -40,7 +40,8 @@ export function applyBuildChange(values: CharacterInput, patch: Partial<Characte
       };
     }
   }
-  return { values: next, review: true };
+  // Kept stats: the old species' speed no longer applies; the lineage is unknown, so use the base.
+  return { values: { ...next, stats: { ...values.stats!, speed: baseSpeed(next.speciesId) } }, review: true };
 }
 
 /** Text of a number field -> whole number, or null when empty or not a number. */

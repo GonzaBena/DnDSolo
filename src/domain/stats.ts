@@ -1,3 +1,4 @@
+import { SPECIES } from "../rules";
 import type { CharacterSheet } from "../rules/types";
 import type { CharacterStats, InventoryItem } from "./types";
 
@@ -32,9 +33,16 @@ export function inventoryFromSheet(sheet: CharacterSheet): InventoryItem[] {
   return items;
 }
 
-/** Manual form: both numbers or nothing. */
-export function statsFromForm(maxHp: number | null, armorClass: number | null): CharacterStats | null {
+const DEFAULT_SPEED = 30;
+
+/** Base walking speed in feet of a species; 30 for an unknown one. */
+export function baseSpeed(speciesId: string): number {
+  return SPECIES.find((s) => s.id === speciesId)?.speed ?? DEFAULT_SPEED;
+}
+
+/** Manual form: both numbers or nothing. Speed (feet) comes from the species. */
+export function statsFromForm(maxHp: number | null, armorClass: number | null, speciesId: string): CharacterStats | null {
   if (maxHp === null || armorClass === null) return null;
   if (!Number.isInteger(maxHp) || !Number.isInteger(armorClass) || maxHp < 1 || armorClass < 1) return null;
-  return { maxHp, armorClass, initiative: 0, speed: 9, hitDice: "", attacks: [], spellSaveDc: null, spellAttackBonus: null };
+  return { maxHp, armorClass, initiative: 0, speed: baseSpeed(speciesId), hitDice: "", attacks: [], spellSaveDc: null, spellAttackBonus: null };
 }
