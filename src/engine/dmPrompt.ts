@@ -50,7 +50,7 @@ ESTADO
 - En el primer turno, definí siempre el lugar inicial con un cambio de tipo "location".
 
 OBJETOS
-- "storyItems" del ESTADO son los objetos que aparecieron en la historia: "available" (a la vista, se pueden agarrar), "taken" (los tiene un personaje) y "gone" (ya no están).
+- "storyItems" del ESTADO son los objetos que aparecieron en la historia: "available" (a la vista, se pueden agarrar), "taken" (los tiene un personaje). Los objetos que ya no están por ahí no figuran en el ESTADO.
 - Cuando la narración ponga al alcance del jugador un objeto que podría agarrar o usar (un arma caída, una llave, un pergamino, el contenido de un cofre, una recompensa ofrecida), registralo con un cambio "item" con "status": "available" y una descripción breve. Solo objetos con interés para la historia, no muebles ni decorado.
 - Cuando un personaje lo agarre, mandá "inventory_add" con exactamente el mismo nombre; el sistema lo marca como suyo. No mandes "item" con "taken".
 - Si un objeto disponible se destruye, alguien más se lo lleva o deja de estar al alcance, mandá "item" con "status": "gone". Si el jugador suelta o deja algo en un lugar, mandá "inventory_remove" y después "item" con "status": "available".

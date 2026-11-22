@@ -173,7 +173,18 @@ describe("compact prompt", () => {
   };
 
   it("has no indentation in the state", () => {
-    expect(buildTurnPrompt(big, { type: "start" }, 6)).not.toContain('\n  "');
+    const prompt = buildTurnPrompt(big, { type: "start" }, 6);
+    const section = prompt.slice("ESTADO\n".length, prompt.indexOf("\n\nREGLAS DE LOS PERSONAJES"));
+    expect(prompt.startsWith("ESTADO\n")).toBe(true);
+    expect(section.length).toBeGreaterThan(0);
+    expect(section).not.toContain('\n  "');
+    expect(section).not.toContain("\n");
+  });
+
+  it("does not claim the ESTADO lists gone items, but still asks for the gone change", () => {
+    const line = DM_SYSTEM_PROMPT.split("\n").find((l) => l.includes('"storyItems" del ESTADO'))!;
+    expect(line).not.toMatch(/"gone"/);
+    expect(DM_SYSTEM_PROMPT).toContain('"item" con "status": "gone"');
   });
 
   it("makes the ESTADO section at least 40% shorter than the old indented serializer", () => {
