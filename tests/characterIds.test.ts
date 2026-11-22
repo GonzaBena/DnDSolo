@@ -195,3 +195,21 @@ describe("v10 -> v11", () => {
     expect(migrated?.players[0]?.condition).toBe("dying");
   });
 });
+
+describe("v11 -> v12", () => {
+  it("adds untracked NPC hit points, an empty initiative order and no suggestions", () => {
+    const game = newGame();
+    const { suggestedActions: _s, ...rest } = game;
+    const legacy = {
+      ...rest,
+      version: 11,
+      scene: { inCombat: false, turnOf: null },
+      npcs: [{ name: "Berta", description: "", attitude: "neutral", present: true, voice: "", portrait: null }],
+    };
+    const migrated = migrateSave(legacy);
+    expect(migrated?.version).toBe(GAME_STATE_VERSION);
+    expect(migrated?.npcs[0]).toMatchObject({ hp: null, maxHp: null });
+    expect(migrated?.scene.order).toEqual([]);
+    expect(migrated?.suggestedActions).toEqual([]);
+  });
+});

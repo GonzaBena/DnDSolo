@@ -350,7 +350,7 @@ describe("TurnEngine.playTurn", () => {
     let state = await started(ctx);
     const more = reply({
       enemyRolls: [{ die: "d20", count: 1, modifier: 0, reason: "Otro", mode: "normal" }],
-      stateChanges: [{ type: "scene", inCombat: true, turnOf: "Lira" }],
+      stateChanges: [{ type: "scene", inCombat: true, turnOf: "Lira", order: [] }],
     });
     ctx.llm.queueStructured(more, more, more, more);
     state = (await ctx.engine.playTurn(state, { type: "action", text: "Avanzo" })).state;
@@ -367,11 +367,11 @@ describe("TurnEngine.playTurn", () => {
   describe("scene when the enemy-roll chain hits its limit", () => {
     const npc = {
       type: "npc" as const, name: "Goblin", description: "Un goblin", attitude: "hostile" as const,
-      present: true, voice: "", portrait: null,
+      present: true, voice: "", portrait: null, maxHp: null,
     };
     const fight = reply({
       enemyRolls: [{ die: "d20", count: 1, modifier: 0, reason: "Otro", mode: "normal" }],
-      stateChanges: [npc, { type: "scene", inCombat: true, turnOf: "Goblin" }],
+      stateChanges: [npc, { type: "scene", inCombat: true, turnOf: "Goblin", order: [] }],
     });
 
     async function chain(turns: number) {
@@ -390,13 +390,13 @@ describe("TurnEngine.playTurn", () => {
     it("keeps turnOf and the rolls while rolls are still allowed (2nd chained turn)", async () => {
       const state = await chain(2);
       expect(state.pendingEnemyRolls).toHaveLength(1);
-      expect(state.scene).toEqual({ inCombat: true, turnOf: "Goblin" });
+      expect(state.scene).toEqual({ inCombat: true, turnOf: "Goblin", order: [] });
     });
 
     it("on the dropping turn only turnOf is reset; inCombat stays true", async () => {
       const state = await chain(3);
       expect(state.pendingEnemyRolls).toEqual([]);
-      expect(state.scene).toEqual({ inCombat: true, turnOf: null });
+      expect(state.scene).toEqual({ inCombat: true, turnOf: null, order: [] });
     });
   });
 
@@ -1142,5 +1142,28 @@ describe("a roll asked while the player can't act", () => {
     if (!outcome.ok) throw new Error("turn failed");
     expect(outcome.state.players[0]!.condition).toBe("dying");
     expect(outcome.state.pendingPlayerRoll).toBeNull();
+  });
+});
+
+describe("suggested actions", () => {
+  it("are saved with the turn", async () => {
+    const ctx = setup();
+    const game = await started(ctx);
+    ctx.llm.queueStructured(reply({ suggestions: ["Interrogo al guardia", "Reviso la puerta"] }));
+    const outcome = await ctx.engine.playTurn(game, { type: "action", text: "Miro" });
+    expect(outcome.ok && outcome.state.suggestedActions).toEqual(["Interrogo al guardia", "Reviso la puerta"]);
+  });
+
+  it("are dropped when the DM asks for a roll", async () => {
+    const ctx = setup();
+    const game = await started(ctx);
+    ctx.llm.queueStructured(
+      reply({
+        suggestions: ["Corro"],
+        playerRoll: { die: "d20", count: 1, reason: "Sigilo", difficulty: 12, mode: "normal" },
+      }),
+    );
+    const outcome = await ctx.engine.playTurn(game, { type: "action", text: "Me escondo" });
+    expect(outcome.ok && outcome.state.suggestedActions).toEqual([]);
   });
 });

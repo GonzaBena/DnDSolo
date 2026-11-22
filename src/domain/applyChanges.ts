@@ -149,6 +149,19 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
         break;
       }
       case "hp": {
+        // An NPC by name first: with a lone player any unknown target would be them.
+        const npcName = npcNameFromArchetype(change.target);
+        const npc = next.npcs.find((n) => sameName(n.name, npcName));
+        const isPlayer = next.players.some((p) => p.id === change.target || sameName(p.name, change.target));
+        if (npc && !isPlayer) {
+          if (npc.maxHp === null || npc.hp === null) {
+            rejected.push({ change, reason: "That NPC has no hit points tracked." });
+            break;
+          }
+          const hp = Math.min(npc.maxHp, Math.max(0, npc.hp + change.delta));
+          next = { ...next, npcs: next.npcs.map((n) => (n === npc ? { ...n, hp } : n)) };
+          break;
+        }
         const index = findPlayerByTarget(next.players, change.target);
         if (index === -1) {
           rejected.push({ change, reason: "Unknown player." });
@@ -240,6 +253,10 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
           voice: change.voice.trim() || existing?.voice || "",
           // The first portrait sticks: an NPC keeps their face for the whole game.
           portrait: existing?.portrait ?? change.portrait ?? null,
+          // Hit points too: set once, then only "hp" changes move them.
+          ...(existing && existing.maxHp !== null
+            ? { hp: existing.hp, maxHp: existing.maxHp }
+            : { hp: change.maxHp, maxHp: change.maxHp }),
         };
         next = { ...next, npcs: upsert(next.npcs, npc, (n) => sameName(n.name, name)) };
         break;
@@ -250,6 +267,12 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
           scene: {
             inCombat: change.inCombat,
             turnOf: change.turnOf === null ? null : npcNameFromArchetype(change.turnOf),
+            // Checked against who is in the scene once every change is in (settleTurn).
+            order: !change.inCombat
+              ? []
+              : change.order.length > 0
+                ? change.order.map(npcNameFromArchetype)
+                : next.scene.order,
           },
         };
         break;
@@ -329,13 +352,22 @@ function syncStoryItems(state: GameState): GameState {
 /** The turn can only belong to someone who is in the scene. A name that
     matches nobody (or someone who just left) hands it back to the player
     instead of leaving the drawer with no one highlighted. */
-function settleTurn(state: GameState, changes: StateChange[], rejected: RejectedChange[]): GameState {
+function settleTurn(given: GameState, changes: StateChange[], rejected: RejectedChange[]): GameState {
+  const inScene = [
+    ...given.players.map((p) => p.name),
+    ...given.npcs.filter((n) => n.present).map((n) => n.name),
+  ];
+  // The initiative order names known characters, as stored, once each. Someone
+  // who steps out keeps their place; the scene only shows who is here.
+  const known = [...given.players.map((p) => p.name), ...given.npcs.map((n) => n.name)];
+  const order = [
+    ...new Set(
+      given.scene.order.flatMap((name) => known.find((member) => sameName(member, name)) ?? []),
+    ),
+  ];
+  const state = { ...given, scene: { ...given.scene, order } };
   const { turnOf } = state.scene;
   if (turnOf === null) return state;
-  const inScene = [
-    ...state.players.map((p) => p.name),
-    ...state.npcs.filter((n) => n.present).map((n) => n.name),
-  ];
   const match = inScene.find((name) => sameName(name, turnOf));
   if (match !== undefined) return { ...state, scene: { ...state.scene, turnOf: match } };
   const change = changes.findLast((c) => c.type === "scene");

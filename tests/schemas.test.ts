@@ -167,3 +167,27 @@ describe("hp state change", () => {
     expect(parse({ type: "hp", target: "", delta: -4 }).ok).toBe(false);
   });
 });
+
+describe("suggestions", () => {
+  it("never fails a reply over them: trims, drops empty and repeated ones, cuts long ones and keeps three", () => {
+    const messy = JSON.stringify({
+      ...reply(),
+      suggestions: ["  Corro ", "", "Corro", "x".repeat(70), "Grito", "Ataco"],
+    });
+    const parsed = parseDMResponse(messy);
+    if (!parsed.ok) throw new Error(parsed.reason);
+    expect(parsed.response.suggestions).toEqual(["Corro", "x".repeat(59) + "…", "Grito"]);
+  });
+
+  it("treats missing suggestions as none", () => {
+    const { suggestions: _s, ...rest } = reply();
+    const parsed = parseDMResponse(JSON.stringify(rest));
+    expect(parsed.ok && parsed.response.suggestions).toEqual([]);
+  });
+
+  it("keeps narration first in the provider schema", () => {
+    const ordering = (dmResponseJsonSchema as { propertyOrdering: string[] }).propertyOrdering;
+    expect(ordering[0]).toBe("narration");
+    expect(ordering).toContain("suggestions");
+  });
+});

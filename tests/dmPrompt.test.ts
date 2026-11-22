@@ -47,7 +47,7 @@ describe("buildTurnPrompt", () => {
   it("shows the DM how each NPC talks", () => {
     const game = newGame();
     const npcs = [
-      { name: "Berta", description: "Posadera", attitude: "neutral" as const, present: true, voice: "Seca, frases cortas", portrait: null },
+      { name: "Berta", description: "Posadera", attitude: "neutral" as const, present: true, voice: "Seca, frases cortas", portrait: null, hp: null, maxHp: null },
     ];
     expect(buildTurnPrompt({ ...game, npcs }, { type: "start" }, 6)).toContain("Seca, frases cortas");
   });
@@ -77,13 +77,13 @@ describe("combat rules", () => {
   it("are sent only while in combat", () => {
     const game = newGame();
     const calm = buildTurnPrompt(game, { type: "start" }, 6);
-    const fight = buildTurnPrompt({ ...game, scene: { inCombat: true, turnOf: null } }, { type: "start" }, 6);
+    const fight = buildTurnPrompt({ ...game, scene: { inCombat: true, turnOf: null, order: [] } }, { type: "start" }, 6);
     expect(calm).not.toContain("REGLAS DE COMBATE\n");
     expect(fight).toContain("REGLAS DE COMBATE\n");
   });
 
   it("resolve an attack against the target's AC, then ask for damage", () => {
-    const fight = buildTurnPrompt({ ...newGame(), scene: { inCombat: true, turnOf: null } }, { type: "start" }, 6);
+    const fight = buildTurnPrompt({ ...newGame(), scene: { inCombat: true, turnOf: null, order: [] } }, { type: "start" }, 6);
     expect(fight).toContain("Clase de Armadura (CA) del objetivo");
     expect(fight).toContain("pedile la tirada de daño");
   });
@@ -120,15 +120,15 @@ describe("advantage in the turn prompt", () => {
 describe("advantage", () => {
   it("is asked for with a mode, never as two dice", () => {
     expect(DM_SYSTEM_PROMPT).toContain('"mode"');
-    const fight = buildTurnPrompt({ ...newGame(), scene: { inCombat: true, turnOf: null } }, { type: "start" }, 6);
+    const fight = buildTurnPrompt({ ...newGame(), scene: { inCombat: true, turnOf: null, order: [] } }, { type: "start" }, 6);
     expect(fight).toContain('"mode": "advantage"');
     expect(fight).not.toContain('"count": 2');
   });
 });
 
 describe("stateForModel", () => {
-  const present = { name: "Berta", description: "Posadera", attitude: "friendly" as const, present: true, voice: "Seca", portrait: "innkeeper-female" };
-  const absent = { name: "Corvo", description: "Mercader", attitude: "neutral" as const, present: false, voice: "Suave", portrait: "merchant-male" };
+  const present = { name: "Berta", description: "Posadera", attitude: "friendly" as const, present: true, voice: "Seca", portrait: "innkeeper-female", hp: null, maxHp: null };
+  const absent = { name: "Corvo", description: "Mercader", attitude: "neutral" as const, present: false, voice: "Suave", portrait: "merchant-male", hp: null, maxHp: null };
 
   it("sends present NPCs in full and absent NPCs as name and attitude only", () => {
     const state = stateForModel({ ...newGame(), npcs: [present, absent] }) as { npcs: unknown[] };
@@ -166,7 +166,7 @@ describe("compact prompt", () => {
   const big: GameState = {
     ...newGame(),
     npcs: Array.from({ length: 30 }, (_, i) => ({
-      name: `Aldeano ${i}`, description: long("Aldeano", i), attitude: "neutral" as const, present: false, voice: "Habla pausado, dice 'bueno' seguido", portrait: "guard-male",
+      name: `Aldeano ${i}`, description: long("Aldeano", i), attitude: "neutral" as const, present: false, voice: "Habla pausado, dice 'bueno' seguido", portrait: "guard-male", hp: null, maxHp: null,
     })),
     storyItems: Array.from({ length: 30 }, (_, i) => ({
       name: `Objeto ${i}`, description: long("Objeto", i), location: "Taberna", status: "gone" as const,
@@ -225,14 +225,13 @@ describe("compact prompt", () => {
     expect(DM_SYSTEM_PROMPT).toContain('Si "stats" es null');
   });
 
-  it("limits the hp change to players and keeps enemy HP in the narration", () => {
+  it("explains the hp change for players first", () => {
     expect(DM_SYSTEM_PROMPT).toContain("Cuando un jugador recibe daño o curación");
     expect(DM_SYSTEM_PROMPT).not.toContain("Cuando un personaje recibe daño");
-    expect(DM_SYSTEM_PROMPT).toContain("los PG de enemigos y NPCs los llevás vos en la narración");
   });
 
   it("combat rules tie enemy attacks to the AC and hp change, and spell saves to stats", () => {
-    const fight = buildTurnPrompt({ ...newGame(), scene: { inCombat: true, turnOf: null } }, { type: "start" }, 6);
+    const fight = buildTurnPrompt({ ...newGame(), scene: { inCombat: true, turnOf: null, order: [] } }, { type: "start" }, 6);
     expect(fight).toContain('Compará el ataque con la CA de "stats" del jugador');
     expect(fight).toContain('con un cambio "hp"');
     expect(fight).toContain('"spellSaveDc" de "stats"');
@@ -285,5 +284,26 @@ describe("critical hits at 0 HP in the prompt", () => {
   it("asks for critical on hp changes and keeps the rule in combat", () => {
     expect(DM_SYSTEM_PROMPT).toContain('"critical": true');
     expect(COMBAT_RULES).toContain("un crítico, dos");
+  });
+});
+
+describe("enemy hit points in the prompt", () => {
+  it("has the DM set maxHp and send damage to enemies with hp", () => {
+    expect(COMBAT_RULES).toContain('fijá su "maxHp" en el cambio "npc"');
+    expect(DM_SYSTEM_PROMPT).not.toContain("los PG de enemigos y NPCs los llevás vos");
+    expect(DM_SYSTEM_PROMPT).toContain('"maxHp"');
+  });
+});
+
+describe("initiative order in the prompt", () => {
+  it("asks for the order once every initiative is in", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('mandá "scene" con "order"');
+  });
+});
+
+describe("suggestions in the prompt", () => {
+  it("asks for up to three short first-person actions, none with a roll pending", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('En "suggestions", hasta tres acciones cortas');
+    expect(DM_SYSTEM_PROMPT).toContain("Si pedís una tirada, mandá []");
   });
 });

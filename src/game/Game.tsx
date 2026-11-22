@@ -16,6 +16,8 @@ import { DieShape } from "./DieShape";
 import { InfoDrawer } from "./InfoDrawer";
 import { RollDialog } from "./RollDialog";
 import { SceneDrawer } from "./SceneDrawer";
+import { Suggestions } from "./Suggestions";
+import { withSuggestion } from "./suggestions";
 import { ScenePanel } from "./ScenePanel";
 import { expandSlashCommands } from "./slashCommands";
 import { freshest } from "./freshest";
@@ -62,6 +64,7 @@ export default function Game() {
   const [deathSaveOpen, setDeathSaveOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [zenMode, setZenMode] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(true);
   const { atBottom, scrollToBottom, follow } = useStickToBottom();
   const startedRef = useRef(false);
   // The newest playing state, so a summary that resolves late is applied to
@@ -92,6 +95,7 @@ export default function Game() {
       location.replace("/settings?missing=1");
       return;
     }
+    setShowSuggestions(settings.showSuggestions);
     const repo = new IndexedDBGameRepo();
     const engine = new TurnEngine({
       llm: new GeminiClient(settings.apiKey, settings.model, {
@@ -497,6 +501,16 @@ export default function Game() {
           onClose={() => setDeathSaveOpen(false)}
           onSubmit={submitDeathSave}
         />
+
+        {showSuggestions && canAct && !dying && !playerRoll && (
+          <Suggestions
+            actions={state.suggestedActions}
+            onPick={(action) => {
+              setDraft((current) => withSuggestion(current, action));
+              draftRef.current?.focus();
+            }}
+          />
+        )}
 
         {dying && hero ? (
           <div className="action-form dying-notice" role="status">

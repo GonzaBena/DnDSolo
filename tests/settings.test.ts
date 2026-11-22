@@ -10,7 +10,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe("loadSettings", () => {
   it("defaults fastNarration to false for old saves", () => {
     stubStorage({ apiKey: "k", model: "m" });
-    expect(loadSettings()).toEqual({ apiKey: "k", model: "m", fastNarration: false });
+    expect(loadSettings()).toEqual({ apiKey: "k", model: "m", fastNarration: false, showSuggestions: true });
   });
   it("keeps a saved fastNarration", () => {
     stubStorage({ apiKey: "k", model: "m", fastNarration: true });
@@ -19,5 +19,11 @@ describe("loadSettings", () => {
   it("ignores a non-boolean fastNarration", () => {
     stubStorage({ apiKey: "k", model: "m", fastNarration: "yes" });
     expect(loadSettings()?.fastNarration).toBe(false);
+  });
+  it("shows suggestions unless they were turned off", () => {
+    stubStorage({ apiKey: "k", model: "m" });
+    expect(loadSettings()?.showSuggestions).toBe(true);
+    stubStorage({ apiKey: "k", model: "m", showSuggestions: false });
+    expect(loadSettings()?.showSuggestions).toBe(false);
   });
 });

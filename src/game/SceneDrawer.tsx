@@ -1,3 +1,4 @@
+import { healthLabel, type HealthLabel } from "../domain/health";
 import type { Attitude, GameState } from "../domain/types";
 import { initials } from "./NpcAvatar";
 import { useDrawer } from "./useDrawer";
@@ -17,6 +18,10 @@ export interface SceneMember {
   tag: string;
   kind: "player" | "dm" | Attitude;
   hasTurn: boolean;
+  /** How a hostile NPC with hit points looks; never numbers. */
+  health: HealthLabel | null;
+  /** Place in the initiative order during a fight, from 1. */
+  initiative: number | null;
 }
 
 /** Everyone at the table: the DM at the head, the players, then the NPCs
@@ -25,6 +30,20 @@ export interface SceneMember {
     otherwise it is whoever the scene says, and no `turnOf` means the
     player. */
 export function sceneMembers(state: GameState, dmActing: boolean): SceneMember[] {
+  const members = tableMembers(state, dmActing);
+  const { inCombat } = state.scene;
+  // Numbers count only who is in the scene now.
+  const order = state.scene.order.filter((name) => members.some((m) => m.kind !== "dm" && m.name === name));
+  if (!inCombat || order.length === 0) return members;
+  // In a fight: the DM at the head, then initiative order, the unlisted last.
+  const place = (m: SceneMember) => (m.kind === "dm" ? -1 : order.indexOf(m.name));
+  const rank = (m: SceneMember) => (place(m) === -1 && m.kind !== "dm" ? order.length : place(m));
+  return [...members]
+    .sort((a, b) => rank(a) - rank(b))
+    .map((m) => (place(m) >= 0 ? { ...m, initiative: place(m) + 1 } : m));
+}
+
+function tableMembers(state: GameState, dmActing: boolean): SceneMember[] {
   const turnOf = dmActing ? null : (state.scene.turnOf ?? state.players[0]?.name ?? null);
   return [
     {
@@ -33,6 +52,8 @@ export function sceneMembers(state: GameState, dmActing: boolean): SceneMember[]
       tag: "Narrador",
       kind: "dm" as const,
       hasTurn: dmActing,
+      health: null,
+      initiative: null,
     },
     ...state.players.map((p) => ({
       name: p.name,
@@ -40,6 +61,8 @@ export function sceneMembers(state: GameState, dmActing: boolean): SceneMember[]
       tag: "Jugador",
       kind: "player" as const,
       hasTurn: p.name === turnOf,
+      health: null,
+      initiative: null,
     })),
     ...state.npcs
       .filter((n) => n.present)
@@ -49,6 +72,8 @@ export function sceneMembers(state: GameState, dmActing: boolean): SceneMember[]
         tag: ATTITUDE_LABEL[n.attitude],
         kind: n.attitude,
         hasTurn: n.name === turnOf,
+        health: n.attitude === "hostile" ? healthLabel(n) : null,
+        initiative: null,
       })),
   ];
 }
@@ -85,7 +110,13 @@ export function SceneDrawer({ state, dmActing, open, onClose }: Props) {
           </button>
         </header>
 
-        <p className="scene-status">{inCombat ? "En combate" : "Sin combate"}</p>
+        <p className="scene-status">
+          {inCombat
+            ? members.some((m) => m.initiative !== null)
+              ? "En combate · Orden de iniciativa"
+              : "En combate"
+            : "Sin combate"}
+        </p>
 
         <ul className="scene-list">
           {members.map((member) => (
@@ -102,8 +133,16 @@ export function SceneDrawer({ state, dmActing, open, onClose }: Props) {
                 {member.kind === "dm" ? "DM" : initials(member.name)}
               </span>
               <div className="scene-card__body">
-                <strong>{member.name}</strong>
+                <strong>
+                  {member.initiative !== null && (
+                    <span className="initiative-number" aria-label={`Iniciativa ${member.initiative}`}>
+                      {member.initiative}
+                    </span>
+                  )}
+                  {member.name}
+                </strong>
                 <span className="scene-card__tag">{member.tag}</span>
+                {member.health && <HealthTag label={member.health} />}
                 <p className="scene-card__detail">{member.detail}</p>
               </div>
               {member.hasTurn && (
@@ -116,5 +155,20 @@ export function SceneDrawer({ state, dmActing, open, onClose }: Props) {
         {npcsInScene === 0 && <p className="drawer__empty">No hay nadie más en la escena.</p>}
       </div>
     </dialog>
+  );
+}
+
+const HEALTH_TONE: Record<HealthLabel, string> = {
+  Ileso: "fine",
+  Herido: "hurt",
+  Malherido: "bad",
+  "Fuera de combate": "out",
+};
+
+export function HealthTag({ label }: { label: HealthLabel }) {
+  return (
+    <span className="health-tag" data-tone={HEALTH_TONE[label]}>
+      {label}
+    </span>
   );
 }

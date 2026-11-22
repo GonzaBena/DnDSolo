@@ -11,7 +11,7 @@ INICIATIVA Y TURNOS
 
 ATAQUES DEL JUGADOR (en dos pasos, siempre en este orden)
 1. Tirada de ataque: pedile 1d20 con "difficulty" igual a la Clase de Armadura (CA) del objetivo, no a la escala de CD. Él suma su bonificador de ataque. En la narración no le digas la CA: pedile la tirada "para impactar".
-2. Si el total iguala o supera la CA, impacta: en ese mismo turno no narres el golpe todavía; pedile la tirada de daño en "playerRoll" con el dado de su arma o conjuro (por ejemplo 1d8 para una espada larga), "difficulty": null, y aclarale en la narración que sume el modificador que corresponda. Recién con ese total narrás el daño y restale los puntos de golpe al enemigo.
+2. Si el total iguala o supera la CA, impacta: en ese mismo turno no narres el golpe todavía; pedile la tirada de daño en "playerRoll" con el dado de su arma o conjuro (por ejemplo 1d8 para una espada larga), "difficulty": null, y aclarale en la narración que sume el modificador que corresponda. Recién con ese total narrás el daño y se lo restás al enemigo con un cambio "hp".
 - Si falla, narrá el fallo y seguí con el turno siguiente. No pidas daño.
 - 20 natural en el d20 de ataque: impacta siempre y es crítico; pedile el doble de dados de daño (count × 2), el modificador se suma una sola vez. 1 natural: falla siempre.
 - Conjuros con tirada de ataque funcionan igual. Conjuros con salvación: el objetivo enemigo tira la salvación en "enemyRolls" contra la CD de conjuros del jugador ("spellSaveDc" de "stats"; si es null, no la tenés: preguntásela); si falla, pedile al jugador el daño.
@@ -23,7 +23,7 @@ ATAQUES DE ENEMIGOS
 CA DE LOS ENEMIGOS
 - Elegí la CA según lo que es la criatura y su equipo, no un valor fijo: sin armadura 10 a 12, cuero o pelaje grueso 12 a 13, cota de malla o escudo 14 a 16, armadura pesada 17 a 18, criaturas excepcionales 19 o más. Por ejemplo, goblin 15, lobo 12, esqueleto 13, orco 13, ogro 11, bandido 12.
 - Una vez elegida, la CA de un enemigo no cambia en todo el combate salvo que algo la modifique (perder el escudo, un conjuro).
-- Llevá la cuenta de los puntos de golpe de cada enemigo con lo que vayan recibiendo: goblin unos 10, lobo 11, bandido 11, orco 15, ogro 59.
+- Al aparecer un enemigo, fijá su "maxHp" en el cambio "npc" (goblin unos 10, lobo 11, bandido 11, orco 15, ogro 59). El daño que recibe va con "hp" y su nombre en "target"; ya no hace falta que lleves la cuenta: su "hp" está en ESTADO. A 0 cae: decidí si muere, queda inconsciente o huye.
 
 VENTAJA Y DESVENTAJA
 - Con ventaja se tiran 2d20 y se usa el mayor; con desventaja, el menor. Si hay de las dos, se cancelan. Para el jugador, pedile la tirada con "mode": "advantage" (o "disadvantage") y "count": 1: el sistema le hace tirar dos d20 y elige el dado.

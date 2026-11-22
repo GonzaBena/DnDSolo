@@ -91,7 +91,7 @@ describe("IndexedDBGameRepo", () => {
     const loaded = (await new IndexedDBGameRepo().load("v2"))!;
     expect(loaded.version).toBe(GAME_STATE_VERSION);
     expect(loaded.npcs[0]!.present).toBe(false);
-    expect(loaded.scene).toEqual({ inCombat: false, turnOf: null });
+    expect(loaded.scene).toEqual({ inCombat: false, turnOf: null, order: [] });
   });
 
   it("a game resumes from disk exactly where it was left, enemy rolls included", async () => {

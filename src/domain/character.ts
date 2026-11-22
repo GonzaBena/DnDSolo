@@ -90,7 +90,7 @@ export function createGame(input: CharacterInput, options: CreateOptions = {}): 
     // Empty until the DM's opening turn proposes a location.
     location: { name: "", description: "" },
     npcs: [],
-    scene: { inCombat: false, turnOf: null },
+    scene: { inCombat: false, turnOf: null, order: [] },
     quests: [],
     storyItems,
     summary: "",
@@ -98,5 +98,6 @@ export function createGame(input: CharacterInput, options: CreateOptions = {}): 
     turns: [],
     pendingPlayerRoll: null,
     pendingEnemyRolls: [],
+    suggestedActions: [],
   };
 }

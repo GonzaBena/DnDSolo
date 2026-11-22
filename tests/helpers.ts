@@ -24,6 +24,7 @@ export function reply(overrides: Partial<DMResponse> = {}): DMResponse {
     enemyRolls: [],
     stateChanges: [],
     events: [],
+    suggestions: [],
     ...overrides,
   };
 }

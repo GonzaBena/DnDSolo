@@ -6,6 +6,8 @@ export interface Settings {
   model: string;
   /** Lower the model's thinking to answer sooner. */
   fastNarration: boolean;
+  /** Show the DM's suggested actions as chips over the composer. */
+  showSuggestions: boolean;
 }
 
 const STORAGE_KEY = "dnsolo.settings";
@@ -16,9 +18,10 @@ export function loadSettings(): Settings | null {
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== "object" || parsed === null) return null;
-    const { apiKey, model, fastNarration } = parsed as Record<string, unknown>;
+    const { apiKey, model, fastNarration, showSuggestions } = parsed as Record<string, unknown>;
     if (typeof apiKey !== "string" || typeof model !== "string") return null;
-    return { apiKey, model, fastNarration: fastNarration === true };
+    // On unless turned off: older settings never had the option.
+    return { apiKey, model, fastNarration: fastNarration === true, showSuggestions: showSuggestions !== false };
   } catch {
     // Blocked storage or corrupt JSON both mean "not configured".
     return null;
