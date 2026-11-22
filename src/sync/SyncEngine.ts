@@ -56,7 +56,18 @@ export class SyncEngine {
         const [localGames, remoteEntries] = await Promise.all([this.deps.local.list(), this.deps.remote.list()]);
         const actions = reconcile(localGames.map(toLocalEntry), remoteEntries, bases.all());
         const localById = new Map(localGames.map((g) => [g.id, g]));
-        for (const action of actions) await this.apply(action, bases, localById.get(action.id) ?? null);
+        // One failing game (an unresolved conflict, a bad file) must not stall the others.
+        let failure: unknown = null;
+        for (const action of actions) {
+          try {
+            await this.apply(action, bases, localById.get(action.id) ?? null);
+          } catch (error) {
+            this.pending.add(action.id);
+            failure ??= error;
+          }
+        }
+        // Not rethrown: the run did the rest. Only the status reflects the failure.
+        if (failure) this.lastFailure = failureState(failure);
       } catch (error) {
         for (const id of retried) this.pending.add(id);
         throw error;

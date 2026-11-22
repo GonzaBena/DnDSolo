@@ -108,6 +108,32 @@ describe("SyncEngine", () => {
     expect(await b.local.load(aState.id)).toEqual(aState);
   });
 
+  it("keeps syncing the other games when one conflict cannot be resolved", async () => {
+    const remote = new InMemoryRemoteGameStore();
+    const a = device("A", remote);
+    const b = device("B", remote, async () => {
+      throw new Error("dismissed");
+    });
+    const base = game(1);
+    await a.repo.save(base);
+    await a.engine.flush();
+    await b.engine.syncAll();
+
+    await a.repo.save({ ...base, updatedAt: game(2).updatedAt, turns: game(2, 1).turns });
+    await a.engine.flush();
+    await b.local.save({ ...base, updatedAt: game(3).updatedAt, turns: game(3, 2).turns });
+    // Older than the conflicted game, so it is listed (and applied) after it.
+    const other = { ...game(0), id: "other-game" };
+    await b.local.save(other);
+    await b.engine.syncAll();
+
+    expect((await remote.list()).map((e) => e.id)).toContain("other-game");
+    expect(syncStatus.get().state).toBe("error");
+    // The failed id stays pending: a later flush asks again.
+    await b.engine.flush();
+    expect(syncStatus.get().state).toBe("error");
+  });
+
   it("collapses quick pushes and never uploads an older state after a newer one", async () => {
     const remote = new InMemoryRemoteGameStore();
     const uploaded: number[] = [];

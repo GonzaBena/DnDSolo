@@ -2,6 +2,8 @@ import { IndexedDBGameRepo } from "../persistence/IndexedDBGameRepo";
 import type { GameRepo } from "../persistence/GameRepo";
 import { SyncBases } from "./bases";
 import { BrowserDriveAuth } from "./BrowserDriveAuth";
+import { showConflictDialog } from "./conflictDialog";
+import { ConflictPendingError } from "./errors";
 import { loadSyncConfig, type SyncConfig } from "./config";
 import type { DriveAuth } from "./DriveAuth";
 import { DriveGameStore } from "./DriveGameStore";
@@ -16,8 +18,7 @@ export interface SyncRuntime {
   repo: GameRepo;
 }
 
-/** No conflict UI is mounted: the engine leaves both copies alone and keeps the id pending. */
-export class ConflictPendingError extends Error {}
+export { ConflictPendingError };
 
 type ConflictResolver = (c: SyncConflict) => Promise<ConflictChoice>;
 
@@ -55,6 +56,7 @@ export function getSyncRuntime(): SyncRuntime | null {
   const config = loadSyncConfig();
   if (!config.enabled) return null;
 
+  conflictResolver ??= showConflictDialog;
   const auth = createAuth(config);
   const local = new IndexedDBGameRepo();
   const engine = new SyncEngine({
