@@ -162,4 +162,8 @@ describe("hp state change", () => {
     expect(parse({ type: "hp", target: "Lira", delta: 0 }).ok).toBe(false);
     expect(parse({ type: "hp", target: "Lira", delta: 1.5 }).ok).toBe(false);
   });
+  it("rejects a missing or empty target", () => {
+    expect(parse({ type: "hp", delta: -4 }).ok).toBe(false);
+    expect(parse({ type: "hp", target: "", delta: -4 }).ok).toBe(false);
+  });
 });

@@ -341,6 +341,12 @@ describe("hp changes", () => {
     expect(healed.players[0]!.currentHp).toBe(20);
   });
 
+  it("keeps 0 on further damage and the maximum on further healing", () => {
+    const dead = applyStateChanges(withHp(), [{ type: "hp", target: PLAYER_ID, delta: -50 }]).state;
+    expect(applyStateChanges(dead, [{ type: "hp", target: PLAYER_ID, delta: -3 }]).state.players[0]!.currentHp).toBe(0);
+    expect(applyStateChanges(withHp(), [{ type: "hp", target: PLAYER_ID, delta: 5 }]).state.players[0]!.currentHp).toBe(20);
+  });
+
   it("resolves the target by name ignoring case", () => {
     const game = withHp();
     const two = { ...game, players: [...game.players, { ...game.players[0]!, id: "other", name: "Bruno" }] };

@@ -24,11 +24,10 @@ function findPlayerIndex(players: Character[], playerId: string): number {
 
 /** Resolves a player by id, then by name (any case); a lone player is always meant. */
 function findPlayerByTarget(players: Character[], target: string): number {
-  const byId = players.findIndex((p) => p.id === target);
-  if (byId !== -1) return byId;
+  const byId = findPlayerIndex(players, target);
+  if (players.length === 1 || players[byId]?.id === target) return byId;
   const byName = players.findIndex((p) => sameName(p.name, target));
-  if (byName !== -1) return byName;
-  return players.length === 1 ? 0 : -1;
+  return byName !== -1 ? byName : byId;
 }
 
 function upsert<T>(list: T[], item: T, matches: (existing: T) => boolean): T[] {

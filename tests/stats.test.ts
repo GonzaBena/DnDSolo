@@ -48,6 +48,14 @@ describe("inventoryFromSheet", () => {
     ]);
   });
 
+  it("merges equipment with the same name, ignoring case and spaces", () => {
+    const sheet = sheetOf(fighterChoices());
+    expect(inventoryFromSheet({ ...sheet, equipment: ["Daga", "daga ", "Jabalina (2)", "Jabalina (3)"], gold: 0 })).toEqual([
+      { name: "Daga", quantity: 2 },
+      { name: "Jabalina", quantity: 5 },
+    ]);
+  });
+
   it("skips the gold line at zero", () => {
     const sheet = sheetOf(fighterChoices());
     expect(inventoryFromSheet({ ...sheet, equipment: ["Daga"], gold: 0 })).toEqual([{ name: "Daga", quantity: 1 }]);
@@ -61,6 +69,15 @@ describe("statsFromForm", () => {
     });
     expect(statsFromForm(18, null)).toBeNull();
     expect(statsFromForm(null, 16)).toBeNull();
+  });
+
+  it("needs positive whole numbers", () => {
+    expect(statsFromForm(0, 16)).toBeNull();
+    expect(statsFromForm(18, 0)).toBeNull();
+    expect(statsFromForm(-4, 16)).toBeNull();
+    expect(statsFromForm(18.5, 16)).toBeNull();
+    expect(statsFromForm(18, NaN)).toBeNull();
+    expect(statsFromForm(1, 1)).not.toBeNull();
   });
 });
 
