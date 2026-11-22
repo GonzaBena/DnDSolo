@@ -565,6 +565,95 @@ describe("TurnEngine abort", () => {
   });
 });
 
+describe("TurnEngine beforeCommit", () => {
+  it("saves only after beforeCommit resolves", async () => {
+    const ctx = setup();
+    const game = newGame();
+    ctx.llm.queueStructured(reply({}));
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let called = 0;
+
+    const pending = ctx.engine.playTurn(game, { type: "start" }, undefined, undefined, async () => {
+      called += 1;
+      await gate;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(called).toBe(1);
+    expect(ctx.repo.saveCount).toBe(0);
+
+    release();
+    const outcome = await pending;
+    expect(outcome.ok).toBe(true);
+    expect(ctx.repo.saveCount).toBe(1);
+  });
+
+  it("discards the turn when aborted during beforeCommit", async () => {
+    const ctx = setup();
+    const game = newGame();
+    ctx.llm.queueStructured(reply({}), reply({}));
+    const controller = new AbortController();
+
+    const outcome = await ctx.engine.playTurn(
+      game,
+      { type: "start" },
+      undefined,
+      controller.signal,
+      async () => controller.abort(),
+    );
+
+    expect(outcome).toEqual({ ok: false, state: game, failure: { kind: "aborted" } });
+    expect(ctx.repo.saveCount).toBe(0);
+    const again = await ctx.engine.playTurn(game, { type: "start" });
+    if (!again.ok) throw new Error("expected ok");
+    expect(again.state.turns).toHaveLength(1);
+    expect(again.state.turns[0]!.number).toBe(1);
+  });
+
+  it("treats a throwing beforeCommit as aborted only when the signal fired", async () => {
+    const ctx = setup();
+    const game = newGame();
+    ctx.llm.queueStructured(reply({}), reply({}));
+    const controller = new AbortController();
+    const aborted = await ctx.engine.playTurn(game, { type: "start" }, undefined, controller.signal, async () => {
+      controller.abort();
+      throw new Error("boom");
+    });
+    expect(aborted).toEqual({ ok: false, state: game, failure: { kind: "aborted" } });
+    await expect(
+      ctx.engine.playTurn(game, { type: "start" }, undefined, undefined, async () => {
+        throw new Error("boom");
+      }),
+    ).rejects.toThrow("boom");
+  });
+
+  it("calls beforeCommit once, after the valid reply, when the first is invalid", async () => {
+    const ctx = setup();
+    ctx.llm.queueStructured("no es json", reply({}));
+    let calls = 0;
+    let requestsAtCall = 0;
+    const outcome = await ctx.engine.playTurn(newGame(), { type: "start" }, undefined, undefined, async () => {
+      calls += 1;
+      requestsAtCall = ctx.llm.structuredRequests.length;
+    });
+    expect(outcome.ok).toBe(true);
+    expect(calls).toBe(1);
+    expect(requestsAtCall).toBe(2);
+  });
+
+  it("does not call beforeCommit when generation is aborted", async () => {
+    const ctx = setup();
+    ctx.llm.queueStructured(reply({}));
+    const controller = new AbortController();
+    controller.abort();
+    let calls = 0;
+    await ctx.engine.playTurn(newGame(), { type: "start" }, undefined, controller.signal, async () => {
+      calls += 1;
+    });
+    expect(calls).toBe(0);
+  });
+});
+
 describe("message authorship", () => {
   it("keeps who said each action through save and load", async () => {
     const ctx = setup();

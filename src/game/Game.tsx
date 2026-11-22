@@ -3,7 +3,7 @@ import { shakeScreen } from "../animations/motion";
 import { castOf, speakingNow } from "../domain/dialogue";
 import { formatDice } from "../domain/dice";
 import type { GameState, PlayerRoll, TurnInput } from "../domain/types";
-import { TurnEngine, type TurnFailure } from "../engine/TurnEngine";
+import { TurnEngine, type TurnFailure, type TurnOutcome } from "../engine/TurnEngine";
 import { GeminiClient } from "../llm/GeminiClient";
 import { describeLLMError } from "../llm/errorMessages";
 import { IndexedDBGameRepo } from "../persistence/IndexedDBGameRepo";
@@ -136,16 +136,28 @@ export default function Game() {
       const controller = new AbortController();
       abortRef.current = controller;
       setAbortable(true);
-      const outcome = await engine.playTurn(
-        state,
-        input,
-        (narration) => typewriter.setTarget(narration),
-        controller.signal,
+      const aborted = new Promise<void>((resolve) =>
+        controller.signal.addEventListener("abort", () => resolve(), { once: true }),
       );
-      if (abortRef.current === controller) abortRef.current = null;
-      setAbortable(false);
-      // Set before the typewriter wait so a summary that resolves meanwhile
-      // is applied on top of this turn.
+      let outcome: TurnOutcome;
+      try {
+        outcome = await engine.playTurn(
+          state,
+          input,
+          (narration) => typewriter.setTarget(narration),
+          controller.signal,
+          // The turn is committed only after the text is fully shown, and a
+          // Stop meanwhile doesn't wait for the typewriter.
+          () => Promise.race([typewriter.finish(), aborted]),
+        );
+      } finally {
+        if (abortRef.current === controller) abortRef.current = null;
+        typewriter.cancel();
+        setAbortable(false);
+        setBusy(false);
+      }
+      // Set right away so a summary that resolves meanwhile is applied on top
+      // of this turn.
       if (outcome.ok) {
         const held = latestStateRef.current;
         const heldIsNewer =
@@ -167,11 +179,6 @@ export default function Game() {
               : outcome.state;
         }
       }
-      // The turn joins the log only once its narration has been fully
-      // revealed, so the rest of the text doesn't pop in all at once.
-      if (outcome.ok) await typewriter.finish();
-      typewriter.cancel();
-      setBusy(false);
       if (
         !outcome.ok &&
         outcome.failure.kind === "aborted" &&

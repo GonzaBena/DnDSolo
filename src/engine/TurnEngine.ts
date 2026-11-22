@@ -108,12 +108,17 @@ export class TurnEngine {
   /**
    * @param onNarration receives the narration read so far, in full, each
    *   time more text arrives (and "" if a retry starts over).
+   * @param signal aborts the model call, or the wait in `beforeCommit`;
+   *   an aborted turn is never retried and leaves nothing saved.
+   * @param beforeCommit awaited once a reply parses, before the turn is
+   *   committed and saved.
    */
   async playTurn(
     state: GameState,
     input: TurnInput,
     onNarration?: (narrationSoFar: string) => void,
     signal?: AbortSignal,
+    beforeCommit?: () => Promise<void>,
   ): Promise<TurnOutcome> {
     const inputProblem = this.checkInput(state, input);
     if (inputProblem) {
@@ -154,6 +159,15 @@ export class TurnEngine {
         lastReason = parsed.reason;
         continue;
       }
+      // Lets the UI finish revealing the text; a Stop in that window
+      // discards the turn, so nothing is committed or saved before it.
+      try {
+        await beforeCommit?.();
+      } catch (cause) {
+        if (signal?.aborted) return { ok: false, state, failure: { kind: "aborted" } };
+        throw cause;
+      }
+      if (signal?.aborted) return { ok: false, state, failure: { kind: "aborted" } };
       return this.commit(state, input, parsed.response, enemyRollsAllowed);
     }
 
