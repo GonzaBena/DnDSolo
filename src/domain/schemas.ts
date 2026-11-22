@@ -98,6 +98,7 @@ export const dmResponseSchema = z.object({
   enemyRolls: z.array(enemyRollRequest),
   stateChanges: z.array(stateChange),
   events: z.array(z.enum(TURN_EVENTS)),
+  suggestions: z.array(z.string().min(1).max(60)).max(3),
 });
 
 // Compile-time guarantee that the schema and the hand-written type agree.

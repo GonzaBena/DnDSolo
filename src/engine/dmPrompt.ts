@@ -74,6 +74,9 @@ REGLAS
 EVENTOS
 - En "events" poné etiquetas de lo que pasó, solo de esta lista: damage_taken (un jugador recibe daño), damage_dealt (un enemigo o NPC recibe daño), healing, scene_change, combat_start, combat_end, item_gained, new_npc, new_quest, quest_completed, level_up, death.
 
+SUGERENCIAS
+- En "suggestions", hasta tres acciones cortas y distintas que el personaje podría hacer ahora (en primera persona, 60 caracteres como máximo: "Interrogo al guardia"). Ninguna obvia ni que decida por él. Si pedís una tirada, mandá [].
+
 FORMATO
 - Respondé únicamente con el JSON del esquema indicado, sin texto afuera. Los textos de "narration", "reason" y las descripciones van en español.`;
 

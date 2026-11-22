@@ -30,6 +30,11 @@ import Base from "../layouts/Base.astro";
       <span>Respuestas rápidas (el DM piensa menos y contesta antes)</span>
     </label>
 
+    <label class="field field--check">
+      <input id="show-suggestions" type="checkbox" checked />
+      <span>Sugerencias de acción (el DM propone hasta tres ideas después de cada respuesta)</span>
+    </label>
+
     <div class="actions">
       <button id="load-models" type="button" class="button">Cargar modelos</button>
       <button id="test" type="button" class="button">Probar conexión</button>
@@ -52,6 +57,7 @@ import Base from "../layouts/Base.astro";
   const keyInput = document.querySelector<HTMLInputElement>("#api-key")!;
   const modelSelect = document.querySelector<HTMLSelectElement>("#model")!;
   const fastInput = document.querySelector<HTMLInputElement>("#fast-narration")!;
+  const suggestionsInput = document.querySelector<HTMLInputElement>("#show-suggestions")!;
   const loadButton = document.querySelector<HTMLButtonElement>("#load-models")!;
   const testButton = document.querySelector<HTMLButtonElement>("#test")!;
   const status = document.querySelector<HTMLParagraphElement>("#status")!;
@@ -118,7 +124,12 @@ import Base from "../layouts/Base.astro";
       setStatus("Necesitás una API key y un modelo para guardar.", "error");
       return;
     }
-    saveSettings({ apiKey, model, fastNarration: fastInput.checked });
+    saveSettings({
+      apiKey,
+      model,
+      fastNarration: fastInput.checked,
+      showSuggestions: suggestionsInput.checked,
+    });
     notice.hidden = true;
     setStatus("Configuración guardada.", "ok");
   });
@@ -128,6 +139,7 @@ import Base from "../layouts/Base.astro";
   if (saved) {
     keyInput.value = saved.apiKey;
     fastInput.checked = saved.fastNarration;
+    suggestionsInput.checked = saved.showSuggestions;
     void loadModels(saved.model);
   }
 </script>

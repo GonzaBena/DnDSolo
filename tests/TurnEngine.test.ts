@@ -1144,3 +1144,26 @@ describe("a roll asked while the player can't act", () => {
     expect(outcome.state.pendingPlayerRoll).toBeNull();
   });
 });
+
+describe("suggested actions", () => {
+  it("are saved with the turn", async () => {
+    const ctx = setup();
+    const game = await started(ctx);
+    ctx.llm.queueStructured(reply({ suggestions: ["Interrogo al guardia", "Reviso la puerta"] }));
+    const outcome = await ctx.engine.playTurn(game, { type: "action", text: "Miro" });
+    expect(outcome.ok && outcome.state.suggestedActions).toEqual(["Interrogo al guardia", "Reviso la puerta"]);
+  });
+
+  it("are dropped when the DM asks for a roll", async () => {
+    const ctx = setup();
+    const game = await started(ctx);
+    ctx.llm.queueStructured(
+      reply({
+        suggestions: ["Corro"],
+        playerRoll: { die: "d20", count: 1, reason: "Sigilo", difficulty: 12, mode: "normal" },
+      }),
+    );
+    const outcome = await ctx.engine.playTurn(game, { type: "action", text: "Me escondo" });
+    expect(outcome.ok && outcome.state.suggestedActions).toEqual([]);
+  });
+});

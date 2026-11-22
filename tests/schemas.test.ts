@@ -167,3 +167,20 @@ describe("hp state change", () => {
     expect(parse({ type: "hp", target: "", delta: -4 }).ok).toBe(false);
   });
 });
+
+describe("suggestions", () => {
+  it("allows up to three short ones", () => {
+    const four = JSON.stringify({ ...reply(), suggestions: ["Corro", "Me escondo", "Grito", "Ataco"] });
+    expect(parseDMResponse(four).ok).toBe(false);
+    const long = JSON.stringify({ ...reply(), suggestions: ["x".repeat(61)] });
+    expect(parseDMResponse(long).ok).toBe(false);
+    const three = JSON.stringify({ ...reply(), suggestions: ["Corro", "Me escondo", "Grito"] });
+    expect(parseDMResponse(three).ok).toBe(true);
+  });
+
+  it("keeps narration first in the provider schema", () => {
+    const ordering = (dmResponseJsonSchema as { propertyOrdering: string[] }).propertyOrdering;
+    expect(ordering[0]).toBe("narration");
+    expect(ordering).toContain("suggestions");
+  });
+});

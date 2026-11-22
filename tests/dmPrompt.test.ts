@@ -300,3 +300,10 @@ describe("initiative order in the prompt", () => {
     expect(DM_SYSTEM_PROMPT).toContain('mandá "scene" con "order"');
   });
 });
+
+describe("suggestions in the prompt", () => {
+  it("asks for up to three short first-person actions, none with a roll pending", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('En "suggestions", hasta tres acciones cortas');
+    expect(DM_SYSTEM_PROMPT).toContain("Si pedís una tirada, mandá []");
+  });
+});

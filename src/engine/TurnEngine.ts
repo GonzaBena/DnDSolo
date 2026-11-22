@@ -246,6 +246,9 @@ export class TurnEngine {
       turns: [...state.turns, turn],
       pendingPlayerRoll: canRoll ? response.playerRoll : null,
       pendingEnemyRolls: enemyRollsAllowed ? response.enemyRolls : [],
+      // Nothing to suggest while a roll is pending: the player only answers it.
+      suggestedActions:
+        response.playerRoll || (enemyRollsAllowed && response.enemyRolls.length > 0) ? [] : response.suggestions,
       // Whose turn it is only matters while enemy rolls are pending.
       ...(enemyRollsAllowed ? {} : { scene: { ...applied.state.scene, turnOf: null } }),
       updatedAt: this.now().toISOString(),
