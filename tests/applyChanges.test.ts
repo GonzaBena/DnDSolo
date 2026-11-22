@@ -660,3 +660,20 @@ describe("campaign threads", () => {
     expect(again.threads[0]!.secret).toBe(false);
   });
 });
+
+describe("campaign threads, more cases", () => {
+  const thread = (overrides: Record<string, unknown> = {}) => ({
+    type: "thread" as const, title: "La campana", kind: "mystery" as const, description: "Suena sola",
+    status: "open" as const, secret: false, ...overrides,
+  });
+
+  it("a new thread sent visible stays visible", () => {
+    expect(applyStateChanges(newGame(), [thread()]).state.threads[0]!.secret).toBe(false);
+  });
+
+  it("takes a new kind and can be reopened", () => {
+    const resolved = applyStateChanges(newGame(), [thread({ status: "resolved" })]).state;
+    const after = applyStateChanges(resolved, [thread({ kind: "threat", status: "open", description: "" })]).state;
+    expect(after.threads[0]).toMatchObject({ kind: "threat", status: "open", description: "Suena sola" });
+  });
+});

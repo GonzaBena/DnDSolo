@@ -155,7 +155,7 @@ export function InfoDrawer({ state, open, onClose }: Props) {
                     {THREAD_LABEL[t.kind]}
                     {t.status === "resolved" ? " · Resuelto" : ""}
                   </span>
-                  <p>{t.description}</p>
+                  {t.description && <p>{t.description}</p>}
                 </li>
               ))}
             </ul>

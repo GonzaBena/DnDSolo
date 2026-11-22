@@ -329,3 +329,20 @@ describe("campaign threads in the prompt", () => {
     expect(resolved).not.toHaveProperty("description");
   });
 });
+
+describe("secret threads stay secret", () => {
+  it("a resolved secret thread still says it is secret", () => {
+    const game = {
+      ...newGame(),
+      threads: [{ title: "Culto", kind: "threat" as const, description: "x", status: "resolved" as const, secret: true }],
+    };
+    expect((stateForModel(game) as { threads: unknown[] }).threads[0]).toEqual({
+      title: "Culto", kind: "threat", status: "resolved", secret: true,
+    });
+  });
+
+  it("keeps secrets out of suggestions, quests and NPCs, and opens threads in games that have none", () => {
+    expect(DM_SYSTEM_PROMPT).toContain("ni en la narración, ni en sugerencias, misiones o NPCs");
+    expect(DM_SYSTEM_PROMPT).toContain('Si "threads" está vacío');
+  });
+});

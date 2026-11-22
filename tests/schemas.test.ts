@@ -191,3 +191,13 @@ describe("suggestions", () => {
     expect(ordering).toContain("suggestions");
   });
 });
+
+describe("thread titles", () => {
+  it("rejects a blank title", () => {
+    const blank = JSON.stringify({
+      ...reply(),
+      stateChanges: [{ type: "thread", title: "   ", kind: "goal", description: "", status: "open", secret: false }],
+    });
+    expect(parseDMResponse(blank).ok).toBe(false);
+  });
+});

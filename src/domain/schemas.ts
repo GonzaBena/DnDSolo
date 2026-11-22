@@ -89,7 +89,7 @@ const stateChange = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("thread"),
-    title: z.string().min(1),
+    title: z.string().trim().min(1),
     kind: threadKind,
     description: z.string(),
     status: threadStatus,

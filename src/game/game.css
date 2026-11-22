@@ -1444,9 +1444,12 @@
   color: var(--color-sun-ink);
 }
 
-/* A resolved campaign thread stays listed, crossed out. */
+/* A resolved campaign thread stays listed: its title crossed out, the
+   description only dimmed so it stays readable. */
+.thread--resolved strong {
+  text-decoration: line-through;
+}
 .thread--resolved strong,
 .thread--resolved p {
-  text-decoration: line-through;
   color: var(--color-ink-soft);
 }

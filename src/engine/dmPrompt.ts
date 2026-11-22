@@ -76,8 +76,8 @@ EVENTOS
 
 HILOS
 - "threads" del ESTADO son los hilos de la campaña: "goal" (lo que mueve al personaje), "threat" (alguien o algo que avanza en contra) y "mystery" (lo que todavía no se explica). Se crean y actualizan con un cambio "thread" (por título; si mandás la descripción vacía, el sistema conserva la que tenía).
-- En el primer turno creá un hilo "goal" (lo que mueve al personaje) y uno "threat" (alguien o algo que avanza en contra), este último con "secret": true.
-- Cada tanto, sin que el jugador lo vea, la amenaza avanza: mostrá sus consecuencias en el mundo (rumores, rastros, víctimas). Revelala ("secret": false) cuando el jugador la descubra. Lo que es "secret" el jugador no lo sabe: no lo nombres en la narración hasta revelarlo.
+- En el primer turno creá un hilo "goal" (lo que mueve al personaje) y uno "threat" (alguien o algo que avanza en contra), este último con "secret": true. Si "threads" está vacío en una partida ya empezada, creálos en esta respuesta a partir de lo que ya pasó.
+- Cada tanto, sin que el jugador lo vea, la amenaza avanza: mostrá sus consecuencias en el mundo (rumores, rastros, víctimas). Revelala ("secret": false) cuando el jugador la descubra. Lo que es "secret" el jugador no lo sabe: no lo nombres ni en la narración, ni en sugerencias, misiones o NPCs hasta revelarlo.
 - Al resolver un hilo, mandalo con "status": "resolved"; resolver un "threat" o un "mystery" central justifica un "milestone".
 
 SUGERENCIAS
@@ -160,7 +160,10 @@ export function stateForModel(state: GameState): unknown {
     quests: state.quests.map((q) => (q.status === "active" ? q : { title: q.title, status: q.status })),
     // Resolved threads keep only what they were and that they are closed.
     threads: state.threads.map((t) =>
-      t.status === "open" ? t : { title: t.title, kind: t.kind, status: t.status },
+      t.status === "open"
+        ? t
+        : // A secret stays marked even when closed: the player never learned of it.
+          { title: t.title, kind: t.kind, status: t.status, ...(t.secret ? { secret: true } : {}) },
     ),
     // Items that are gone no longer matter to the DM.
     storyItems: state.storyItems.filter((i) => i.status !== "gone"),
