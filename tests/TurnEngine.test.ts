@@ -982,6 +982,36 @@ describe("TurnEngine.adjustHp", () => {
     expect(out.saveError).toBeInstanceOf(Error);
   });
 
+  it("two quick fixes on the same state add up in memory and in the repo", async () => {
+    const ctx = setup();
+    const state = tracked();
+    const first = ctx.engine.adjustHp(state, PLAYER_ID, -1);
+    const second = await ctx.engine.adjustHp(state, PLAYER_ID, -1);
+    await first;
+    expect(second.state.players[0]!.currentHp).toBe(13);
+    expect((await ctx.repo.load(state.id))!.players[0]!.currentHp).toBe(13);
+  });
+
+  it("returns the state it applied on, so a toast can diff exactly that step", async () => {
+    const ctx = setup();
+    const state = tracked();
+    void ctx.engine.adjustHp(state, PLAYER_ID, -1);
+    const second = await ctx.engine.adjustHp(state, PLAYER_ID, -1);
+    expect(second.before.players[0]!.currentHp).toBe(14);
+    expect(second.state.players[0]!.currentHp).toBe(13);
+  });
+
+  it("a turn played on the pre-fix state keeps a fix whose save is still pending", async () => {
+    const ctx = setup();
+    const state = started0(tracked());
+    void ctx.engine.adjustHp(state, PLAYER_ID, -5);
+    ctx.llm.queueStructured(reply({}));
+    const outcome = await ctx.engine.playTurn(state, { type: "action", text: "Miro", playerId: PLAYER_ID });
+    if (!outcome.ok) throw new Error("turn failed");
+    expect(outcome.state.players[0]!.currentHp).toBe(10);
+    expect((await ctx.repo.load(state.id))!.players[0]!.currentHp).toBe(10);
+  });
+
   it("a later summary keeps the manual fix", async () => {
     const ctx = setup();
     const state = tracked();
@@ -990,3 +1020,8 @@ describe("TurnEngine.adjustHp", () => {
     expect(next.state.players[0]!.currentHp).toBe(fixed.state.players[0]!.currentHp);
   });
 });
+
+/** A tracked game that already has its opening turn, so actions are legal. */
+function started0(state: GameState): GameState {
+  return { ...state, turns: [{ number: 1, input: { type: "start" }, narration: "Hola", events: [] }] };
+}

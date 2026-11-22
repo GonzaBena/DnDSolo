@@ -47,6 +47,8 @@ export default function Game() {
   const [screen, setScreen] = useState<Screen>({ status: "loading" });
   const [inFlight, setInFlight] = useState<InFlight | null>(null);
   const [busy, setBusy] = useState(false);
+  // Manual HP fixes still saving; a turn waits for them (see adjustHp).
+  const [hpPending, setHpPending] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
   useEffect(() => () => abortRef.current?.abort(), []);
   const [error, setError] = useState<FailureNotice | null>(null);
@@ -247,7 +249,7 @@ export default function Game() {
   // `inFlight` being set also blocks this after a failure, so a failed
   // send waits for "Reintentar" instead of re-rolling in a loop.
   useEffect(() => {
-    if (screen.status !== "playing" || busy || inFlight) return;
+    if (screen.status !== "playing" || busy || inFlight || hpPending > 0) return;
     const { engine, state } = screen;
     if (state.turns.length === 0) {
       if (startedRef.current) return;
@@ -256,7 +258,7 @@ export default function Game() {
     } else if (state.pendingEnemyRolls.length > 0) {
       void send(engine, state, { type: "enemy_rolls", results: engine.rollEnemyDice(state) });
     }
-  }, [screen, busy, inFlight, send]);
+  }, [screen, busy, inFlight, hpPending, send]);
 
   const turnCount = screen.status === "playing" ? screen.state.turns.length : 0;
   const streamed = inFlight?.narration ?? "";
@@ -271,8 +273,9 @@ export default function Game() {
   const enemyRollsPending =
     screen.status === "playing" && screen.state.pendingEnemyRolls.length > 0;
   const canAct = useMemo(
-    () => screen.status === "playing" && !busy && !inFlight && !enemyRollsPending,
-    [screen.status, busy, inFlight, enemyRollsPending],
+    () =>
+      screen.status === "playing" && !busy && !inFlight && !enemyRollsPending && hpPending === 0,
+    [screen.status, busy, inFlight, enemyRollsPending, hpPending],
   );
 
   // Focus the composer whenever it is the player's turn, unless they are
@@ -335,17 +338,31 @@ export default function Game() {
     void send(engine, state, { type: "action", text, playerId: state.players[0]?.id }, raw);
   };
 
-  // Whatever was already typed goes first, so "Ataco al orco" + roll
-  // becomes a single turn.
   const adjustHp = async (delta: number) => {
     if (busy) return;
-    const before = latestStateRef.current ?? state;
-    const playerId = before.players[0]?.id;
+    const held = latestStateRef.current ?? state;
+    const playerId = held.players[0]?.id;
     if (!playerId) return;
-    const applied = await engine.adjustHp(before, playerId, delta);
-    latestStateRef.current = applied.state;
+    // While a fix is saving no turn may start on the screen's older state.
+    setHpPending((count) => count + 1);
+    let applied: Awaited<ReturnType<TurnEngine["adjustHp"]>>;
+    try {
+      applied = await engine.adjustHp(held, playerId, delta);
+    } finally {
+      setHpPending((count) => count - 1);
+    }
+    // The toast diffs the exact step, even if clicks overlapped.
+    const before = applied.before;
+    const current = latestStateRef.current;
+    if (!current || (current.id === applied.state.id && current.turns.length <= applied.state.turns.length)) {
+      latestStateRef.current = applied.state;
+    }
     setScreen((previous) =>
-      previous.status === "playing" ? { ...previous, state: applied.state } : previous,
+      previous.status === "playing" &&
+      previous.state.id === applied.state.id &&
+      previous.state.turns.length <= applied.state.turns.length
+        ? { ...previous, state: applied.state }
+        : previous,
     );
     const hpToasts = buildTurnToasts(before, applied.state, [], Date.now());
     if (hpToasts.length > 0) setToasts((prev) => [...prev, ...hpToasts]);
@@ -358,6 +375,8 @@ export default function Game() {
     if (applied.saveError) setWarning(SAVE_WARNING);
   };
 
+  // Whatever was already typed goes first, so "Ataco al orco" + roll
+  // becomes a single turn.
   const submitRoll = (roll: Omit<PlayerRoll, "reason">) => {
     setRollOpen(false);
     if (!canAct) return;
