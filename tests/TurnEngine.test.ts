@@ -932,3 +932,61 @@ describe("TurnEngine summary ordering", () => {
     expect(ctx.llm.textRequests).toHaveLength(2);
   });
 });
+
+describe("TurnEngine.adjustHp", () => {
+  const stats = {
+    maxHp: 20,
+    armorClass: 16,
+    initiative: 2,
+    speed: 30,
+    hitDice: "3d8",
+    attacks: [],
+    spellSaveDc: null,
+    spellAttackBonus: null,
+  };
+  const tracked = (): GameState => {
+    const game = newGame();
+    return { ...game, players: [{ ...game.players[0]!, stats, currentHp: 15 }] };
+  };
+
+  it("changes the hit points without adding a turn, and saves", async () => {
+    const ctx = setup();
+    const state = tracked();
+    const out = await ctx.engine.adjustHp(state, PLAYER_ID, -3);
+    expect(out.state.players[0]!.currentHp).toBe(12);
+    expect(out.state.turns).toHaveLength(state.turns.length);
+    expect(out.saveError).toBeNull();
+    expect((await ctx.repo.load(state.id))!.players[0]!.currentHp).toBe(12);
+    expect(ctx.llm.structuredRequests).toHaveLength(0);
+  });
+
+  it("clamps at the maximum", async () => {
+    const out = await setup().engine.adjustHp(tracked(), PLAYER_ID, 99);
+    expect(out.state.players[0]!.currentHp).toBe(20);
+  });
+
+  it("leaves a sheet without stats alone and saves nothing", async () => {
+    const ctx = setup();
+    const state = newGame();
+    const out = await ctx.engine.adjustHp(state, PLAYER_ID, -3);
+    expect(out.state).toBe(state);
+    expect(await ctx.repo.load(state.id)).toBeNull();
+  });
+
+  it("reports a save failure", async () => {
+    const ctx = setup();
+    ctx.repo.save = async () => {
+      throw new Error("disk");
+    };
+    const out = await ctx.engine.adjustHp(tracked(), PLAYER_ID, -1);
+    expect(out.saveError).toBeInstanceOf(Error);
+  });
+
+  it("a later summary keeps the manual fix", async () => {
+    const ctx = setup();
+    const state = tracked();
+    const fixed = await ctx.engine.adjustHp(state, PLAYER_ID, -5);
+    const next = await ctx.engine.applySummary(state, { summary: "R", summarizedThroughTurn: 0 });
+    expect(next.state.players[0]!.currentHp).toBe(fixed.state.players[0]!.currentHp);
+  });
+});

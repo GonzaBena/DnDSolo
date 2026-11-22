@@ -193,7 +193,7 @@ export default function Game() {
       setInFlight(null);
       const turnToasts = buildTurnToasts(state, outcome.state, outcome.response.events, Date.now());
       if (turnToasts.length > 0) setToasts((prev) => [...prev, ...turnToasts]);
-      if (tookDamage(outcome.response.events) && gameRef.current) {
+      if (tookDamage(outcome.response.events, state, outcome.state) && gameRef.current) {
         const el = gameRef.current;
         shakeScreen(el);
         el.classList.add("game--damage-flash");
@@ -337,6 +337,27 @@ export default function Game() {
 
   // Whatever was already typed goes first, so "Ataco al orco" + roll
   // becomes a single turn.
+  const adjustHp = async (delta: number) => {
+    if (busy) return;
+    const before = latestStateRef.current ?? state;
+    const playerId = before.players[0]?.id;
+    if (!playerId) return;
+    const applied = await engine.adjustHp(before, playerId, delta);
+    latestStateRef.current = applied.state;
+    setScreen((previous) =>
+      previous.status === "playing" ? { ...previous, state: applied.state } : previous,
+    );
+    const hpToasts = buildTurnToasts(before, applied.state, [], Date.now());
+    if (hpToasts.length > 0) setToasts((prev) => [...prev, ...hpToasts]);
+    if (tookDamage([], before, applied.state) && gameRef.current) {
+      const el = gameRef.current;
+      shakeScreen(el);
+      el.classList.add("game--damage-flash");
+      setTimeout(() => el.classList.remove("game--damage-flash"), 400);
+    }
+    if (applied.saveError) setWarning(SAVE_WARNING);
+  };
+
   const submitRoll = (roll: Omit<PlayerRoll, "reason">) => {
     setRollOpen(false);
     if (!canAct) return;
@@ -360,6 +381,8 @@ export default function Game() {
           onToggleZen={() => setZenMode((prev) => !prev)}
           onOpenScene={() => setSceneOpen(true)}
           onOpenInfo={() => setInfoOpen(true)}
+          onAdjustHp={(delta) => void adjustHp(delta)}
+          hpDisabled={busy}
         />
         <InfoDrawer state={state} open={infoOpen} onClose={() => setInfoOpen(false)} />
         <SceneDrawer

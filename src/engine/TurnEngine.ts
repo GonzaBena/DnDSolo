@@ -250,6 +250,25 @@ export class TurnEngine {
     return { ok: true, state: next, response, rejectedChanges: applied.rejected, saveError };
   }
 
+  /** Manual hit point fix from the sheet panel. It is not a turn, so nothing
+      goes to the model and `turns` doesn't change. Applied on the newest
+      state this engine knows, so it neither loses nor overwrites a turn or
+      a summary that landed meanwhile. A rejected change (no stats) leaves
+      the state as is. */
+  async adjustHp(
+    given: GameState,
+    playerId: string,
+    delta: number,
+  ): Promise<{ state: GameState; saveError: unknown | null }> {
+    const tracked = this.latestByGame.get(given.id);
+    const base = tracked && tracked.turns.length >= given.turns.length ? tracked : given;
+    const applied = applyStateChanges(base, [{ type: "hp", target: playerId, delta }]);
+    if (applied.rejected.length > 0) return { state: base, saveError: null };
+    const next: GameState = { ...applied.state, updatedAt: this.now().toISOString() };
+    this.latestByGame.set(next.id, next);
+    return { state: next, saveError: await this.enqueueSave(next) };
+  }
+
   /** Saves after every earlier save has settled; a failure doesn't break
       the chain. Resolves to the error, or null. */
   private enqueueSave(state: GameState): Promise<unknown | null> {
