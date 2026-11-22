@@ -170,6 +170,20 @@ export interface Quest {
   status: QuestStatus;
 }
 
+export type ThreadKind = "goal" | "threat" | "mystery";
+export type ThreadStatus = "open" | "resolved";
+
+/** A campaign thread: what drives the character, what moves against them,
+    what is still unexplained. `secret` ones are hidden from the player
+    until the DM reveals them, and once revealed they stay visible. */
+export interface Thread {
+  title: string;
+  kind: ThreadKind;
+  description: string;
+  status: ThreadStatus;
+  secret: boolean;
+}
+
 /** What the model may *propose*. applyStateChanges decides what is applied. */
 export type StateChange =
   | { type: "inventory_add"; playerId: string; item: string; quantity: number }
@@ -208,6 +222,15 @@ export type StateChange =
       the fight clears it. */
   | { type: "scene"; inCombat: boolean; turnOf: string | null; order: string[] }
   | { type: "quest"; title: string; description: string; status: QuestStatus }
+  /** Upserted by title; an empty description keeps the stored one. */
+  | {
+      type: "thread";
+      title: string;
+      kind: ThreadKind;
+      description: string;
+      status: ThreadStatus;
+      secret: boolean;
+    }
   /** An object the narration put within reach, or that stopped being there.
       Taking it is an inventory_add with the same name. */
   | { type: "item"; name: string; description: string; status: Exclude<StoryItemStatus, "taken"> };
@@ -276,6 +299,7 @@ export interface GameState {
   npcs: Npc[];
   scene: Scene;
   quests: Quest[];
+  threads: Thread[];
   storyItems: StoryItem[];
   /** Memory layer 2: running summary of everything up to summarizedThroughTurn. */
   summary: string;
@@ -295,4 +319,4 @@ export interface GameState {
 /** Milestones needed since the last level to gain a new one. */
 export const MILESTONES_PER_LEVEL = 2;
 
-export const GAME_STATE_VERSION = 12;
+export const GAME_STATE_VERSION = 13;

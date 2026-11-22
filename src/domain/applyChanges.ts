@@ -303,6 +303,22 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
         }
         break;
       }
+      case "thread": {
+        const existing = next.threads.find((t) => sameName(t.title, change.title));
+        const thread = {
+          title: existing?.title ?? change.title.trim(),
+          kind: change.kind,
+          description: change.description.trim() || existing?.description || "",
+          status: change.status,
+          // Once the player has seen it, it can't be hidden again.
+          secret: existing && !existing.secret ? false : change.secret,
+        };
+        next = {
+          ...next,
+          threads: upsert(next.threads, thread, (t) => sameName(t.title, change.title)),
+        };
+        break;
+      }
       case "item": {
         const existing = next.storyItems.find((i) => sameName(i.name, change.name));
         const item: StoryItem = {

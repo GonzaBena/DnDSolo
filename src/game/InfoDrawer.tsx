@@ -1,4 +1,4 @@
-import type { Attitude, GameState, QuestStatus, StoryItem } from "../domain/types";
+import type { Attitude, GameState, QuestStatus, StoryItem, ThreadKind } from "../domain/types";
 import { useDrawer } from "./useDrawer";
 
 const ATTITUDE_LABEL: Record<Attitude, string> = {
@@ -11,6 +11,12 @@ const QUEST_LABEL: Record<QuestStatus, string> = {
   active: "Activa",
   completed: "Completada",
   failed: "Fallida",
+};
+
+const THREAD_LABEL: Record<ThreadKind, string> = {
+  goal: "Objetivo",
+  threat: "Amenaza",
+  mystery: "Misterio",
 };
 
 const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -64,6 +70,8 @@ export function InfoDrawer({ state, open, onClose }: Props) {
   );
   const held = storyItems.filter((i) => i.status === "taken");
   const past = storyItems.filter((i) => i.status !== "taken" && !here.includes(i));
+  // Secret threads are the DM's: the player only sees what was revealed.
+  const threads = (state.threads ?? []).filter((t) => !t.secret);
   const holding = (item: StoryItem) =>
     players
       .map((p) => ({ player: p, entry: p.inventory.find((e) => sameName(e.name, item.name)) }))
@@ -128,6 +136,26 @@ export function InfoDrawer({ state, open, onClose }: Props) {
                   <strong>{q.title}</strong>
                   <span>{QUEST_LABEL[q.status]}</span>
                   <p>{q.description}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="info-section">
+          <h3>Hilos</h3>
+          {threads.length === 0 ? (
+            <p className="drawer__empty">Todavía no se abrió ningún hilo.</p>
+          ) : (
+            <ul className="info-list">
+              {threads.map((t) => (
+                <li key={t.title} className={t.status === "resolved" ? "thread thread--resolved" : "thread"}>
+                  <strong>{t.title}</strong>
+                  <span>
+                    {THREAD_LABEL[t.kind]}
+                    {t.status === "resolved" ? " · Resuelto" : ""}
+                  </span>
+                  <p>{t.description}</p>
                 </li>
               ))}
             </ul>

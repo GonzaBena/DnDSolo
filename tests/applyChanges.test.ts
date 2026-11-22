@@ -632,3 +632,31 @@ describe("initiative order", () => {
     expect(applyStateChanges(ordered, [scene(["Goblin 1"], false)]).state.scene.order).toEqual([]);
   });
 });
+
+describe("campaign threads", () => {
+  const thread = (overrides: Partial<{ title: string; description: string; status: "open" | "resolved"; secret: boolean }> = {}) => ({
+    type: "thread" as const,
+    title: "El culto del eclipse",
+    kind: "threat" as const,
+    description: "Un culto prepara un ritual bajo la ciudad.",
+    status: "open" as const,
+    secret: true,
+    ...overrides,
+  });
+
+  it("upserts by title ignoring case, keeping the description when sent empty", () => {
+    const first = applyStateChanges(newGame(), [thread()]).state;
+    const again = applyStateChanges(first, [thread({ title: "el culto del ECLIPSE", description: "", status: "resolved" })]).state;
+    expect(again.threads).toEqual([
+      { title: "El culto del eclipse", kind: "threat", description: "Un culto prepara un ritual bajo la ciudad.", status: "resolved", secret: true },
+    ]);
+  });
+
+  it("a revealed thread never goes back to secret", () => {
+    const hidden = applyStateChanges(newGame(), [thread()]).state;
+    const revealed = applyStateChanges(hidden, [thread({ secret: false })]).state;
+    expect(revealed.threads[0]!.secret).toBe(false);
+    const again = applyStateChanges(revealed, [thread({ secret: true })]).state;
+    expect(again.threads[0]!.secret).toBe(false);
+  });
+});
