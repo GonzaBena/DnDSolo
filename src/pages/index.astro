@@ -6,6 +6,13 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
 ---
 
 <Base title="Bienvenida">
+  <script is:inline>
+    // Before first paint: a returning player sees the continue screen at once,
+    // not a flash of the first-visit landing. refresh() confirms it later.
+    try {
+      if (localStorage.getItem("dnsolo.home") === "returning") document.documentElement.dataset.home = "returning";
+    } catch {}
+  </script>
   {syncBuild && (
     <>
       <div id="sync-gesture" class="notice" hidden>
@@ -64,6 +71,39 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     )}
   </div>
 
+  <div id="home-returning" class="home">
+    <h1>La aventura sigue</h1>
+    <article class="continue-card" aria-labelledby="continue-name">
+      <svg class="continue-card__banner" viewBox="0 0 320 90" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <rect class="hero__sky" x="-4" y="-4" width="328" height="98" />
+        <circle class="hero__sun" cx="262" cy="30" r="15" />
+        <polygon class="hero__far" points="-4,80 60,30 110,62 170,22 240,72 324,40 324,94 -4,94" />
+        <polygon class="hero__near" points="-4,94 -4,84 90,68 190,86 324,72 324,94" />
+      </svg>
+      <div class="continue-card__body">
+        <span id="continue-initials" class="continue-card__avatar" aria-hidden="true"></span>
+        <h2 id="continue-name"></h2>
+        <p id="continue-subtitle" class="continue-card__subtitle"></p>
+        <p id="continue-excerpt" class="continue-card__excerpt"></p>
+        <p id="continue-detail" class="continue-card__detail"></p>
+        <a id="continue-play" class="button button--primary home-cta" href="/play">Seguir jugando</a>
+      </div>
+    </article>
+
+    <div class="home-pair">
+      <a class="button" href="/character">Nueva campaña</a>
+      <button id="import-save-returning" type="button" class="button">Importar</button>
+    </div>
+
+    <section id="others" class="others" aria-labelledby="others-title">
+      <div class="others__header">
+        <h2 id="others-title">Otras campañas</h2>
+        <button id="open-load" type="button" class="link-button">Ver todas (<span id="others-count"></span>)</button>
+      </div>
+      <ul id="others-list" class="others__list"></ul>
+    </section>
+  </div>
+
   <div id="menu-load" hidden>
     <h2>Cargar campaña</h2>
     <p id="saves-empty" class="status" hidden>Todavía no hay campañas guardadas.</p>
@@ -80,6 +120,7 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
 <script>
   import type { GameState } from "../domain/types";
   import { downloadGame } from "../persistence/exportGame";
+  import { summarizeCampaign } from "../home/campaignSummary";
   import { migrateSave } from "../persistence/migrations";
   import { loadGis } from "../sync/gis";
   import { SYNC_TAPPED_EVENT } from "../sync/indicator";
@@ -89,7 +130,7 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
   // Null when sync is off: then the page works exactly as without sync.
   const sync = getSyncRuntime();
   const repo = createGameRepo();
-  const main = document.querySelector<HTMLElement>("#home-first")!;
+  const homes = [...document.querySelectorAll<HTMLElement>("#home-first, #home-returning")];
   const loadPanel = document.querySelector<HTMLElement>("#menu-load")!;
   const savesList = document.querySelector<HTMLUListElement>("#saves")!;
   const info = document.querySelector<HTMLParagraphElement>("#save-info")!;
@@ -102,31 +143,79 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     info.textContent = message;
   }
 
-  const describe = (game: GameState) => {
-    const player = game.players[0];
-    const who = player ? `${player.name}, ${player.characterClass} nivel ${player.level}` : "Sin personaje";
-    const turns = game.turns.length === 1 ? "1 turno" : `${game.turns.length} turnos`;
-    return { who, detail: `${turns} · ${new Date(game.updatedAt).toLocaleDateString("es-AR")}` };
-  };
+  const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+  const playHref = (id: string) => `/play?id=${encodeURIComponent(id)}`;
+
+  // The pre-paint script reads this hint; the saved list is the truth.
+  function setHome(state: "first" | "returning") {
+    document.documentElement.dataset.home = state;
+    try {
+      localStorage.setItem("dnsolo.home", state);
+    } catch {
+      // Blocked storage: only the pre-paint guess is lost.
+    }
+  }
+
+  function renderContinue(game: GameState) {
+    const summary = summarizeCampaign(game);
+    byId("continue-initials").textContent = summary.initials;
+    byId("continue-name").textContent = summary.name;
+    byId("continue-subtitle").textContent = summary.subtitle;
+    const excerpt = byId("continue-excerpt");
+    excerpt.textContent = summary.excerpt ? `“${summary.excerpt}”` : "";
+    excerpt.hidden = !summary.excerpt;
+    byId("continue-detail").textContent = summary.detail;
+    byId<HTMLAnchorElement>("continue-play").href = playHref(game.id);
+  }
+
+  // Names come from the player and the model, so they go in as text, never as HTML.
+  function renderOthers(games: GameState[], total: number) {
+    // "Ver todas" stays even without others: it is the way to export or delete.
+    byId("others-title").hidden = games.length === 0;
+    byId("others-count").textContent = String(total);
+    byId("others-list").replaceChildren(
+      ...games.map((game) => {
+        const summary = summarizeCampaign(game);
+        const item = document.createElement("li");
+        item.className = "campaign-row";
+        const avatar = document.createElement("span");
+        avatar.className = "campaign-row__avatar";
+        avatar.setAttribute("aria-hidden", "true");
+        avatar.textContent = summary.initials;
+        const text = document.createElement("div");
+        const name = document.createElement("strong");
+        name.textContent = summary.name;
+        const sub = document.createElement("small");
+        sub.textContent = [summary.subtitle, summary.detail.split(" · ")[0]].filter(Boolean).join(" · ");
+        text.append(name, sub);
+        const play = document.createElement("a");
+        play.className = "button button--small";
+        play.href = playHref(game.id);
+        play.textContent = "Jugar";
+        item.append(avatar, text, play);
+        return item;
+      }),
+    );
+  }
 
   // Names come from the player and the model, so they go in as text, never as HTML.
   function renderSaves(games: GameState[]) {
     savesList.replaceChildren(
       ...games.map((game) => {
-        const { who, detail } = describe(game);
+        const { name, subtitle, detail } = summarizeCampaign(game);
         const item = document.createElement("li");
         item.className = "save";
 
         const text = document.createElement("div");
         const title = document.createElement("strong");
-        title.textContent = who;
+        title.textContent = subtitle ? `${name}, ${subtitle}` : name;
         const sub = document.createElement("small");
         sub.textContent = detail;
         text.append(title, sub);
 
         const play = document.createElement("a");
         play.className = "button button--primary";
-        play.href = `/play?id=${encodeURIComponent(game.id)}`;
+        play.href = playHref(game.id);
         play.textContent = "Jugar";
 
         // Two clicks to delete: the first arms the button, no browser dialog.
@@ -164,11 +253,15 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
 
   function showMain() {
     loadPanel.hidden = true;
-    main.hidden = false;
+    for (const home of homes) home.hidden = false; // CSS shows the active one
   }
 
   async function refresh() {
     const games = await repo.list();
+    const [latest, ...rest] = games;
+    if (latest) renderContinue(latest);
+    renderOthers(rest.slice(0, 2), games.length);
+    setHome(latest ? "returning" : "first");
     emptyNote.hidden = games.length > 0;
     renderSaves(games);
   }
@@ -244,7 +337,11 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
   }
 
   importButton.addEventListener("click", () => importFile.click());
-  document.querySelector("#import-save-first")!.addEventListener("click", () => importFile.click());
+  for (const id of ["import-save-first", "import-save-returning"]) byId(id).addEventListener("click", () => importFile.click());
+  byId("open-load").addEventListener("click", () => {
+    for (const home of homes) home.hidden = true;
+    loadPanel.hidden = false;
+  });
   importFile.addEventListener("change", async () => {
     const file = importFile.files?.[0];
     importFile.value = "";
