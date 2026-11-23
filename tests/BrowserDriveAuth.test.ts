@@ -311,7 +311,7 @@ describe("withRenewal", () => {
       bases: (a) => new SyncBases(a),
       resolveConflict,
     });
-    return { auth, engine, repo: new SyncedGameRepo(local, engine), accountId: () => remote.accountId() };
+    return { auth, engine, repo: new SyncedGameRepo(local, engine), accountId: () => remote.accountId(), listRemote: () => remote.list() };
   }
 
   it("opens the Google window synchronously, before its first await, then runs after it returns", async () => {

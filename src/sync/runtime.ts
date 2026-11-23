@@ -12,6 +12,7 @@ import { ServerDriveAuth } from "./ServerDriveAuth";
 import { SyncedGameRepo } from "./SyncedGameRepo";
 import { SyncEngine, type ConflictChoice, type SyncConflict } from "./SyncEngine";
 import { syncStatus } from "./status";
+import type { RemoteEntry } from "./types";
 
 export interface SyncRuntime {
   auth: DriveAuth;
@@ -19,6 +20,8 @@ export interface SyncRuntime {
   repo: GameRepo;
   /** The Drive account the bases are keyed by. */
   accountId: () => Promise<string>;
+  /** What Drive holds right now (needs a valid token), for the import list. */
+  listRemote: () => Promise<RemoteEntry[]>;
 }
 
 export { ConflictPendingError };
@@ -99,7 +102,13 @@ export function startSyncRuntime(auth: DriveAuth): SyncRuntime {
     });
   }
   runtime?.engine.retire();
-  runtime = { auth, engine, repo: new SyncedGameRepo(local, engine), accountId: () => remote.accountId() };
+  runtime = {
+    auth,
+    engine,
+    repo: new SyncedGameRepo(local, engine),
+    accountId: () => remote.accountId(),
+    listRemote: () => remote.list(),
+  };
   return runtime;
 }
 

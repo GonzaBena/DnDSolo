@@ -327,6 +327,51 @@ describe("SyncEngine", () => {
     expect(entry).toMatchObject({ deleted: false, updatedAt: played.updatedAt });
   });
 
+  it("re-importing a game deleted earlier brings it back without asking", async () => {
+    const remote = new InMemoryRemoteGameStore();
+    const resolve = vi.fn(async (_c: SyncConflict): Promise<ConflictChoice> => "remote");
+    const a = device("A", remote, resolve);
+    const state = game(1);
+    await a.repo.save(state);
+    await a.engine.flush();
+    await a.repo.delete(state.id);
+    await a.engine.flush();
+    expect((await remote.list())[0]!.deleted).toBe(true);
+
+    // The player imports the file they exported before deleting it.
+    a.engine.allowRestore(state.id);
+    await a.repo.save(state);
+    await a.engine.flush();
+
+    expect(resolve).not.toHaveBeenCalled();
+    expect((await remote.list())[0]).toMatchObject({ deleted: false, updatedAt: state.updatedAt });
+    expect(await a.local.load(state.id)).not.toBeNull();
+
+    // Only that once: a later delete made elsewhere asks again.
+    const b = device("B", remote);
+    await b.engine.syncAll();
+    await b.repo.delete(state.id);
+    await b.engine.flush();
+    await a.repo.save(game(3, 1));
+    await a.engine.flush();
+    expect(resolve).toHaveBeenCalledWith(expect.objectContaining({ kind: "deleted_remotely" }));
+  });
+
+  it("deletes the local copy when the player agrees to a delete made elsewhere", async () => {
+    const remote = new InMemoryRemoteGameStore();
+    const a = device("A", remote);
+    const b = device("B", remote, async () => "remote");
+    const state = game(1);
+    await a.repo.save(state);
+    await a.engine.flush();
+    await b.engine.syncAll();
+    await a.repo.delete(state.id);
+    await a.engine.flush();
+    await b.local.save(game(2, 1));
+    await b.engine.syncAll();
+    expect(await b.local.load(state.id)).toBeNull();
+  });
+
   it("does not report synced while another game is still waiting to upload", async () => {
     const remote = new InMemoryRemoteGameStore();
     const put = remote.put.bind(remote);
