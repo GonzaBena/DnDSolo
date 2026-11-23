@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { describeAgo } from "../src/sync/conflictDialog";
 import { ServerNotConfiguredError } from "../src/sync/errors";
-import { RETRY_STATES } from "../src/sync/indicator";
+import { indicatorView } from "../src/sync/indicator";
 import { CONNECT_FAILED, NOT_CONFIGURED, connectFailureMessage, describeConnection } from "../src/sync/settingsCopy";
 
 const NOW = Date.UTC(2026, 0, 10, 12, 0);
@@ -66,8 +66,20 @@ describe("connectFailureMessage", () => {
   });
 });
 
-describe("indicator retry states", () => {
-  it("makes reconnect and error clickable", () => {
-    expect([...RETRY_STATES].sort()).toEqual(["error", "reconnect"]);
+describe("indicatorView", () => {
+  it("syncs now when green", () => {
+    expect(indicatorView("idle")).toEqual({ label: "Sincronizado. Tocá para sincronizar ahora", action: "sync" });
+  });
+  it("retries when reconnect, error or offline", () => {
+    expect(indicatorView("reconnect")).toEqual({ label: "Reconectar con Google Drive", action: "retry" });
+    expect(indicatorView("error")).toEqual({ label: "No se pudo sincronizar. Tocá para reintentar", action: "retry" });
+    expect(indicatorView("offline")).toEqual({
+      label: "Sin conexión, se sube después. Tocá para reintentar",
+      action: "retry",
+    });
+  });
+  it("does nothing while syncing or off", () => {
+    expect(indicatorView("syncing")).toEqual({ label: "Sincronizando…", action: null });
+    expect(indicatorView("off").action).toBeNull();
   });
 });

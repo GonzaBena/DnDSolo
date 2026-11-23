@@ -19,7 +19,21 @@
 .sync-indicator[data-state="reconnect"]::before,
 .sync-indicator[data-state="error"]::before { background: var(--color-primary); }
 .sync-indicator[hidden] { display: none; }
-.sync-indicator__button { padding: var(--space-1) var(--space-3); box-shadow: none; }
+
+/* Navbar sync button: one color per state; the icon keeps dark ink so it reads on every fill. */
+.sync-nav { color: var(--color-sun-ink); transition: background-color 0.2s; }
+.sync-nav[hidden] { display: none; }
+.sync-nav[data-state="idle"] { background: var(--color-turn-calm); }
+.sync-nav[data-state="syncing"] { background: var(--color-sun); cursor: progress; }
+.sync-nav[data-state="reconnect"] { background: var(--color-turn-combat); }
+.sync-nav[data-state="error"] { background: var(--color-primary); }
+.sync-nav[data-state="offline"] { background: var(--color-ink-soft); }
+.sync-nav__arrows { transform-origin: 12px 13.5px; }
+.sync-nav[data-state="syncing"] .sync-nav__arrows { animation: sync-spin 1.2s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .sync-nav[data-state="syncing"] .sync-nav__arrows { animation: none; }
+}
+@keyframes sync-spin { to { transform: rotate(360deg); } }
 
 .sync-dialog {
   width: min(34rem, calc(100% - 2 * var(--space-3)));

@@ -7,7 +7,6 @@ import { TurnEngine, type TurnOutcome } from "../engine/TurnEngine";
 import { GeminiClient } from "../llm/GeminiClient";
 import { describeLLMError } from "../llm/errorMessages";
 import { describeFailure, type FailureNotice } from "./failureNotice";
-import { mountSyncIndicator } from "../sync/indicator";
 import { sendAfterRenewal, shouldDropSend, syncBeforeOpen } from "../sync/openGame";
 import { createGameRepo, getSyncRuntime } from "../sync/runtime";
 import { isConfigured, loadSettings } from "../persistence/settings";
@@ -75,7 +74,6 @@ export default function Game() {
   const latestStateRef = useRef<GameState | null>(null);
   const draftRef = useRef<HTMLTextAreaElement>(null);
   const gameRef = useRef<HTMLElement>(null);
-  const indicatorRef = useRef<HTMLDivElement>(null);
   // Null when sync is off: then nothing below talks to Google.
   const [sync] = useState(getSyncRuntime);
   // Set once this session changed the game (a turn, even one still waiting
@@ -411,11 +409,6 @@ export default function Game() {
     follow();
   }, [playing, turnCount, streamed, error, busy, follow]);
 
-  useEffect(() => {
-    const host = indicatorRef.current;
-    return host ? mountSyncIndicator(host) : undefined;
-  }, [playing]);
-
   const playerRoll = screen.status === "playing" ? screen.state.pendingPlayerRoll : null;
   const enemyRollsPending =
     screen.status === "playing" && screen.state.pendingEnemyRolls.length > 0;
@@ -567,7 +560,6 @@ export default function Game() {
     <section ref={gameRef} className={`game${zenMode ? " game--zen" : ""}`}>
       <div className="game__main">
         <EventToasts toasts={toasts} onDismiss={dismissToast} />
-        <div ref={indicatorRef} hidden />
         <CharacterPanel
           state={state}
           zenMode={zenMode}
