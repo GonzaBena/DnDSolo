@@ -10,6 +10,8 @@ const sections = [
   { id: "drive", title: "Tus partidas y Google Drive" },
   { id: "preguntas", title: "Preguntas frecuentes" },
 ];
+
+const title = (id: string) => sections.find((section) => section.id === id)!.title;
 ---
 
 <Base title="Guía" wide>
@@ -42,13 +44,83 @@ const sections = [
       <h1>Guía</h1>
       <p class="docs-lead">Todo lo que necesitás para empezar a jugar: tu API key, qué cuesta, qué podés hacer y dónde quedan tus partidas.</p>
 
-      {sections.map(({ id, title }) => (
-        <section id={id} class="docs-section" aria-labelledby={`${id}-title`}>
-          <h2 id={`${id}-title`}>{title}</h2>
-          <p class="docs-pending">Próximamente.</p>
-          {id === "api-key" && <p><a href="/settings">Ir a Configuración</a></p>}
-        </section>
-      ))}
+      <section id="que-es" class="docs-section" aria-labelledby="que-es-title">
+        <h2 id="que-es-title">{title("que-es")}</h2>
+        <p>DnDSolo es una campaña de Dungeons &amp; Dragons para una sola persona, y se juega en el navegador. Una IA hace de Dungeon Master: describe la escena, interpreta a los personajes no jugadores y reacciona a lo que decidís. Vos escribís qué hace tu personaje, o elegís una de las acciones que propone el DM.</p>
+        <p>Los dados, los puntos de golpe y las reglas los lleva la app. La IA no decide cuánto daño hacés ni si una tirada sale bien. Las reglas salen del documento de referencia del sistema (SRD 5.2.1) de Wizards of the Coast, y la <a href="/credits">página de créditos</a> tiene la atribución completa.</p>
+        <p>Para jugar solo necesitás un navegador y una cuenta de Google, con la que sacás una clave para usar la IA. La <a href="#api-key">sección siguiente</a> te lleva paso a paso.</p>
+      </section>
+
+      <section id="api-key" class="docs-section" aria-labelledby="api-key-title">
+        <h2 id="api-key-title">{title("api-key")}</h2>
+        <p>Una API key es una clave personal, parecida a una contraseña, con la que Google sabe quién le está pidiendo algo. DnDSolo no tiene su propia IA: cada turno le pide a Gemini, el modelo de Google, que narre lo que pasa, y lo hace con tu clave. Por eso la clave es tuya y la sacás gratis con tu cuenta de Google.</p>
+        <ol>
+          <li>Entrá a <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a> con tu cuenta de Google.</li>
+          <li>Creá una API key. Aparece como un texto largo de letras y números; copiala entera.</li>
+          <li>Abrí <a href="/settings">Configuración</a> y pegala en el campo «API key de Gemini».</li>
+          <li>Tocá «Cargar modelos» y elegí uno de la lista. La lista depende de tu key.</li>
+          <li>Tocá «Probar conexión» y después «Guardar cambios».</li>
+        </ol>
+        <p>La key se guarda solo en este navegador y se envía únicamente a Google. Si jugás desde otro dispositivo, tenés que pegarla de nuevo. Si cambiás de key, recargá la lista de modelos.</p>
+        <p>No la compartas ni la publiques: cualquiera que la tenga puede usar tu cuota de Gemini. Si se te filtra, borrala en AI Studio y creá otra.</p>
+        <p>Si querés que el DM conteste antes, activá «Respuestas rápidas» en Configuración: el modelo piensa menos y la narración llega más rápido.</p>
+        <p><a href="/settings">Ir a Configuración</a></p>
+      </section>
+
+      <section id="costo" class="docs-section" aria-labelledby="costo-title">
+        <h2 id="costo-title">{title("costo")}</h2>
+        <p>DnDSolo no cobra nada. El único gasto posible es el uso de tu API key, que factura Google según tu cuenta y el modelo que elijas.</p>
+        <p>Google suele ofrecer un uso gratuito con límites por minuto y por día, y esas condiciones cambian con el tiempo. Mirá las vigentes en la <a href="https://ai.google.dev/gemini-api/docs/pricing" target="_blank" rel="noopener">página de precios de Gemini</a> antes de empezar.</p>
+        <p>Cada turno envía a Gemini la historia reciente de la campaña, así que una partida larga consume más que una corta. Si llegás al límite, la app te avisa («Llegaste al límite de uso de la API»). Esperá un rato y volvé a intentar.</p>
+      </section>
+
+      <section id="que-podes-hacer" class="docs-section" aria-labelledby="que-podes-hacer-title">
+        <h2 id="que-podes-hacer-title">{title("que-podes-hacer")}</h2>
+        <h3>Crear tu personaje</h3>
+        <p>Podés armarlo a mano, eligiendo raza y clase, o dejar que la app genere uno. La ficha sigue el SRD y se puede copiar como texto.</p>
+        <h3>Jugar los turnos</h3>
+        <p>Escribís lo que hace tu personaje y el DM responde. Cuando una acción pide tirada, la app abre el diálogo de dados. Los puntos de golpe, las tiradas de salvación contra la muerte y los cambios de estado se actualizan solos y aparecen como avisos en pantalla.</p>
+        <p>Debajo del texto, el DM puede proponer hasta tres acciones. Si no te gustan, apagalas en Configuración con «Sugerencias de acción».</p>
+        <h3>Comandos</h3>
+        <p>En el campo de texto podés escribir estos atajos:</p>
+        <ul>
+          <li><code>/descanso</code> para un descanso corto, o <code>/descanso largo</code> para uno de ocho horas. Podés agregar a continuación lo que querés hacer.</li>
+          <li><code>/resumen</code> para que el personaje evalúe su situación y recuerde sus objetivos.</li>
+          <li><code>/mirar</code> o <code>/inspeccionar</code> para buscar detalles, pistas o peligros en la escena.</li>
+        </ul>
+        <h3>Escenas y personajes</h3>
+        <p>El DM describe el lugar y a quienes lo habitan. Cuando un personaje no jugador habla, sus líneas aparecen separadas de la narración y con su retrato.</p>
+      </section>
+
+      <section id="drive" class="docs-section" aria-labelledby="drive-title">
+        <h2 id="drive-title">{title("drive")}</h2>
+        <p>Cada campaña se guarda en este navegador, en el almacenamiento del propio sitio. Funciona sin cuenta y sin conexión a ningún servidor de DnDSolo. La contrapartida es que borrar los datos del navegador borra las partidas.</p>
+        <h3>Exportar e importar</h3>
+        <p>Desde el inicio podés exportar cualquier campaña a un archivo JSON, guardarlo donde quieras e importarlo después, en este dispositivo o en otro.</p>
+        <h3>Google Drive</h3>
+        <p>Si preferís no mover archivos a mano, conectá tu cuenta en Configuración, sección «Sincronización entre dispositivos». Las campañas se guardan en una carpeta oculta que la app crea en tu Drive y que solo ella puede leer. La app no tiene acceso al resto de tus archivos.</p>
+        <p>La primera vez te pregunta qué campañas locales querés subir. Después sincroniza sola, y «Sincronizar ahora» fuerza una actualización. Si la misma campaña cambió en dos dispositivos, te deja elegir cuál conservar.</p>
+        <p>«Renovar la conexión automáticamente» usa el servidor de DnDSolo para que no tengas que volver a entrar con Google cada tanto. Tus partidas siguen solo en tu Drive.</p>
+        <p>Esta opción solo aparece si el sitio tiene la sincronización habilitada.</p>
+      </section>
+
+      <section id="preguntas" class="docs-section" aria-labelledby="preguntas-title">
+        <h2 id="preguntas-title">{title("preguntas")}</h2>
+        <h3>¿Puedo jugar sin conexión?</h3>
+        <p>No. Cada turno consulta a Gemini, así que hace falta internet.</p>
+        <h3>Perdí mis partidas, ¿se pueden recuperar?</h3>
+        <p>Solo si las exportaste o las tenías sincronizadas con Drive. Si no, vivían únicamente en el navegador que borraste.</p>
+        <h3>El DM dice que mi key no es válida</h3>
+        <p>Revisá que la copiaste completa, sin espacios, y que el modelo elegido está en la lista que carga tu key. Probá «Probar conexión» en Configuración para ver el error exacto.</p>
+        <h3>Me aparece «Llegaste al límite de uso»</h3>
+        <p>Superaste la cuota de tu cuenta de Google. Esperá un rato, o revisá el plan de tu key en AI Studio.</p>
+        <h3>¿Qué reglas de D&amp;D usa?</h3>
+        <p>Las del SRD 5.2.1 de Wizards of the Coast, la versión de referencia abierta de D&amp;D 5e. El contenido se limita a lo que incluye ese documento, no a todo el material de los libros oficiales.</p>
+        <h3>¿Es seguro pegar mi API key acá?</h3>
+        <p>La key queda en tu navegador y solo viaja a Google, que es quien la emitió. DnDSolo no la envía a ningún otro servidor. Aun así, tratala como una contraseña y no la compartas.</p>
+        <h3>¿Quién ve mis partidas?</h3>
+        <p>Nadie más que vos. Las partidas viven en tu navegador, y en tu Drive si activás la sincronización. El texto de cada turno se envía a Gemini para generar la respuesta, bajo las condiciones de tu cuenta de Google.</p>
+      </section>
 
       <div class="actions">
         <a class="button" href="/">Volver</a>
