@@ -1,0 +1,131 @@
+/* The composer stays pinned to the bottom of the screen so the player can
+   write while scrolled up through the story. */
+.action-form {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding: var(--space-3) 0;
+  border-top: var(--border);
+  background: var(--color-bg);
+}
+/* Input and send button side by side; the button stays at the bottom
+   edge as the textarea grows. */
+.action-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: end;
+  gap: var(--space-2);
+}
+.action-send,
+.action-roll {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+}
+
+.action-roll__die {
+  width: 1.5rem;
+  height: 1.5rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+/* The DM is waiting on a roll: point the player at the die button. */
+.action-roll--requested:not(:disabled) {
+  background: var(--color-sun);
+  color: var(--color-sun-ink);
+}
+
+.field .action-input {
+  min-height: 2.75rem;
+  resize: none;
+  max-height: 12rem;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+/* The composer is always focused while playing, so no sun ring; the
+   pastel border alone is too faint (WCAG 1.4.11), so an ink halo outside
+   it makes the focus plain in both themes. */
+.field .action-input:focus,
+.field .action-input:focus-visible {
+  outline: none;
+  border-color: var(--color-focus);
+  box-shadow: 0 0 0 2px var(--color-ink);
+}
+.field .action-input::-webkit-scrollbar {
+  display: none;
+}
+
+/* Dying: the composer gives way to the death save. */
+.dying-notice {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-flat);
+}
+.dying-notice__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+}
+.dying-notice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.dying-notice__actions .button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.death-saves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.death-saves__row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.death-saves__label {
+  font-size: var(--text-sm);
+  margin-right: var(--space-1);
+}
+.death-saves__mark {
+  width: 1rem;
+  height: 1rem;
+  border: var(--border);
+  border-radius: 50%;
+  background: var(--color-bg);
+}
+.death-saves__mark--success.death-saves__mark--on {
+  background: var(--color-accent);
+}
+.death-saves__mark--failure.death-saves__mark--on {
+  background: var(--color-primary);
+}
+
+.game-over {
+  display: grid;
+  gap: var(--space-4);
+}
+.game-over__header {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-flat);
+}
+.game-over__title,
+.game-over__subtitle {
+  margin: 0;
+}

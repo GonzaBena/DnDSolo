@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dmResponseJsonSchema, parseDMResponse } from "../src/domain/schemas";
+import { MAX_SUGGESTION_LENGTH, dmResponseJsonSchema, parseDMResponse } from "../src/domain/schemas";
 import { TURN_EVENTS } from "../src/domain/types";
 import { extractPartialNarration } from "../src/engine/narrationStream";
 import { reply } from "./helpers";
@@ -169,14 +169,21 @@ describe("hp state change", () => {
 });
 
 describe("suggestions", () => {
-  it("never fails a reply over them: trims, drops empty and repeated ones, cuts long ones and keeps three", () => {
+  it("never fails a reply over them: trims, drops empty, repeated and overlong ones and keeps three", () => {
     const messy = JSON.stringify({
       ...reply(),
-      suggestions: ["  Corro ", "", "Corro", "x".repeat(70), "Grito", "Ataco"],
+      suggestions: ["  Corro ", "", "Corro", "x".repeat(MAX_SUGGESTION_LENGTH + 1), "Grito", "Ataco", "Salto"],
     });
     const parsed = parseDMResponse(messy);
     if (!parsed.ok) throw new Error(parsed.reason);
-    expect(parsed.response.suggestions).toEqual(["Corro", "x".repeat(59) + "…", "Grito"]);
+    expect(parsed.response.suggestions).toEqual(["Corro", "Grito", "Ataco"]);
+  });
+
+  it("keeps a suggestion longer than the prompt asks for whole: it is sent as typed, never cut", () => {
+    const long = "Me acerco a la mesa del anciano y le pregunto qué trabajo hay para alguien como yo";
+    const parsed = parseDMResponse(JSON.stringify({ ...reply(), suggestions: [long] }));
+    if (!parsed.ok) throw new Error(parsed.reason);
+    expect(parsed.response.suggestions).toEqual([long]);
   });
 
   it("treats missing suggestions as none", () => {

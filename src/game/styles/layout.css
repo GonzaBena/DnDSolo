@@ -1,0 +1,16 @@
+.game,
+.game__main {
+  display: grid;
+  gap: var(--space-4);
+}
+.game__main {
+  min-width: 0;
+}
+
+/* Damage flash on screen */
+.game {
+  transition: box-shadow 0.35s ease-out;
+}
+.game--damage-flash {
+  box-shadow: inset 0 0 50px rgba(209, 73, 46, 0.45);
+}

@@ -1,0 +1,150 @@
+/* Roll dialog: a small centered card for die value + modifier. */
+.roll-dialog {
+  width: min(32rem, calc(100% - 2 * var(--space-3)));
+  padding: 0;
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-flat);
+}
+.roll-dialog::backdrop {
+  background: rgb(0 0 0 / 0.4);
+}
+.roll-dialog__panel {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+.roll-dialog__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+}
+.roll-dialog__request {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+.roll-dialog__dice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.roll-dialog__dice legend {
+  margin-bottom: var(--space-1);
+  padding: 0;
+  font-weight: 700;
+}
+.roll-dialog__die {
+  /* Even widths, but each grows to its figure: the d100 is two d10s. */
+  flex: 1 0 auto;
+  min-width: 3rem;
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: var(--space-1);
+  border: var(--border);
+  border-radius: var(--radius);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  cursor: pointer;
+}
+.roll-dialog__die input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.roll-dialog__die:has(input:checked) {
+  background: var(--color-primary);
+  color: var(--color-primary-ink);
+}
+.roll-dialog__die:has(input:focus-visible) {
+  outline: var(--line) solid var(--color-ink);
+  outline-offset: 2px;
+}
+.roll-dialog__die-shape {
+  display: flex;
+}
+.roll-dialog__die-svg {
+  width: 1.6rem;
+  height: 1.6rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.roll-dialog__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto auto;
+  align-items: end;
+  gap: var(--space-2);
+}
+.roll-dialog__fields label {
+  white-space: nowrap;
+}
+/* Numbers read big and centered; the spinner arrows would eat the digits. */
+.roll-dialog__fields input {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  text-align: center;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.roll-dialog__fields input::-webkit-outer-spin-button,
+.roll-dialog__fields input::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+/* With two dice, they take the first row and the modifier the second. */
+.roll-dialog__fields--pair {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+}
+.roll-dialog__fields--pair .roll-dialog__pair {
+  grid-column: 1 / -1;
+}
+.roll-dialog__pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.roll-dialog__modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.roll-dialog__modes legend {
+  margin-bottom: var(--space-1);
+  padding: 0;
+  font-weight: 700;
+}
+.roll-dialog__mode {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.roll-dialog__kept {
+  margin: 0;
+  font-weight: 700;
+}
+.roll-dialog__op,
+.roll-dialog__total {
+  padding-bottom: var(--space-2);
+  font-weight: 800;
+}
+.roll-dialog__total {
+  min-width: 2.5ch;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  text-align: center;
+}
+.roll-dialog .actions {
+  justify-content: end;
+}

@@ -1,0 +1,189 @@
+.sheet {
+  position: sticky;
+  /* Rides just below the game header, which hides on scroll down. */
+  top: calc(var(--header-offset, 0px) + var(--space-2));
+  transition: top 200ms ease;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-flat);
+}
+.sheet__main {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  min-width: 0;
+}
+.sheet__actions {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+}
+.sheet__actions .scene-toggle {
+  justify-content: space-between;
+}
+.sheet__identity {
+  display: grid;
+}
+/* On a phone the actions leave their column and line up at the foot. */
+@media (max-width: 34rem) {
+  .sheet {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sheet__actions {
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+  }
+  .sheet__actions .scene-toggle {
+    justify-content: center;
+  }
+}
+.scene-toggle {
+  align-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+}
+.scene-toggle__count {
+  display: grid;
+  place-items: center;
+  min-width: 1.5em;
+  height: 1.5em;
+  border-radius: 999px;
+  background: var(--color-ink);
+  color: var(--color-surface);
+  font-size: var(--text-xs);
+}
+.scene-toggle[data-mode="combat"] {
+  background: var(--color-turn-combat);
+  color: var(--color-sun-ink);
+}
+.sheet__identity strong {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  line-height: 1.2;
+}
+.sheet__identity span {
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+.sheet__details {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  font-size: var(--text-sm);
+}
+.sheet__details div {
+  display: flex;
+  gap: var(--space-2);
+}
+.sheet__details dt {
+  font-weight: 800;
+}
+.sheet__details dd {
+  margin: 0;
+}
+
+/* Zen / Reading mode */
+.sheet--zen {
+  padding: var(--space-2) var(--space-3);
+}
+.sheet--zen .sheet__details {
+  display: none;
+}
+.scene-toggle--active {
+  background: var(--color-sun) !important;
+  color: var(--color-sun-ink) !important;
+}
+
+/* Hit points in the sheet panel */
+.sheet__vitals {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+/* The bar with its label laid on top of it. */
+.hp {
+  position: relative;
+  flex: 1;
+  max-width: 20rem;
+  min-width: 0;
+}
+.hp__steps {
+  display: flex;
+  gap: var(--space-2);
+}
+.hp__step {
+  padding: 0;
+  width: 2rem;
+  aspect-ratio: 1 / 1;
+  line-height: 1;
+  color: var(--color-primary-ink);
+}
+.hp__step--minus {
+  background: var(--color-primary);
+}
+.hp__step--plus {
+  background: var(--color-turn-calm);
+}
+.hp__label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-weight: 800;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  /* A halo keeps the text readable over any fill color. */
+  text-shadow:
+    0 0 2px var(--color-surface),
+    0 0 2px var(--color-surface),
+    0 0 3px var(--color-surface);
+  pointer-events: none;
+}
+.hp__value {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-ink);
+  font: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.hp__value:disabled {
+  cursor: default;
+}
+.hp__bar {
+  height: 1.5rem;
+  border: var(--border);
+  border-radius: 999px;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+.hp__fill {
+  height: 100%;
+  transition: width 250ms ease;
+}
+.hp__bar[data-tone="healthy"] .hp__fill {
+  background: var(--color-turn-calm);
+}
+.hp__bar[data-tone="hurt"] .hp__fill {
+  background: var(--color-sun);
+}
+.hp__bar[data-tone="critical"] .hp__fill {
+  background: var(--color-primary);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hp__fill {
+    transition: none;
+  }
+}

@@ -1,0 +1,116 @@
+.roll-card {
+  justify-self: center;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  min-width: 12rem;
+  padding: var(--space-3) var(--space-5);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-flat);
+}
+.roll-card__result {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+/* The tumbling die sits over the number and is hidden unless animated. */
+.roll-card__die {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--text-roll);
+  height: var(--text-roll);
+  margin: calc(var(--text-roll) / -2) 0 0 calc(var(--text-roll) / -2);
+  opacity: 0;
+  pointer-events: none;
+  fill: var(--color-primary);
+  stroke: var(--color-ink);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  overflow: visible;
+}
+.roll-card__die path {
+  fill: none;
+}
+/* Ring thrown out when the two d10s of a d100 meet. Animation-only too. */
+.roll-card__burst {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--text-roll);
+  height: var(--text-roll);
+  margin: calc(var(--text-roll) / -2) 0 0 calc(var(--text-roll) / -2);
+  border: var(--line) solid var(--color-sun);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+.roll-card__value {
+  display: block;
+  font-family: var(--font-display);
+  font-size: var(--text-roll);
+  font-weight: 800;
+  line-height: 1;
+}
+.roll-card__meta {
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+  text-align: center;
+}
+.roll-card__label {
+  font-size: var(--text-sm);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-primary);
+}
+.roll-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+}
+/* The player's roll sits on their side of the chat. */
+.roll-cards--player {
+  justify-content: end;
+}
+.roll-card--player .roll-card__label {
+  color: var(--color-ink);
+}
+/* Natural 20 and natural 1 on the player's d20. */
+.roll-card--critical {
+  background: var(--color-sun);
+  color: var(--color-sun-ink);
+}
+.roll-card--critical .roll-card__label,
+.roll-card--critical .roll-card__meta {
+  color: var(--color-sun-ink);
+}
+.roll-card--fumble {
+  background: var(--color-hostile);
+  color: var(--color-primary-ink);
+}
+.roll-card--fumble .roll-card__label,
+.roll-card--fumble .roll-card__meta {
+  color: var(--color-primary-ink);
+}
+
+.roll-request {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-sun);
+  color: var(--color-sun-ink);
+  box-shadow: var(--shadow-flat);
+}
+.roll-request p {
+  margin: 0;
+}
+.roll-request__hint {
+  font-size: var(--text-sm);
+}

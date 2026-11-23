@@ -1,0 +1,131 @@
+/* Wide pages (the guide): header, page and footer share a wider column. */
+.wide-shell {
+  --content-width: 72rem;
+}
+
+/* Guide (/docs): sidebar on the left, the text centred at reading width.
+   Below 56rem the sidebar moves into a drawer opened from the header. */
+.docs {
+  display: grid;
+  gap: var(--space-5);
+}
+.docs-content {
+  width: 100%;
+  max-width: var(--reading-width);
+  margin: 0 auto;
+  min-width: 0;
+}
+.docs-content h1 {
+  margin-top: 0;
+}
+.docs-lead {
+  color: var(--color-ink-soft);
+}
+.docs-section {
+  margin-top: var(--space-5);
+  scroll-margin-top: var(--space-4);
+}
+.docs-pending {
+  color: var(--color-ink-soft);
+  font-style: italic;
+}
+.docs-sidebar {
+  display: none;
+}
+.docs-menu-button {
+  display: inline-grid;
+}
+
+@media (min-width: 56rem) {
+  .docs {
+    grid-template-columns: 15rem minmax(0, 1fr);
+    align-items: start;
+  }
+  .docs-sidebar {
+    display: block;
+    position: sticky;
+    top: var(--space-4);
+    max-height: calc(100dvh - 2 * var(--space-4));
+    overflow-y: auto;
+    padding-right: var(--space-3);
+    border-right: var(--border);
+  }
+  .docs-menu-button {
+    display: none;
+  }
+}
+
+.docs-nav__title {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-lg);
+}
+.docs-nav ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+.docs-nav a {
+  display: block;
+  padding: var(--space-1) var(--space-2);
+  border: var(--line) solid transparent;
+  border-radius: var(--radius);
+  color: var(--color-ink);
+  text-decoration: none;
+  font-weight: 700;
+}
+.docs-nav a:hover {
+  background: var(--color-surface);
+}
+/* The section being read: the same look as a resting button. */
+.docs-nav a[aria-current="location"] {
+  border-color: var(--color-ink);
+  background: var(--color-sun);
+  color: var(--color-sun-ink);
+}
+
+/* Drawer: the <dialog> covers the screen so its backdrop catches clicks;
+   the panel is pinned to the right edge, under the header's menu button. */
+.docs-drawer {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink);
+  overflow: clip; /* see .drawer in game.css: no sideways scroll while sliding */
+}
+:root:has(.docs-drawer[open]) {
+  overflow: hidden;
+}
+.docs-drawer::backdrop {
+  background: rgb(0 0 0 / 0.4);
+}
+.docs-drawer__panel {
+  position: absolute;
+  inset: 0 0 0 auto;
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  width: min(var(--drawer-width), 85vw);
+  padding: var(--space-4) var(--space-3);
+  overflow-y: auto;
+  border-left: var(--border);
+  background: var(--color-bg);
+}
+.docs-drawer__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.docs-drawer__header .docs-nav__title {
+  margin: 0;
+}

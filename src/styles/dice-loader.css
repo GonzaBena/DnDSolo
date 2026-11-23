@@ -1,0 +1,35 @@
+/* Loading screen: the brand d20 spinning, centred on the viewport. It fades
+   in after a beat so fast loads don't flash it. */
+.dice-loader {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-3);
+  pointer-events: none;
+  animation: dice-loader-in 300ms ease-out 200ms both;
+}
+.dice-loader__die {
+  filter: drop-shadow(0 4px 8px rgb(0 0 0 / 0.2));
+  animation: dice-loader-spin 1.4s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+.dice-loader__label {
+  font-family: var(--font-display);
+  color: var(--color-ink);
+  opacity: 0.75;
+}
+@keyframes dice-loader-in {
+  from { opacity: 0; }
+}
+@keyframes dice-loader-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dice-loader__die {
+    animation: dice-loader-pulse 1.6s ease-in-out infinite alternate;
+  }
+}
+@keyframes dice-loader-pulse {
+  to { opacity: 0.5; }
+}

@@ -1,0 +1,276 @@
+/* Home (/): first-visit landing and the returning player's screen. */
+.home {
+  display: grid;
+  gap: var(--space-4);
+}
+.home h1,
+.home p {
+  margin: 0;
+}
+.home .hero {
+  margin-bottom: 0;
+}
+.home-lead {
+  color: var(--color-ink-soft);
+}
+.home-cta {
+  display: block;
+  padding: var(--space-3) var(--space-4);
+  text-align: center;
+  font-size: var(--text-lg);
+}
+.home-secondary {
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.home-secondary a,
+.home-steps a {
+  font-weight: 700;
+}
+.home-steps {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-flat);
+}
+.home-steps h2 {
+  margin: 0;
+}
+.home-steps ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+  counter-reset: step;
+}
+.home-steps li {
+  display: grid;
+  grid-template-columns: 2.25rem 1fr;
+  column-gap: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+  counter-increment: step;
+}
+.home-steps li::before {
+  content: counter(step);
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  box-sizing: border-box;
+  border: var(--border);
+  border-radius: 50%;
+  background: var(--color-sun);
+  color: var(--color-sun-ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-base);
+}
+.home-steps li strong {
+  color: var(--color-ink);
+  font-size: var(--text-base);
+  font-weight: 800;
+}
+.home-steps li > :not(strong) {
+  grid-column: 2;
+}
+.home-privacy {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+.home-privacy svg {
+  flex: none;
+  margin-top: var(--space-1);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Which home state shows: set on <html> before paint and by refresh(). */
+#home-returning {
+  display: none;
+}
+[data-home="pending"] .home {
+  visibility: hidden;
+}
+#home-returning:not([data-ready]) {
+  visibility: hidden;
+} /* until refresh() fills the card */
+[data-home="returning"] #home-returning {
+  display: grid;
+}
+[data-home="returning"] #home-first {
+  display: none;
+}
+
+.continue-card {
+  display: grid;
+  overflow: hidden;
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-flat);
+  text-align: center;
+}
+.continue-card__banner {
+  display: block;
+  width: 100%;
+  height: 6rem;
+  border-bottom: var(--border);
+}
+.continue-card__banner * {
+  stroke: var(--hero-line);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+/* The castle and dragon are drawn at half size here; thicker widths keep
+   their outlines matching the rest of the banner. */
+.continue-card__banner .hero__castle * {
+  stroke-width: 4;
+}
+.continue-card__banner .hero__dragon path {
+  stroke-width: 3.6;
+}
+.continue-card__banner .hero__dragon .hero__bones {
+  stroke-width: 2.5;
+}
+.continue-card__body {
+  display: grid;
+  gap: var(--space-2);
+  padding: 0 var(--space-3) var(--space-3);
+}
+.continue-card__avatar {
+  display: grid;
+  place-items: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  box-sizing: border-box;
+  margin: -2.25rem auto 0; /* half over the banner */
+  border: var(--border);
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.75rem;
+}
+.continue-card h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
+.continue-card__subtitle,
+.continue-card__detail {
+  color: var(--color-ink-soft);
+  font-size: var(--text-sm);
+}
+.continue-card__excerpt {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  padding-top: var(--space-3);
+  border-top: var(--line) dashed var(--color-ink-soft);
+  font-size: var(--text-sm);
+  font-style: italic;
+}
+.continue-card__excerpt[hidden] {
+  display: none;
+}
+.home-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.home-pair .button {
+  text-align: center;
+}
+
+.others {
+  display: grid;
+  gap: var(--space-3);
+}
+.others__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.others__header h2[hidden] {
+  display: none;
+}
+.others__header h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+.others__header .link-button {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.others__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.campaign-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+.campaign-row strong,
+.campaign-row small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.campaign-row small {
+  color: var(--color-ink-soft);
+}
+.campaign-row__avatar {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  box-sizing: border-box;
+  border: var(--border);
+  border-radius: 50%;
+  background: var(--color-dialog);
+  color: var(--color-dialog-ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+}
+.campaign-row .button {
+  box-shadow: none;
+}
+/* After the state rules, so opening the load panel can still hide both. */
+#home-first[hidden],
+#home-returning[hidden] {
+  display: none;
+}
