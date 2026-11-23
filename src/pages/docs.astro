@@ -12,24 +12,115 @@ const sections = [
 ];
 ---
 
-<Base title="Guía">
-  <h1>Guía</h1>
+<Base title="Guía" wide>
+  {/* Narrow screens: the sidebar moves into a drawer opened from the header. */}
+  <button
+    slot="nav"
+    id="docs-menu-open"
+    type="button"
+    class="icon-button docs-menu-button"
+    aria-label="Contenido de la guía"
+    aria-controls="docs-drawer"
+    aria-expanded="false"
+  >
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  </button>
 
-  <nav class="docs-toc" aria-label="Contenido">
-    <ol>
-      {sections.map(({ id, title }) => <li><a href={`#${id}`}>{title}</a></li>)}
-    </ol>
-  </nav>
+  <div class="docs">
+    <aside class="docs-sidebar">
+      <nav class="docs-nav" aria-label="Contenido de la guía">
+        <p class="docs-nav__title">Guía</p>
+        <ol>
+          {sections.map(({ id, title }) => <li><a href={`#${id}`}>{title}</a></li>)}
+        </ol>
+      </nav>
+    </aside>
 
-  {sections.map(({ id, title }) => (
-    <section id={id} class="docs-section" aria-labelledby={`${id}-title`}>
-      <h2 id={`${id}-title`}>{title}</h2>
-      <p class="docs-pending">Próximamente.</p>
-      {id === "api-key" && <p><a href="/settings">Ir a Configuración</a></p>}
-    </section>
-  ))}
+    <article class="docs-content">
+      <h1>Guía</h1>
+      <p class="docs-lead">Todo lo que necesitás para empezar a jugar: tu API key, qué cuesta, qué podés hacer y dónde quedan tus partidas.</p>
 
-  <div class="actions">
-    <a class="button" href="/">Volver</a>
+      {sections.map(({ id, title }) => (
+        <section id={id} class="docs-section" aria-labelledby={`${id}-title`}>
+          <h2 id={`${id}-title`}>{title}</h2>
+          <p class="docs-pending">Próximamente.</p>
+          {id === "api-key" && <p><a href="/settings">Ir a Configuración</a></p>}
+        </section>
+      ))}
+
+      <div class="actions">
+        <a class="button" href="/">Volver</a>
+      </div>
+    </article>
   </div>
+
+  <dialog id="docs-drawer" class="docs-drawer" aria-labelledby="docs-drawer-title">
+    <div class="docs-drawer__panel">
+      <div class="docs-drawer__header">
+        <p id="docs-drawer-title" class="docs-nav__title">Guía</p>
+        <button id="docs-menu-close" type="button" class="icon-button" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
+      <nav class="docs-nav" aria-label="Contenido de la guía">
+        <ol>
+          {sections.map(({ id, title }) => <li><a href={`#${id}`}>{title}</a></li>)}
+        </ol>
+      </nav>
+    </div>
+  </dialog>
 </Base>
+
+<script>
+  import { currentSection } from "../docs/currentSection";
+
+  const drawer = document.querySelector<HTMLDialogElement>("#docs-drawer")!;
+  const openButton = document.querySelector<HTMLButtonElement>("#docs-menu-open")!;
+
+  const close = () => drawer.close();
+  openButton.addEventListener("click", () => {
+    drawer.showModal();
+    openButton.setAttribute("aria-expanded", "true");
+  });
+  drawer.addEventListener("close", () => openButton.setAttribute("aria-expanded", "false"));
+  document.querySelector("#docs-menu-close")!.addEventListener("click", close);
+  // The dialog covers the screen; a click outside the panel lands on it.
+  drawer.addEventListener("click", (event) => {
+    if (event.target === drawer) close();
+  });
+  // Picking a section closes the drawer; the link then scrolls to it.
+  for (const link of drawer.querySelectorAll("a")) link.addEventListener("click", close);
+  // Back to a wide screen with the drawer open: the sidebar takes over.
+  matchMedia("(min-width: 56rem)").addEventListener("change", (event) => {
+    if (event.matches) close();
+  });
+
+  // The section being read is marked in both lists, like the current page in a docs site.
+  const links = [...document.querySelectorAll<HTMLAnchorElement>(".docs-nav a")];
+  const mark = (id: string) => {
+    for (const link of links) {
+      if (link.hash === `#${id}`) link.setAttribute("aria-current", "location");
+      else link.removeAttribute("aria-current");
+    }
+  };
+  const sections = [...document.querySelectorAll<HTMLElement>(".docs-section")];
+  let queued = false;
+  const update = () => {
+    queued = false;
+    const atBottom = innerHeight + scrollY >= document.documentElement.scrollHeight - 2;
+    const index = currentSection(sections.map((section) => section.getBoundingClientRect().top), innerHeight, atBottom);
+    const section = sections[index];
+    if (section) mark(section.id);
+  };
+  // At most one update per frame while scrolling.
+  addEventListener("scroll", () => {
+    if (!queued) requestAnimationFrame(update);
+    queued = true;
+  }, { passive: true });
+  addEventListener("resize", update);
+  update();
+</script>
