@@ -437,6 +437,32 @@ export default function Game() {
   const turnReady = screen.status === "playing" && !busy && !inFlight && !enemyRollsPending;
   const canAct = turnReady && hpPending === 0 && !paused;
 
+  // A game opened without suggestions (a save from before they existed, or a
+  // reply that brought none) asks for them once per turn. Kept on screen
+  // only: the next turn brings its own and saves them.
+  const askedSuggestionsRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (screen.status !== "playing" || !showSuggestions || !canAct) return;
+    const { engine, state } = screen;
+    if (state.turns.length === 0 || state.suggestedActions.length > 0 || state.pendingPlayerRoll) return;
+    if (!state.players.some((p) => p.condition === "ok")) return;
+    const key = `${state.id}:${state.turns.length}`;
+    if (askedSuggestionsRef.current === key) return;
+    askedSuggestionsRef.current = key;
+    const generation = generationRef.current;
+    void engine.suggestFor(state).then((actions) => {
+      if (actions.length === 0 || generation !== generationRef.current) return;
+      setScreen((current) =>
+        current.status === "playing" &&
+        current.state.id === state.id &&
+        current.state.turns.length === state.turns.length &&
+        current.state.suggestedActions.length === 0
+          ? { ...current, state: { ...current.state, suggestedActions: actions } }
+          : current,
+      );
+    });
+  }, [screen, showSuggestions, canAct]);
+
   // Focus the composer whenever it is the player's turn, unless they are
   // already in another field. Skipped on touch screens, where focusing
   // would pop the on-screen keyboard over the story.
@@ -682,9 +708,10 @@ export default function Game() {
           onSubmit={submitDeathSave}
         />
 
-        {showSuggestions && canAct && !dying && !playerRoll && (
+        {showSuggestions && (
           <Suggestions
             actions={state.suggestedActions}
+            visible={turnReady && !paused && !dying && !playerRoll}
             onPick={(action) => {
               setDraft((current) => withSuggestion(current, action));
               draftRef.current?.focus();
