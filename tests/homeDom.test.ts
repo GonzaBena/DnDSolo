@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { GameState } from "../src/domain/types";
 import { campaignRow, driveRow, playHref, saveRow } from "../src/home/campaignRows";
-import { deleteWarning } from "../src/home/deleteDialog";
+import { animateRowOut, deleteWarning } from "../src/home/deleteDialog";
 import { markMissing } from "../src/settings/apiSection";
 import { newGame } from "./helpers";
 
@@ -35,11 +35,27 @@ describe("campaign rows", () => {
     expect(actions.onDelete).toHaveBeenCalledWith(game);
   });
 
+  it("carry the campaign id so a deleted row can be found and animated out", () => {
+    expect(saveRow(hostile(), { onExport() {}, onDelete() {} }).dataset.id).toBe("a b&c");
+  });
+
   it("show how a Drive campaign compares with this device", () => {
     const row = driveRow({ id: "1", name: "<b>Lira</b>", status: "newer_remote", updatedAt: "2026-01-02T12:00:00Z" });
     expect(row.dataset.status).toBe("newer_remote");
     expect(row.querySelector("b")).toBeNull();
     expect(row.textContent).toContain("Hay una versión más nueva");
+  });
+});
+
+describe("animateRowOut", () => {
+  it("skips the motion for reduced-motion users and missing rows", async () => {
+    const row = document.createElement("li");
+    row.animate = vi.fn();
+    vi.stubGlobal("matchMedia", () => ({ matches: true }));
+    await animateRowOut(row);
+    await animateRowOut(null);
+    expect(row.animate).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 });
 
