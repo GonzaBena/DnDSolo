@@ -1,6 +1,6 @@
 # Auditoría del sitio — 2026-11-23
 
-Análisis de DnDSolo en cinco ejes: seguridad, rendimiento, modularidad y mantenibilidad, SEO y accesibilidad. Basado en el código de `main` (`bca7df8`) y un build de producción.
+Análisis de DungeonSolo en cinco ejes: seguridad, rendimiento, modularidad y mantenibilidad, SEO y accesibilidad. Basado en el código de `main` (`bca7df8`) y un build de producción.
 
 ## Prioridades
 
@@ -9,10 +9,22 @@ Análisis de DnDSolo en cinco ejes: seguridad, rendimiento, modularidad y manten
    - Pendiente: `frame-ancestors`, HSTS y `X-Content-Type-Options` solo funcionan como cabeceras HTTP, no en `<meta>`. Hay que ver si el CDN de Hostinger permite agregarlas.
 2. [x] Metadatos SEO, `robots.txt`, sitemap y `noindex` en las páginas de la app.
    - Hecho: `site` en `astro.config.mjs`; en `Base.astro`, descripción, canonical sin barra final, Open Graph y Twitter Card; `noindex` en `/play`, `/character`, `/generator` y `/settings`; título de la home con palabras clave; JSON-LD `WebApplication`; `robots.txt` y `sitemap.xml` como endpoints prerenderizados (`/`, `/docs`, `/credits`).
-   - Pendiente: imagen de vista previa de 1200×630 (hoy se usa `icon-512.png` con tarjeta `summary`) y dar de alta el sitemap en Google Search Console.
+   - Imagen de vista previa de 1200×630 en `public/og-image.png`, con tarjeta `summary_large_image`.
+   - Pendiente: dar de alta el sitemap en Google Search Console (ver "Para después").
 3. [ ] Arreglar el `aria-live` del log de narración.
 4. [ ] Cargar el SDK de Gemini solo cuando se usa y pasar a `zod/mini`.
 5. [ ] Sacar los scripts inline de `index.astro` y `settings.astro` a módulos con tests.
+
+## Para después
+
+- [ ] Push de `main` (CSP + SEO ya mergeados localmente; el push publica en Hostinger).
+- [ ] Google Search Console, cuando propague el DNS:
+  1. search.google.com/search-console → agregar propiedad **Prefijo de URL** `https://dungeonsolo.com.ar`.
+  2. Verificar con **registro DNS TXT** (hPanel → Dominios → DNS).
+  3. **Sitemaps** → enviar `sitemap.xml`.
+  4. Opcional: **Inspección de URLs** en `/` → solicitar indexación. Bing Webmaster Tools importa todo desde Search Console.
+- [ ] Revisar la vista previa al compartir con opengraph.xyz o developers.facebook.com/tools/debug.
+- [ ] Cabeceras HTTP (`frame-ancestors`, HSTS, `X-Content-Type-Options`): ver si el CDN de Hostinger permite agregarlas.
 
 ## 1. Seguridad
 
