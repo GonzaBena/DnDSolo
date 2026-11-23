@@ -707,6 +707,13 @@
   border: 0;
   background: transparent;
   color: var(--color-ink);
+  /* The UA gives a modal dialog overflow: auto. While the panel slides in
+     from translateX(100%) it overflows to the right, and focusing its
+     first control scrolls the dialog sideways; the panel then ends up
+     off-screen to the left. `clip` makes the dialog not scrollable at
+     all (the panel scrolls itself). */
+  overflow: hidden;
+  overflow: clip;
 }
 /* Lock the page behind an open drawer. */
 :root:has(.drawer[open]) {
