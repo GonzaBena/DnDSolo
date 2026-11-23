@@ -1,0 +1,120 @@
+/* Configuración. One spacing rhythm for the whole page:
+   label ↔ control: space-1 · between fields of a section: space-3 · between sections: space-4, a divider, space-4. */
+
+.settings { display: grid; gap: var(--space-4); }
+
+.settings-section {
+  display: grid;
+  gap: var(--space-3);
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+/* Every section after the first gets the divider: a dashed ink line, like a cut on the paper. */
+.settings > .settings-section + .settings-section,
+.settings-section--divided {
+  padding-block-start: var(--space-4);
+  border-block-start: var(--line) dashed var(--color-ink-soft);
+}
+/* Sections outside the form (sync, back link) sit after it with the same gap. */
+.settings-section--divided { margin-block-start: var(--space-4); }
+/* The back link keeps its own width. */
+nav.settings-section { justify-items: start; }
+/* The sync message line only takes room when it has something to say. */
+.settings-section > .status:empty,
+.settings-footer > .status:empty { display: none; }
+
+.settings-section__header { display: grid; gap: var(--space-1); }
+.settings-section h2,
+.settings-section__legend {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+/* A legend normally sits on the fieldset's border; floating it makes it an ordinary grid item. */
+.settings-section__legend { float: inline-start; }
+.settings-section p { margin: 0; text-wrap: pretty; }
+.settings-section__header p,
+.settings-section__lead { color: var(--color-ink-soft); font-size: var(--text-sm); }
+/* Heading and its lead line stay as close as in a <header>. */
+.settings-section .settings-section__lead { margin-block-start: calc(var(--space-1) - var(--space-3)); }
+
+/* Text field + its helper button on one line. */
+.settings-field { display: grid; gap: var(--space-1); }
+.settings-field > label { font-weight: 700; }
+.settings-field small { font-size: var(--text-sm); color: var(--color-ink-soft); }
+.settings-inline { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.settings-inline > input,
+.settings-inline > select {
+  flex: 1 1 14rem;
+  min-inline-size: 0;
+  min-block-size: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: max(1rem, 1em);
+}
+.settings-inline > input:focus-visible,
+.settings-inline > select:focus-visible { border-color: var(--color-focus); }
+.settings-inline > [aria-invalid="true"] { border-color: var(--color-primary); }
+.settings-inline > :disabled { opacity: 0.6; cursor: not-allowed; }
+.settings-inline > .button { flex: none; box-shadow: none; }
+
+/* Text on the left, its control on the right; stacks when there is no room. */
+.settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+.settings-row[hidden] { display: none; }
+.settings-row__text { flex: 1 1 16rem; }
+.settings-row__buttons { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.settings-stack { display: grid; gap: var(--space-3); }
+.settings-stack[hidden] { display: none; }
+
+/* A whole row is the switch's label, so the full width is the tap target. */
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-block-size: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+.switch-row:has(.switch:focus-visible) { outline: 3px solid var(--color-sun); outline-offset: 3px; }
+.switch-row .switch:focus-visible { outline: none; }
+.switch-row:has(.switch:disabled) { cursor: not-allowed; color: var(--color-ink-soft); }
+.switch-row__text { display: grid; gap: 0.125rem; }
+.switch-row__text small { font-size: var(--text-sm); color: var(--color-ink-soft); line-height: 1.4; }
+
+.settings-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-block-start: calc(var(--space-3) - var(--space-4));
+}
+.settings-footer .status { flex: 1 1 14rem; }
+.settings-footer__buttons { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-inline-start: auto; }
+/* Once wrapped on a narrow screen, the two buttons share the row evenly. */
+.settings-footer__buttons > .button { flex: 1 1 auto; }
+
+@media (pointer: coarse) {
+  .settings-inline > .button,
+  .settings-row__buttons > .button { min-block-size: 2.75rem; }
+}

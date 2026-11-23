@@ -1,8 +1,12 @@
 ---
 import Base from "../layouts/Base.astro";
+import "../styles/settings.css";
 
 // Without a Google client id the build has no sync at all: the section is not rendered.
 const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
+
+// The HTML `switch` attribute (Safari draws a native switch) is newer than the typings.
+const switchAttr: Record<string, string> = { switch: "" };
 ---
 
 <Base title="Configuración">
@@ -11,71 +15,111 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     Para jugar necesitás cargar tu API key de Gemini y elegir un modelo.
   </p>
 
-  <form id="settings-form" class="form">
-    <label class="field">
-      <span>API key de Gemini</span>
-      <input id="api-key" type="password" autocomplete="off" spellcheck="false" required />
-      <small>
-        Se guarda solo en este navegador. Podés crear una en
-        <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a>.
-      </small>
-    </label>
+  <form id="settings-form" class="settings" novalidate>
+    <section class="settings-section" aria-labelledby="ai-title">
+      <header class="settings-section__header">
+        <h2 id="ai-title">Inteligencia artificial</h2>
+        <p>El DM usa Gemini con tu propia API key.</p>
+      </header>
 
-    <label class="field">
-      <span>Modelo</span>
-      <select id="model" required disabled>
-        <option value="">Cargá tu key para ver los modelos</option>
-      </select>
-    </label>
+      <div class="settings-field">
+        <label for="api-key">API key de Gemini</label>
+        <div class="settings-inline">
+          <input
+            id="api-key"
+            name="api-key"
+            type="password"
+            autocomplete="off"
+            autocapitalize="none"
+            autocorrect="off"
+            spellcheck="false"
+            aria-describedby="api-key-help"
+            required
+          />
+          <button id="toggle-key" type="button" class="button button--small" aria-pressed="false" aria-controls="api-key">
+            Mostrar
+          </button>
+        </div>
+        <small id="api-key-help">
+          Se guarda solo en este navegador. Podés crear una en{" "}
+          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a>.
+        </small>
+      </div>
 
-    <label class="field field--check">
-      <input id="fast-narration" type="checkbox" />
-      <span>Respuestas rápidas (el DM piensa menos y contesta antes)</span>
-    </label>
+      <div class="settings-field">
+        <label for="model">Modelo</label>
+        <div class="settings-inline">
+          <select id="model" name="model" required disabled aria-describedby="model-help">
+            <option value="">Cargá tu key para ver los modelos</option>
+          </select>
+          <button id="load-models" type="button" class="button button--small">Cargar modelos</button>
+        </div>
+        <small id="model-help">La lista depende de tu key: recargala si cambiás de key.</small>
+      </div>
+    </section>
 
-    <label class="field field--check">
-      <input id="show-suggestions" type="checkbox" checked />
-      <span>Sugerencias de acción (el DM propone hasta tres ideas después de cada respuesta)</span>
-    </label>
+    <fieldset class="settings-section">
+      <legend class="settings-section__legend">Narración</legend>
+      <p class="settings-section__lead">Cómo se comporta el DM durante la partida.</p>
 
-    <div class="actions">
-      <button id="load-models" type="button" class="button">Cargar modelos</button>
-      <button id="test" type="button" class="button">Probar conexión</button>
-      <button type="submit" class="button button--primary">Guardar</button>
+      <label class="switch-row">
+        <span class="switch-row__text">
+          <strong>Respuestas rápidas</strong>
+          <small>El DM piensa menos y contesta antes.</small>
+        </span>
+        <input id="fast-narration" name="fast-narration" type="checkbox" class="switch" {...switchAttr} role="switch" />
+      </label>
+
+      <label class="switch-row">
+        <span class="switch-row__text">
+          <strong>Sugerencias de acción</strong>
+          <small>El DM propone hasta tres ideas después de cada respuesta.</small>
+        </span>
+        <input id="show-suggestions" name="show-suggestions" type="checkbox" class="switch" {...switchAttr} role="switch" checked />
+      </label>
+    </fieldset>
+
+    <div class="settings-footer">
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+      <div class="settings-footer__buttons">
+        <button id="test" type="button" class="button">Probar conexión</button>
+        <button type="submit" class="button button--primary">Guardar cambios</button>
+      </div>
     </div>
-    <p id="status" class="status" role="status" aria-live="polite"></p>
   </form>
 
   {syncBuild && (
-    <section id="sync-section" class="sync-settings" aria-labelledby="sync-title">
-      <h2 id="sync-title">Sincronización entre dispositivos</h2>
-      <div id="sync-off" class="form">
-        <p>Guardá tus campañas en tu Google Drive para seguirlas en otro dispositivo.</p>
-        <div class="actions">
-          <button id="sync-connect" type="button" class="button button--primary" aria-disabled="true">Conectar Google Drive</button>
-        </div>
+    <section id="sync-section" class="settings-section settings-section--divided" aria-labelledby="sync-title">
+      <header class="settings-section__header">
+        <h2 id="sync-title">Sincronización entre dispositivos</h2>
+      </header>
+      <div id="sync-off" class="settings-row">
+        <p class="settings-row__text">Guardá tus campañas en tu Google Drive para seguirlas en otro dispositivo.</p>
+        <button id="sync-connect" type="button" class="button button--primary" aria-disabled="true">Conectar Google Drive</button>
       </div>
-      <div id="sync-on" class="form" hidden>
-        <p id="sync-line" class="sync-indicator" data-state="idle"></p>
-        <label class="field field--check">
-          <input id="sync-auto-renew" type="checkbox" disabled />
-          <span>
-            Renovar la conexión automáticamente
+      <div id="sync-on" class="settings-stack" hidden>
+        <div class="settings-row">
+          <p id="sync-line" class="sync-indicator settings-row__text" data-state="idle"></p>
+          <div class="settings-row__buttons">
+            <button id="sync-now" type="button" class="button button--small">Sincronizar ahora</button>
+            <button id="sync-disconnect" type="button" class="button button--small">Desconectar</button>
+          </div>
+        </div>
+        <label class="switch-row">
+          <span class="switch-row__text">
+            <strong>Renovar la conexión automáticamente</strong>
             <small>Usa el servidor de DnSolo para no pedirte que vuelvas a entrar. Tus partidas siguen solo en tu Drive.</small>
           </span>
+          <input id="sync-auto-renew" type="checkbox" class="switch" {...switchAttr} role="switch" disabled />
         </label>
-        <div class="actions">
-          <button id="sync-now" type="button" class="button">Sincronizar ahora</button>
-          <button id="sync-disconnect" type="button" class="button">Desconectar</button>
-        </div>
       </div>
       <p id="sync-status" class="status" role="status" aria-live="polite"></p>
     </section>
   )}
 
-  <div class="actions">
-    <a class="button" href="/">Volver</a>
-  </div>
+  <nav class="settings-section settings-section--divided" aria-label="Volver">
+    <a class="button" href="/">Volver al inicio</a>
+  </nav>
 </Base>
 
 <script>
@@ -100,14 +144,42 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
   const status = document.querySelector<HTMLParagraphElement>("#status")!;
   const notice = document.querySelector<HTMLParagraphElement>("#missing-notice")!;
 
+  const toggleKeyButton = document.querySelector<HTMLButtonElement>("#toggle-key")!;
+
   function setStatus(text: string, tone: "info" | "ok" | "error" = "info") {
     status.textContent = text;
     status.dataset.tone = tone;
   }
 
+  /** Marks the empty required fields and focuses the first one; true when nothing is missing. */
+  function requireFilled(fields: (HTMLInputElement | HTMLSelectElement)[]): boolean {
+    const missing = fields.filter((field) => !field.value.trim());
+    for (const field of fields) {
+      if (missing.includes(field)) field.setAttribute("aria-invalid", "true");
+      else field.removeAttribute("aria-invalid");
+    }
+    // A model list that was never loaded can't take focus: its "Cargar modelos" button can.
+    const first = missing[0];
+    if (first) (first.disabled ? loadButton : first).focus();
+    return missing.length === 0;
+  }
+
+  for (const field of [keyInput, modelSelect]) {
+    const clear = () => field.value.trim() && field.removeAttribute("aria-invalid");
+    field.addEventListener("input", clear);
+    field.addEventListener("change", clear);
+  }
+
+  toggleKeyButton.addEventListener("click", () => {
+    const show = keyInput.type === "password";
+    keyInput.type = show ? "text" : "password";
+    toggleKeyButton.setAttribute("aria-pressed", String(show));
+    toggleKeyButton.textContent = show ? "Ocultar" : "Mostrar";
+  });
+
   async function loadModels(preferred: string) {
     const apiKey = keyInput.value.trim();
-    if (!apiKey) {
+    if (!requireFilled([keyInput])) {
       setStatus("Primero pegá tu API key.", "error");
       return;
     }
@@ -135,7 +207,7 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
   testButton.addEventListener("click", async () => {
     const apiKey = keyInput.value.trim();
     const model = modelSelect.value;
-    if (!apiKey || !model) {
+    if (!requireFilled([keyInput, modelSelect])) {
       setStatus("Necesitás una API key y un modelo para probar.", "error");
       return;
     }
@@ -157,7 +229,7 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     event.preventDefault();
     const apiKey = keyInput.value.trim();
     const model = modelSelect.value;
-    if (!apiKey || !model) {
+    if (!requireFilled([keyInput, modelSelect])) {
       setStatus("Necesitás una API key y un modelo para guardar.", "error");
       return;
     }

@@ -59,9 +59,3 @@
   text-decoration: underline;
   cursor: pointer;
 }
-
-/* Configuración: the sync section under the Gemini form. */
-.sync-settings { display: grid; gap: var(--space-3); margin-top: var(--space-5); }
-.sync-settings h2 { margin: 0; }
-.sync-settings p { margin: 0; }
-.sync-settings .field--check small { display: block; }
