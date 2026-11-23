@@ -5,11 +5,11 @@ import { SITE_DESCRIPTION } from "../site";
 // Without a Google client id the build has no sync at all: none of its markup ships.
 const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
 
-// Lets search engines show DnDSolo as a free web app.
+// Lets search engines show DungeonSolo as a free web app.
 const structuredData = {
   "@context": "https://schema.org",
   "@type": "WebApplication",
-  name: "DnDSolo",
+  name: "DungeonSolo",
   url: Astro.site?.href,
   description: SITE_DESCRIPTION,
   applicationCategory: "GameApplication",
@@ -151,7 +151,7 @@ const structuredData = {
           <path d="M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
         </svg>
         <strong id="drop-title">Seleccioná o arrastrá una campaña</strong>
-        <small id="drop-hint">El archivo .json que exportaste desde DnDSolo</small>
+        <small id="drop-hint">El archivo .json que exportaste desde DungeonSolo</small>
       </button>
       <input id="import-file" type="file" accept="application/json,.json" hidden />
       <div id="import-conflict" class="import-conflict" role="group" aria-labelledby="import-conflict-text" hidden>

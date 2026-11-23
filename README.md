@@ -1,4 +1,4 @@
-# DnSolo
+# DungeonSolo
 
 Un Dungeon Master con IA para jugar D&D en solitario desde el navegador. Creás tu personaje, la IA narra la campaña y vos decidís qué hace tu personaje con texto libre.
 

@@ -7,7 +7,7 @@ import node from '@astrojs/node';
 // https://astro.build/config
 export default defineConfig({
   // Canonical URLs, link previews and the sitemap need absolute addresses.
-  site: 'https://dndsolo.gonzabena.com.ar',
+  site: 'https://dungeonsolo.com.ar',
   integrations: [react()],
   // No Markdown pages; Shiki's inline styles would also clash with the CSP.
   markdown: { syntaxHighlight: false },

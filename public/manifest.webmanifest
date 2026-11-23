@@ -1,6 +1,6 @@
 {
-  "name": "DnDSolo",
-  "short_name": "DnDSolo",
+  "name": "DungeonSolo",
+  "short_name": "DungeonSolo",
   "description": "Tu aventura, tu Dungeon Master.",
   "lang": "es-AR",
   "start_url": "/",
