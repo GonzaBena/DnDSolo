@@ -301,3 +301,15 @@ a { color: var(--color-accent); text-underline-offset: 0.15em; }
   .button { transition: none; }
   .button:hover:not(:disabled) { transform: none; }
 }
+
+/* Guide (/docs): a table of contents card, then one section per topic. */
+.docs-toc {
+  padding: var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-flat);
+}
+.docs-toc ol { margin: 0; padding-left: var(--space-4); display: grid; gap: var(--space-1); }
+.docs-section { margin-top: var(--space-5); scroll-margin-top: var(--space-6); }
+.docs-pending { color: var(--color-ink-soft); font-style: italic; }

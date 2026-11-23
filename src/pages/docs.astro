@@ -1,0 +1,35 @@
+---
+import Base from "../layouts/Base.astro";
+
+// Each section is an anchor other pages link to (the home links #api-key).
+const sections = [
+  { id: "que-es", title: "Qué es DnDSolo" },
+  { id: "api-key", title: "Cómo conseguir tu API key" },
+  { id: "costo", title: "Cuánto cuesta" },
+  { id: "que-podes-hacer", title: "Qué podés hacer" },
+  { id: "drive", title: "Tus partidas y Google Drive" },
+  { id: "preguntas", title: "Preguntas frecuentes" },
+];
+---
+
+<Base title="Guía">
+  <h1>Guía</h1>
+
+  <nav class="docs-toc" aria-label="Contenido">
+    <ol>
+      {sections.map(({ id, title }) => <li><a href={`#${id}`}>{title}</a></li>)}
+    </ol>
+  </nav>
+
+  {sections.map(({ id, title }) => (
+    <section id={id} class="docs-section" aria-labelledby={`${id}-title`}>
+      <h2 id={`${id}-title`}>{title}</h2>
+      <p class="docs-pending">Próximamente.</p>
+      {id === "api-key" && <p><a href="/settings">Ir a Configuración</a></p>}
+    </section>
+  ))}
+
+  <div class="actions">
+    <a class="button" href="/">Volver</a>
+  </div>
+</Base>
