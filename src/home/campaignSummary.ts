@@ -26,9 +26,10 @@ export function summarizeCampaign(game: GameState): CampaignSummary {
   };
 }
 
-/** The last sentences of a narration that fit in `max` characters: where the
-    story left off. A single sentence too long is cut at a word, with "…". */
-export function narrationExcerpt(text: string, max = 140): string {
+/** The last sentences of a narration that fit in `max` characters (90 is two
+    lines of the card on a phone): where the story left off. A single sentence
+    too long is cut at a word, with "…". */
+export function narrationExcerpt(text: string, max = 90): string {
   const plain = text.replace(/[*_]/g, "").replace(/\s+/g, " ").trim();
   const sentences = plain.split(/(?<=[.!?…])\s+/);
   let excerpt = "";

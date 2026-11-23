@@ -62,6 +62,12 @@ describe("narrationExcerpt", () => {
     expect(excerpt.slice(0, -1).split(" ").every((word) => word === "palabra")).toBe(true);
   });
 
+  it("fits two lines of a phone card by default", () => {
+    const text = "La lluvia golpea las tejas del molino abandonado. La puerta de la cripta cede con un crujido. Abajo, algo respira en la oscuridad.";
+    expect(narrationExcerpt(text).length).toBeLessThanOrEqual(90);
+    expect(narrationExcerpt(text).endsWith("algo respira en la oscuridad.")).toBe(true);
+  });
+
   it("strips markdown marks and collapses whitespace", () => {
     expect(narrationExcerpt("**Cuidado**:  el\n\nsuelo _cruje_.")).toBe("Cuidado: el suelo cruje.");
   });

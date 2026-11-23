@@ -272,6 +272,11 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
   };
   // Local first, so the list never waits for Drive.
   const firstPaint = refresh().catch(showRefreshError);
+  // Back from /play restores this page from the bfcache: the card would show
+  // the campaign as it was before that session.
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) void refresh().catch(showRefreshError);
+  });
 
   if (sync) {
     // A tap on the navbar sync button may have brought games from Drive.
