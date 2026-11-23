@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { shakeScreen } from "../animations/motion";
 import { castOf, speakingNow } from "../domain/dialogue";
+import { announcementOf } from "./announcement";
 import { formatDice } from "../domain/dice";
 import type { GameState, PlayerRoll, TurnInput } from "../domain/types";
 import { TurnEngine, type TurnOutcome } from "../engine/TurnEngine";
@@ -409,6 +410,24 @@ export default function Game() {
     follow();
   }, [playing, turnCount, streamed, error, busy, follow]);
 
+  // Screen readers hear each finished turn once, as plain text (see
+  // announcementOf): the log itself streams letter by letter, so it is not a
+  // live region. Opening a game announces nothing.
+  const [announcement, setAnnouncement] = useState("");
+  const announcedCount = useRef<number | null>(null);
+  useEffect(() => {
+    if (screen.status !== "playing") {
+      announcedCount.current = null;
+      return;
+    }
+    const { turns } = screen.state;
+    const last = turns.at(-1);
+    if (announcedCount.current !== null && turns.length > announcedCount.current && last) {
+      setAnnouncement(announcementOf(last.narration, castOf(screen.state)));
+    }
+    announcedCount.current = turns.length;
+  }, [screen]);
+
   const playerRoll = screen.status === "playing" ? screen.state.pendingPlayerRoll : null;
   const enemyRollsPending =
     screen.status === "playing" && screen.state.pendingEnemyRolls.length > 0;
@@ -577,7 +596,8 @@ export default function Game() {
           onClose={() => setSceneOpen(false)}
         />
 
-        <div className="log" aria-live="polite">
+        <p className="sr-only" role="status">{announcement}</p>
+        <div className="log">
           <TurnLog turns={state.turns} players={state.players} cast={cast} enterCount={screen.loadedTurns} />
           {inFlight && (
             <div className="turn">

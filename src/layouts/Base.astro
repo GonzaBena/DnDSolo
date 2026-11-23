@@ -74,6 +74,7 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     </script>
   </head>
   <body class:list={{ "game-shell": game, "wide-shell": wide }}>
+    <a class="skip-link" href="#contenido">Saltar al contenido</a>
     <header class="site-header">
       <a class="brand" href="/">
         <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">
@@ -113,7 +114,7 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
           </svg>
         </a>
-        <button class="theme-toggle" type="button" aria-label="Cambiar a modo oscuro">
+        <button class="theme-toggle" type="button" aria-label="Modo oscuro" aria-pressed="false">
           <svg class="theme-toggle__moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
             <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" />
           </svg>
@@ -126,7 +127,7 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
         <slot name="nav" />
       </nav>
     </header>
-    <main class="page">
+    <main id="contenido" class="page" tabindex="-1">
       <slot />
     </main>
     {footer && (
@@ -156,11 +157,9 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
 
       const root = document.documentElement;
       const toggle = document.querySelector<HTMLButtonElement>(".theme-toggle");
+      // A toggle button: its name stays, its pressed state says the mode.
       const labelToggle = () => {
-        toggle?.setAttribute(
-          "aria-label",
-          root.dataset.theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro",
-        );
+        toggle?.setAttribute("aria-pressed", String(root.dataset.theme === "dark"));
       };
       labelToggle();
       toggle?.addEventListener("click", () => {

@@ -11,7 +11,8 @@ Análisis de DungeonSolo en cinco ejes: seguridad, rendimiento, modularidad y ma
    - Hecho: `site` en `astro.config.mjs`; en `Base.astro`, descripción, canonical sin barra final, Open Graph y Twitter Card; `noindex` en `/play`, `/character`, `/generator` y `/settings`; título de la home con palabras clave; JSON-LD `WebApplication`; `robots.txt` y `sitemap.xml` como endpoints prerenderizados (`/`, `/docs`, `/credits`).
    - Imagen de vista previa de 1200×630 en `public/og-image.png`, con tarjeta `summary_large_image`.
    - Pendiente: dar de alta el sitemap en Google Search Console (ver "Para después").
-3. [ ] Arreglar el `aria-live` del log de narración.
+3. [x] Arreglar el `aria-live` del log de narración.
+   - Hecho: el log ya no es región viva; cada turno terminado se anuncia una vez como texto plano (`src/game/announcement.ts`). También: enlace "Saltar al contenido", `aria-pressed` en el botón de tema y halo de foco en el campo de acción.
 4. [ ] Cargar el SDK de Gemini solo cuando se usa y pasar a `zod/mini`.
 5. [ ] Sacar los scripts inline de `index.astro` y `settings.astro` a módulos con tests.
 
