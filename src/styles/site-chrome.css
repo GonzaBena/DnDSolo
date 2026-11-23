@@ -1,0 +1,135 @@
+.site-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: var(--space-3);
+}
+.site-header a {
+  text-decoration: none;
+  font-weight: 700;
+}
+.site-footer {
+  width: 100%;
+  max-width: var(--content-width);
+  margin: auto auto 0;
+  padding: var(--space-3);
+  border-top: var(--border);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+.site-footer p {
+  margin: 0;
+}
+.site-footer .attribution {
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+@media (max-width: 30rem) {
+  .site-header {
+    flex-wrap: wrap;
+    row-gap: var(--space-2);
+  }
+  .site-nav {
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+  }
+}
+.theme-toggle,
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: var(--border);
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.theme-toggle svg,
+.icon-button svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* Game screen header: sticky, slides up while scrolling down. The shadow
+   + clip-path pair paints the background edge to edge without widening
+   the header's layout box. */
+.game-shell .site-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--color-bg);
+  box-shadow: 0 0 0 100vmax var(--color-bg);
+  clip-path: inset(0 -100vmax);
+  transition: transform 200ms ease;
+}
+.game-shell {
+  --header-offset: var(--header-h, 0px);
+}
+/* The composer is pinned to the bottom, so the page needs no trailing gap. */
+.game-shell .page {
+  padding-bottom: 0;
+}
+.game-shell[data-header="hidden"] {
+  --header-offset: 0px;
+}
+.game-shell[data-header="hidden"] .site-header {
+  transform: translateY(-100%);
+}
+/* Wide screens show the scene panel in the right margin: the game page
+   spans the window so the log can stay centred, at its reading width,
+   under the header. Zen mode hides the panel. */
+@media (min-width: 64rem) {
+  .game-shell:has(.game:not(.game--zen)) .page {
+    max-width: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-shell .site-header {
+    transition: none;
+  }
+}
+/* Shows the mode you would switch to: moon by day, sun by night. */
+.theme-toggle__sun {
+  display: none;
+}
+[data-theme="dark"] .theme-toggle__sun {
+  display: block;
+}
+[data-theme="dark"] .theme-toggle__moon {
+  display: none;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  color: var(--color-ink);
+}
+.brand__die {
+  fill: var(--color-primary);
+  stroke: var(--color-ink);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.brand__lines {
+  fill: none;
+  stroke: var(--color-ink);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}

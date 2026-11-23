@@ -1,0 +1,173 @@
+/* Hero illustration (and the continue card banner, which reuses its
+   classes). Its colors live in local variables so the dark theme
+   can repaint it as a night scene instead of inheriting the flipped UI ink. */
+.hero,
+.continue-card__banner {
+  --hero-line: var(--color-ink);
+  --hero-sky: var(--color-sky);
+  --hero-sun: var(--color-sun);
+  --hero-star: var(--color-sun);
+  --hero-far: var(--color-accent);
+  --hero-near: var(--color-hill);
+  --hero-pine: var(--color-accent);
+  --hero-wall: var(--color-surface);
+  --hero-roof: var(--color-primary);
+  --hero-window: var(--color-sun);
+  --hero-gate: var(--color-ink);
+  --hero-road: var(--color-bg);
+  --hero-dragon: var(--color-primary);
+  --hero-dragon-back: var(--color-dialog);
+  --hero-blade: var(--color-npc-neutral);
+  --hero-guard: var(--color-sun);
+  --hero-die: var(--color-primary);
+  --hero-die-face: var(--color-surface);
+  --hero-die-text: var(--color-ink);
+
+}
+.hero {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-bottom: var(--space-4);
+}
+:root[data-theme="dark"] .hero,
+:root[data-theme="dark"] .continue-card__banner {
+  --hero-line: #10131f;
+  --hero-sky: #18203a;
+  --hero-sun: #d6e4f7;
+  --hero-star: #e9eefb;
+  --hero-far: #2e4061;
+  --hero-near: #1d3940;
+  --hero-pine: #13282e;
+  --hero-wall: #8b93a8;
+  --hero-roof: #8e3b35;
+  --hero-window: #f2b134;
+  --hero-gate: #10131f;
+  --hero-road: #575468;
+  --hero-dragon: #6e2a2a;
+  --hero-dragon-back: #4e1f22;
+  --hero-blade: #a9bfdd;
+  --hero-guard: #c99a35;
+  --hero-die: #c9553d;
+  --hero-die-face: #e4e8f2;
+  --hero-die-text: #10131f;
+}
+.hero * {
+  stroke: var(--hero-line);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.hero__sky {
+  fill: var(--hero-sky);
+}
+.hero__sun {
+  fill: var(--hero-sun);
+}
+.hero__stars,
+.hero__craters,
+.hero__halo {
+  display: none;
+}
+:root[data-theme="dark"] .hero__stars,
+:root[data-theme="dark"] .hero__craters,
+:root[data-theme="dark"] .hero__halo {
+  display: inline;
+}
+.hero__stars path {
+  fill: var(--hero-star);
+  stroke: none;
+}
+.hero__halo {
+  fill: var(--hero-sun);
+  opacity: 0.12;
+  stroke: none;
+}
+.hero__craters circle {
+  fill: #b4c6e2;
+  stroke: none;
+}
+.hero__dragon path {
+  fill: var(--hero-dragon);
+  stroke-width: 2;
+}
+.hero__dragon .hero__bones {
+  fill: none;
+  stroke-width: 1.5;
+}
+.hero__dragon .hero__eye {
+  fill: var(--hero-line);
+  stroke: none;
+}
+.hero__dragon .hero__wing-back {
+  fill: var(--hero-dragon-back);
+}
+.hero__far {
+  fill: var(--hero-far);
+}
+.hero__castle * {
+  fill: var(--hero-wall);
+  stroke-width: 2;
+}
+.hero__castle .hero__roof,
+.hero__castle .hero__flag {
+  fill: var(--hero-roof);
+}
+.hero__castle .hero__window {
+  fill: var(--hero-window);
+}
+.hero__castle .hero__gate {
+  fill: var(--hero-gate);
+}
+.hero__near {
+  fill: var(--hero-near);
+}
+.hero__road {
+  fill: var(--hero-road);
+}
+.hero__pines polygon {
+  fill: var(--hero-pine);
+  stroke-width: 2;
+}
+.hero__sword * {
+  stroke-width: 2;
+}
+.hero__blade {
+  fill: var(--hero-blade);
+}
+.hero__guard {
+  fill: var(--hero-guard);
+}
+.hero__grip {
+  fill: var(--hero-roof);
+}
+.hero__sword .hero__mound {
+  fill: var(--hero-near);
+}
+/* The die is drawn at 0.78 scale, so these widths shrink with it:
+   4.5 and 3.5 land at about 3.5 and 2.7 in the scene's units. */
+.hero__die * {
+  stroke-width: 4.5;
+}
+.hero__die path {
+  stroke-width: 3.5;
+}
+.hero__die polygon {
+  fill: var(--hero-die);
+}
+.hero__die .hero__face {
+  fill: var(--hero-die-face);
+}
+.hero__die path {
+  fill: none;
+}
+.hero__frame {
+  fill: none;
+  stroke: var(--color-ink);
+}
+.hero__die text {
+  fill: var(--hero-die-text);
+  stroke: none;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 26px;
+}
