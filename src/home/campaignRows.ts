@@ -48,6 +48,7 @@ export function saveRow(game: GameState, actions: SaveRowActions): HTMLLIElement
   const play = el("a", "button button--primary", "Jugar");
   play.href = playHref(game.id);
   const item = el("li", "save");
+  item.dataset.id = game.id;
   item.append(
     text,
     play,
