@@ -1,10 +1,13 @@
 ---
 import Base from "../layouts/Base.astro";
 import Game from "../game/Game";
+import DiceLoader from "../game/DiceLoader";
 ---
 
 <Base title="Partida" footer={false} game noindex>
   <!-- client:only: the game reads localStorage/IndexedDB, which don't exist
        at build time, so there is nothing useful to prerender. -->
-  <Game client:only="react" />
+  <Game client:only="react">
+    <DiceLoader slot="fallback" label="Cargando partida…" />
+  </Game>
 </Base>

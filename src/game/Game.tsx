@@ -28,6 +28,7 @@ import { InputEntry, Narration, TurnLog } from "./TurnLog";
 import { useStickToBottom } from "./useStickToBottom";
 import { createTypewriter } from "./typewriter";
 import { isEditable, shouldRedirectKey } from "./keyRedirect";
+import DiceLoader from "./DiceLoader";
 import "./game.css";
 
 type Screen =
@@ -459,7 +460,7 @@ export default function Game() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  if (screen.status === "loading") return <p>Cargando partida…</p>;
+  if (screen.status === "loading") return <DiceLoader label="Cargando partida…" />;
 
   if (screen.status === "load_error") {
     return <p className="notice">No se pudo leer la partida guardada en este navegador.</p>;
