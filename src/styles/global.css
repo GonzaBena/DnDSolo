@@ -53,29 +53,6 @@ a {
   border: 0;
 }
 
-/* First stop for keyboard users: jumps past the header to the page. */
-.skip-link {
-  position: absolute;
-  top: var(--space-2);
-  left: var(--space-2);
-  z-index: 100;
-  padding: var(--space-2) var(--space-3);
-  border: var(--border);
-  border-radius: var(--radius);
-  background: var(--color-sun);
-  color: var(--color-sun-ink);
-  font-weight: 700;
-  box-shadow: var(--shadow-flat);
-  transform: translateY(calc(-100% - var(--space-3)));
-}
-.skip-link:focus-visible {
-  transform: none;
-}
-/* The skip link's target: focus lands there without ringing the whole page. */
-#contenido:focus {
-  outline: none;
-}
-
 .page {
   width: 100%;
   max-width: var(--content-width);

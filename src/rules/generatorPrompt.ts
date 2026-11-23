@@ -1,3 +1,4 @@
+import type { OfficialCampaign } from "../campaigns";
 import type { ChoiceError } from "./buildSheet";
 import { isExpertise } from "./choices";
 import { BACKGROUNDS, CLASSES_DATA, SPECIES, STANDARD_ARRAY, findBackground, findFeat, findItem, findSpell } from "./index";
@@ -44,12 +45,25 @@ function retrySection(problems: string[]): string[] {
   ];
 }
 
-export function buildConceptPrompt(story: string, level: number, errors: string[] = []): string {
+export function buildConceptPrompt(
+  story: string,
+  level: number,
+  errors: string[] = [],
+  campaign: OfficialCampaign | null = null,
+): string {
   return [
     "HISTORIA DEL JUGADOR",
     story.trim(),
     "",
     `NIVEL: ${level}`,
+    ...(campaign
+      ? [
+          "",
+          `CAMPAÑA ELEGIDA: ${campaign.title}`,
+          campaign.generatorPromptHook,
+          'Conectá la historia ("story") y el concepto ("pitch") de cada personaje con este punto de partida.',
+        ]
+      : []),
     "",
     "TAREA",
     "Proponé exactamente 3 conceptos de personaje distintos que encajen con la historia (si podés, de clases distintas). Para cada uno:",

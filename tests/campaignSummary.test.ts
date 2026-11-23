@@ -52,6 +52,11 @@ describe("summarizeCampaign", () => {
   it("has no excerpt without turns", () => {
     expect(summarizeCampaign(gameWith({ turns: [] })).excerpt).toBe("");
   });
+
+  it("includes the official campaign title in the subtitle when present", () => {
+    const summary = summarizeCampaign(gameWith({ campaignId: "campana-faro-hundido" }));
+    expect(summary.subtitle).toBe("Pícara · nivel 3 · La Campana del Faro Hundido");
+  });
 });
 
 describe("narrationExcerpt", () => {

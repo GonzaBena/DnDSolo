@@ -1,3 +1,4 @@
+import { findCampaign } from "../campaigns";
 import type { CharacterChoices } from "../rules/buildSheet";
 import { BACKGROUNDS, CLASSES_DATA, SPECIES, findBackground, findClass, findSpecies } from "../rules";
 import { GAME_STATE_VERSION, type Character, type CharacterStats, type GameState, type InventoryItem, type StoryItem } from "./types";
@@ -29,6 +30,8 @@ export interface CharacterInput {
   startingInventory?: InventoryItem[];
   /** The generator's choices, so the form can rebuild the sheet when the species changes. */
   choices?: CharacterChoices;
+  /** Official campaign module id; null or omitted for a free adventure. */
+  campaignId?: string | null;
 }
 
 interface CreateOptions {
@@ -71,29 +74,35 @@ export function createCharacter(input: CharacterInput, newId: () => string): Cha
 }
 
 export function createGame(input: CharacterInput, options: CreateOptions = {}): GameState {
+  const campaignId = input.campaignId ?? null;
+  const campaign = findCampaign(campaignId);
+  if (campaignId !== null && !campaign) throw new Error(`Unknown campaign: ${campaignId}`);
+  const effectiveInput: CharacterInput = campaign ? { ...input, level: campaign.startingLevel } : input;
   const newId = options.newId ?? (() => crypto.randomUUID());
-  const players = [createCharacter(input, newId)];
+  const players = [createCharacter(effectiveInput, newId)];
   // The starting gear is already carried, so the first turn must not announce it as found.
-  const storyItems: StoryItem[] = players[0]!.inventory.map((item) => ({
+  const gearItems: StoryItem[] = players[0]!.inventory.map((item) => ({
     name: item.name,
     description: "",
     location: "",
     status: "taken",
   }));
+  const moduleItems: StoryItem[] = (campaign?.initialState.storyItems ?? []).map((item) => ({ ...item }));
   const timestamp = (options.now ?? (() => new Date()))().toISOString();
   return {
     id: newId(),
     version: GAME_STATE_VERSION,
     createdAt: timestamp,
     updatedAt: timestamp,
+    campaignId: campaign?.id ?? null,
     players,
-    // Empty until the DM's opening turn proposes a location.
-    location: { name: "", description: "" },
-    npcs: [],
+    // Empty until the DM's opening turn proposes a location, unless seeded by a campaign module.
+    location: campaign ? { ...campaign.initialState.location } : { name: "", description: "" },
+    npcs: campaign ? campaign.initialState.npcs.map((npc) => ({ ...npc })) : [],
     scene: { inCombat: false, turnOf: null, order: [] },
-    quests: [],
-    threads: [],
-    storyItems,
+    quests: campaign ? campaign.initialState.quests.map((quest) => ({ ...quest })) : [],
+    threads: campaign ? campaign.initialState.threads.map((thread) => ({ ...thread })) : [],
+    storyItems: [...gearItems, ...moduleItems],
     summary: "",
     summarizedThroughTurn: 0,
     turns: [],

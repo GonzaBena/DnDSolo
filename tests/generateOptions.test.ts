@@ -326,4 +326,17 @@ describe("generateOptions", () => {
     await expect(generateOptions(llm, "   ", 1)).rejects.toThrow(/historia/i);
     expect(llm.structuredRequests).toHaveLength(0);
   });
+
+  it("locks the starting level and includes the campaign hook when an official campaign is selected", async () => {
+    const llm = scripted({
+      Brann: [replyFor(CONCEPTS[0]!, 2)],
+      Ilsa: [replyFor(CONCEPTS[1]!, 2)],
+      Vex: [replyFor(CONCEPTS[2]!, 2)],
+    });
+    const result = await generateOptions(llm, STORY, 1, undefined, "campana-faro-hundido");
+    expect(result.failures).toEqual([]);
+    expect(result.options.every((o) => o.sheet.level === 2)).toBe(true);
+    expect(llm.requests[0]!.prompt).toContain("CAMPAÑA ELEGIDA: La Campana del Faro Hundido");
+    expect(llm.requests[0]!.prompt).toContain("NIVEL: 2");
+  });
 });

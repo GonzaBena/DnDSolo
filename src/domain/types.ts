@@ -292,6 +292,8 @@ export interface GameState {
   version: number;
   createdAt: string;
   updatedAt: string;
+  /** Id in OFFICIAL_CAMPAIGNS when playing an official module; null for a free adventure. */
+  campaignId: string | null;
   /** An array even though the MVP is solo, so multiplayer doesn't force a
       rewrite of the model (Spec, architecture rule 5). */
   players: Character[];
@@ -319,4 +321,4 @@ export interface GameState {
 /** Milestones needed since the last level to gain a new one. */
 export const MILESTONES_PER_LEVEL = 2;
 
-export const GAME_STATE_VERSION = 13;
+export const GAME_STATE_VERSION = 14;

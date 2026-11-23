@@ -9,9 +9,11 @@ import { findClass } from "../rules";
 interface Props {
   values: CharacterInput;
   onChange: (values: CharacterInput) => void;
+  /** When provided, submitting advances to the campaign selection step instead of saving immediately. */
+  onNext?: (prepared: CharacterInput) => void;
 }
 
-export function CharacterForm({ values, onChange }: Props) {
+export function CharacterForm({ values, onChange, onNext }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -49,16 +51,27 @@ export function CharacterForm({ values, onChange }: Props) {
 
   async function submit(event: { preventDefault(): void }) {
     event.preventDefault();
-    setSaving(true);
     setError(null);
+    const stats =
+      values.stats && review
+        ? mergeReviewedStats(values.stats, manualHp, manualAc)
+        : fromSheet
+          ? values.stats
+          : statsFromForm(toNumber(manualHp), toNumber(manualAc), values.speciesId);
+    const prepared: CharacterInput = {
+      ...values,
+      stats,
+      subclassId: subclassOption ? values.subclassId : null,
+    };
+
+    if (onNext) {
+      onNext(prepared);
+      return;
+    }
+
+    setSaving(true);
     try {
-      const stats =
-        values.stats && review
-          ? mergeReviewedStats(values.stats, manualHp, manualAc)
-          : fromSheet
-            ? values.stats
-            : statsFromForm(toNumber(manualHp), toNumber(manualAc), values.speciesId);
-      const game = createGame({ ...values, stats, subclassId: subclassOption ? values.subclassId : null });
+      const game = createGame(prepared);
       // The new game becomes the latest save, which is what /play opens.
       await createGameRepo().save(game);
       location.href = "/play";

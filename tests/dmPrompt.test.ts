@@ -346,3 +346,20 @@ describe("secret threads stay secret", () => {
     expect(DM_SYSTEM_PROMPT).toContain('Si "threads" está vacío');
   });
 });
+
+describe("official campaign guide in buildTurnPrompt", () => {
+  it("omits the campaign guide block for free adventures and includes it for official campaigns", () => {
+    const free = newGame();
+    expect(buildTurnPrompt(free, { type: "start" }, 6)).not.toContain("GUÍA DE LA CAMPAÑA");
+
+    const official: GameState = {
+      ...free,
+      campaignId: "campana-faro-hundido",
+      location: { name: "Muelle de las Áncoras", description: "Muelle en la niebla" },
+    };
+    const prompt = buildTurnPrompt(official, { type: "start" }, 6);
+    expect(prompt).toContain("GUÍA DE LA CAMPAÑA — La Campana del Faro Hundido");
+    expect(prompt).toContain("LUGAR ACTUAL (Muelle de las Áncoras):");
+    expect(prompt).toContain("INICIO DE LA CAMPAÑA (La Campana del Faro Hundido):");
+  });
+});

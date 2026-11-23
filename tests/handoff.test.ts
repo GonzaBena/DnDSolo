@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HANDOFF_KEY, stashCharacter, takeCharacter } from "../src/character/handoff";
+import { HANDOFF_KEY, readCampaignId, stashCampaignId, stashCharacter, takeCharacter } from "../src/character/handoff";
 import { fighterChoices } from "./helpers";
 import type { CharacterInput } from "../src/domain/character";
 
@@ -82,5 +82,19 @@ describe("character handoff", () => {
     };
     expect(stashCharacter(blocked, VALUES)).toBe(false);
     expect(takeCharacter(blocked)).toBeNull();
+  });
+
+  it("remembers and validates the selected official campaign id", () => {
+    const storage = memoryStorage();
+    expect(readCampaignId(storage)).toBeNull();
+    expect(stashCampaignId(storage, "campana-faro-hundido")).toBe(true);
+    expect(readCampaignId(storage)).toBe("campana-faro-hundido");
+
+    expect(stashCampaignId(storage, null)).toBe(true);
+    expect(readCampaignId(storage)).toBeNull();
+
+    // Unknown campaign id is ignored and cleared
+    expect(stashCampaignId(storage, "campana-falsa")).toBe(true);
+    expect(readCampaignId(storage)).toBeNull();
   });
 });

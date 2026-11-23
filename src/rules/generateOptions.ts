@@ -1,3 +1,4 @@
+import { findCampaign, type OfficialCampaign } from "../campaigns";
 import { z } from "../domain/zod";
 import { toProviderSchema } from "../domain/schemas";
 import { LLMError } from "../llm/LLMClient";
@@ -99,11 +100,17 @@ function toChoices(concept: ConceptReply, level: number, specs: ChoiceSpec[], re
   };
 }
 
-async function generateConcepts(llm: LLMClient, story: string, level: number, signal?: AbortSignal): Promise<ConceptReply[]> {
+async function generateConcepts(
+  llm: LLMClient,
+  story: string,
+  level: number,
+  signal?: AbortSignal,
+  campaign: OfficialCampaign | null = null,
+): Promise<ConceptReply[]> {
   let errors: string[] = [];
   let modelError: LLMError | null = null;
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const prompt = buildConceptPrompt(story, level, errors);
+    const prompt = buildConceptPrompt(story, level, errors, campaign);
     let raw: string;
     try {
       raw = await llm.generateStructured({ system: GENERATOR_SYSTEM_PROMPT, prompt, jsonSchema: conceptsJsonSchema, signal });
@@ -186,15 +193,21 @@ async function generateChoices(
     auth error rejects the whole call, and so does the last model error when model errors left no option at
     all, so the UI can explain it with describeLLMError. */
 export async function generateOptions(
-  llm: LLMClient, story: string, level: number, signal?: AbortSignal,
+  llm: LLMClient,
+  story: string,
+  level: number,
+  signal?: AbortSignal,
+  campaignId?: string | null,
 ): Promise<GenerationResult> {
-  if (!Number.isInteger(level) || level < 1 || level > LOADED_MAX_LEVEL) {
+  const campaign = findCampaign(campaignId) ?? null;
+  const effectiveLevel = campaign ? campaign.startingLevel : level;
+  if (!Number.isInteger(effectiveLevel) || effectiveLevel < 1 || effectiveLevel > LOADED_MAX_LEVEL) {
     throw new Error(`El nivel debe ser un entero entre 1 y ${LOADED_MAX_LEVEL}.`);
   }
   if (story.trim() === "") throw new Error("La historia está vacía.");
 
-  const concepts = await generateConcepts(llm, story, level, signal);
-  const outcomes = await Promise.all(concepts.map((concept) => generateChoices(llm, concept, level, signal)));
+  const concepts = await generateConcepts(llm, story, effectiveLevel, signal, campaign);
+  const outcomes = await Promise.all(concepts.map((concept) => generateChoices(llm, concept, effectiveLevel, signal)));
   const failed = outcomes.flatMap((o) => (o.ok ? [] : [o]));
   const modelErrors = failed.flatMap((o) => (o.modelError ? [o.modelError] : []));
   if (failed.length === outcomes.length && modelErrors.length === failed.length) throw modelErrors.at(-1)!;

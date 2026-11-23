@@ -247,6 +247,7 @@ export const gameStateSchema = z.object({
   version: z.number().int(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  campaignId: z.string().min(1).nullable(),
   players: z
     .array(
       z.object({

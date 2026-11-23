@@ -1,3 +1,4 @@
+import { findCampaign } from "../campaigns";
 import type { GameState } from "../domain/types";
 
 /** What the home screen shows about one saved campaign. */
@@ -14,12 +15,15 @@ export interface CampaignSummary {
 
 export function summarizeCampaign(game: GameState): CampaignSummary {
   const player = game.players[0];
+  const campaign = findCampaign(game.campaignId);
   const turns = game.turns.length === 1 ? "1 turno" : `${game.turns.length} turnos`;
   const latest = game.turns.findLast((turn) => turn.narration.trim() !== "");
+  const playerLine = player ? `${player.characterClass} · nivel ${player.level}` : "";
+  const subtitle = [playerLine, campaign?.title].filter(Boolean).join(" · ");
   return {
     id: game.id,
     name: player ? player.name : "Sin personaje",
-    subtitle: player ? `${player.characterClass} · nivel ${player.level}` : "",
+    subtitle,
     // Array.from splits by code point, so an emoji stays whole.
     initials: Array.from(player?.name.trim() ?? "")[0]?.toUpperCase() ?? "?",
     detail: `${turns} · ${new Date(game.updatedAt).toLocaleDateString("es-AR")}`,

@@ -1,7 +1,8 @@
 /* Character page: generator, option cards, sheet and form. Tokens only. */
-.generator, .creator-form { margin-bottom: var(--space-5); }
-.generator h2, .creator-form h2 { font-size: var(--text-lg); }
-.generator > .status { min-height: 1.6em; margin: var(--space-3) 0 0; }
+.campaign-picker, .generator, .creator-form { margin-bottom: var(--space-5); }
+.campaign-picker h2, .generator h2, .creator-form h2 { font-size: var(--text-lg); }
+.campaign-picker__character { margin: 0 0 var(--space-3); color: var(--color-ink-soft); }
+.campaign-picker > .status, .generator > .status { min-height: 1.6em; margin: var(--space-3) 0 0; }
 .status[data-tone="error"] { color: var(--color-primary); font-weight: 700; }
 .generator .notice { margin: var(--space-3) 0; }
 
@@ -52,4 +53,5 @@
 
 @media (min-width: 40rem) {
   .options { grid-template-columns: repeat(3, 1fr); }
+  .campaign-cards { grid-template-columns: repeat(2, 1fr); }
 }

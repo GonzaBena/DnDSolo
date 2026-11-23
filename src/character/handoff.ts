@@ -1,3 +1,4 @@
+import { findCampaign } from "../campaigns";
 import { z } from "../domain/zod";
 import type { CharacterInput } from "../domain/character";
 import { findBackground, findClass, findSpecies } from "../rules";
@@ -7,6 +8,7 @@ import { findBackground, findClass, findSpecies } from "../rules";
  * It lives in sessionStorage so it survives the page change but not the tab.
  */
 export const HANDOFF_KEY = "dnsolo.generatedCharacter";
+export const CAMPAIGN_HANDOFF_KEY = "dnsolo.selectedCampaign";
 
 const statsSchema = z.object({
   maxHp: z.number().int().min(1),
@@ -49,9 +51,43 @@ const handoffSchema = z.object({
   stats: statsSchema.nullable().optional(),
   choices: choicesSchema.optional(),
   startingInventory: z.array(z.object({ name: z.string().min(1), quantity: z.number().int().min(1) })).optional(),
+  campaignId: z
+    .string()
+    .refine((id) => findCampaign(id) !== undefined)
+    .nullable()
+    .optional(),
 });
 
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+
+/** Remembers which official campaign (if any) was picked when moving between /character and /generator. */
+export function stashCampaignId(storage: StorageLike, campaignId: string | null): boolean {
+  try {
+    if (campaignId && findCampaign(campaignId)) {
+      storage.setItem(CAMPAIGN_HANDOFF_KEY, campaignId);
+    } else {
+      storage.removeItem(CAMPAIGN_HANDOFF_KEY);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Reads the selected official campaign id from storage; null when none or unknown. */
+export function readCampaignId(storage: StorageLike): string | null {
+  try {
+    const raw = storage.getItem(CAMPAIGN_HANDOFF_KEY);
+    if (!raw) return null;
+    if (!findCampaign(raw)) {
+      storage.removeItem(CAMPAIGN_HANDOFF_KEY);
+      return null;
+    }
+    return raw;
+  } catch {
+    return null;
+  }
+}
 
 /** Saves the values for the form. Returns false when storage is blocked. */
 export function stashCharacter(storage: StorageLike, values: CharacterInput): boolean {

@@ -176,6 +176,11 @@ function fromV12(raw: Raw): Raw {
   return { ...raw, version: 13, threads: [] };
 }
 
+/** v13 -> v14. Official campaign id; old games are free adventures. */
+function fromV13(raw: Raw): Raw {
+  return { ...raw, version: 14, campaignId: null };
+}
+
 /** Turns whatever was stored into a GameState of the current version, or
     null if it can't be trusted (unknown version or wrong shape). Loading
     code must go through here so the screens never see a malformed save. */
@@ -194,6 +199,7 @@ export function migrateSave(raw: unknown): GameState | null {
   if (current.version === 10) current = fromV10(current);
   if (current.version === 11) current = fromV11(current);
   if (current.version === 12) current = fromV12(current);
+  if (current.version === 13) current = fromV13(current);
   if (current.version !== GAME_STATE_VERSION) return null;
   const parsed = gameStateSchema.safeParse(current);
   return parsed.success ? normalizeHp(parsed.data) : null;

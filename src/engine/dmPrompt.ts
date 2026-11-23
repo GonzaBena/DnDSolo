@@ -1,3 +1,4 @@
+import { buildCampaignPromptBlock, describeCampaignStart } from "../campaigns";
 import { describePlayerRoll as describeRolledDie, formatDice, resolveRollMode, rollModeLabel } from "../domain/dice";
 import { describeArchetypes } from "../domain/portraits";
 import { COMBAT_RULES } from "./combatRules";
@@ -108,7 +109,10 @@ function deathSaveOutcome(natural: number, player: Character | undefined): strin
 export function describeInput(input: TurnInput, state?: GameState): string {
   switch (input.type) {
     case "start":
-      return "INICIO DE LA AVENTURA: presentá la escena inicial, el lugar y un gancho para que el personaje actúe.";
+      return (
+        describeCampaignStart(state) ??
+        "INICIO DE LA AVENTURA: presentá la escena inicial, el lugar y un gancho para que el personaje actúe."
+      );
     case "action": {
       const lines: string[] = [];
       if (input.text.trim() !== "") lines.push(`ACCIÓN DEL JUGADOR: ${input.text}`);
@@ -195,9 +199,11 @@ export function buildTurnPrompt(
   options: PromptOptions = { enemyRollsAllowed: true },
 ): string {
   const recent = turnsForPrompt(state, recentTurns);
+  const campaignBlock = buildCampaignPromptBlock(state);
   return [
     `ESTADO\n${JSON.stringify(stateForModel(state))}`,
     `REGLAS DE LOS PERSONAJES\n${describeCharacterRules(state.players)}`,
+    ...(campaignBlock ? [campaignBlock] : []),
     // Only during a fight, to keep the prompt short the rest of the time.
     ...(state.scene.inCombat ? [`REGLAS DE COMBATE\n${COMBAT_RULES}`] : []),
     `RESUMEN\n${state.summary || "(La aventura recién empieza.)"}`,

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { findCampaign } from "../campaigns";
 import { GeminiClient } from "../llm/GeminiClient";
 import { describeLLMError } from "../llm/errorMessages";
 import { LLMError } from "../llm/LLMClient";
@@ -10,6 +11,7 @@ import { SheetView } from "./SheetView";
 
 interface Props {
   onUse: (option: GeneratedOption) => void;
+  campaignId?: string | null;
 }
 
 type Phase =
@@ -18,7 +20,8 @@ type Phase =
   | { status: "error"; message: string }
   | { status: "done"; options: GeneratedOption[]; failures: string[] };
 
-export function CharacterGenerator({ onUse }: Props) {
+export function CharacterGenerator({ onUse, campaignId = null }: Props) {
+  const campaign = findCampaign(campaignId) ?? null;
   // null until localStorage has been read in the browser.
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [story, setStory] = useState("");
@@ -31,6 +34,10 @@ export function CharacterGenerator({ onUse }: Props) {
     setConfigured(isConfigured(loadSettings()));
     return () => abortRef.current?.abort();
   }, []);
+
+  useEffect(() => {
+    if (campaign) setLevel(String(campaign.startingLevel));
+  }, [campaign]);
 
   async function generate(event: { preventDefault(): void }) {
     event.preventDefault();
@@ -45,13 +52,15 @@ export function CharacterGenerator({ onUse }: Props) {
     setSelected(null);
     setPhase({ status: "generating" });
     try {
+      const targetLevel = campaign ? campaign.startingLevel : Number(level);
       const result = await generateOptions(
         new GeminiClient(settings.apiKey, settings.model, {
           fastNarration: settings.fastNarration,
         }),
         story,
-        Number(level),
+        targetLevel,
         controller.signal,
+        campaign?.id ?? null,
       );
       if (controller.signal.aborted) return;
       setPhase({ status: "done", options: result.options, failures: result.failures });
@@ -74,6 +83,12 @@ export function CharacterGenerator({ onUse }: Props) {
   return (
     <section className="generator" aria-labelledby="generator-title">
       <h2 id="generator-title">Generá opciones a partir de tu historia</h2>
+      {campaign && (
+        <div className="notice">
+          <strong>Campaña elegida: {campaign.title}</strong> ({campaign.tag})
+          <p>{campaign.synopsis}</p>
+        </div>
+      )}
       {configured === false ? (
         <p className="notice">
           Para generar personajes necesitás cargar tu API key de Gemini en <a href="/settings">Configuración</a>. El
@@ -96,12 +111,16 @@ export function CharacterGenerator({ onUse }: Props) {
             <span>Nivel (1 a {LOADED_MAX_LEVEL})</span>
             <input
               type="number"
-              min={1}
-              max={LOADED_MAX_LEVEL}
+              min={campaign ? campaign.startingLevel : 1}
+              max={campaign ? campaign.startingLevel : LOADED_MAX_LEVEL}
               required
-              value={level}
-              onChange={(e) => setLevel(e.target.value)}
+              readOnly={Boolean(campaign)}
+              value={campaign ? String(campaign.startingLevel) : level}
+              onChange={(e) => {
+                if (!campaign) setLevel(e.target.value);
+              }}
             />
+            {campaign && <small>Fijado en nivel {campaign.startingLevel} para {campaign.title}.</small>}
           </label>
           <div className="actions">
             <button type="submit" className="button button--primary" disabled={generating || configured === null}>

@@ -1,3 +1,4 @@
+import { findCampaign } from "../campaigns";
 import type { Attitude, GameState, QuestStatus, StoryItem, ThreadKind } from "../domain/types";
 import { useDrawer } from "./useDrawer";
 
@@ -63,6 +64,7 @@ interface Props {
     and the NPCs met so far. */
 export function InfoDrawer({ state, open, onClose }: Props) {
   const { dialogProps, panelRef } = useDrawer(open, onClose);
+  const campaign = findCampaign(state.campaignId);
   const players = state.players ?? [];
   const storyItems = state.storyItems ?? [];
   const here = storyItems.filter(
@@ -91,6 +93,16 @@ export function InfoDrawer({ state, open, onClose }: Props) {
         </header>
 
         {state.location?.description && <p>{state.location.description}</p>}
+
+        {campaign && (
+          <section className="info-section">
+            <div className="info-section__header">
+              <h3>{campaign.title}</h3>
+              <span className="info-badge">{campaign.tag}</span>
+            </div>
+            <p>{campaign.synopsis}</p>
+          </section>
+        )}
 
         <section className="info-section">
           <div className="info-section__header">

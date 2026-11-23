@@ -222,3 +222,12 @@ describe("v12 -> v13", () => {
     expect(migrated?.threads).toEqual([]);
   });
 });
+
+describe("v13 -> v14", () => {
+  it("marks old saves as free adventures (campaignId: null)", () => {
+    const { campaignId: _c, ...rest } = newGame();
+    const migrated = migrateSave({ ...rest, version: 13 });
+    expect(migrated?.version).toBe(GAME_STATE_VERSION);
+    expect(migrated?.campaignId).toBeNull();
+  });
+});
