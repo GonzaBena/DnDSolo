@@ -99,6 +99,10 @@
   font: inherit;
   font-size: var(--text-sm);
   white-space: nowrap;
+  /* A long suggestion is cut on screen only: picking it sends the whole text. */
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
   cursor: pointer;
   box-shadow: var(--shadow-pressed);
 }

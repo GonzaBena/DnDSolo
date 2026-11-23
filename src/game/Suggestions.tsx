@@ -64,7 +64,7 @@ export function Suggestions({
       >
         <div ref={rowRef} className="suggestions" role="group" aria-label="Sugerencias del DM" onScroll={measure}>
           {actions.map((action) => (
-            <button key={action} type="button" className="suggestion" onClick={() => onPick(action)}>
+            <button key={action} type="button" className="suggestion" title={action} onClick={() => onPick(action)}>
               {action}
             </button>
           ))}

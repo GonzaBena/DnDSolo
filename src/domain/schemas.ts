@@ -11,7 +11,10 @@ const threadStatus = z.enum(["open", "resolved"]);
 const diceCount = z.number().int().min(1).max(20);
 
 export const MAX_SUGGESTIONS = 3;
-export const MAX_SUGGESTION_LENGTH = 60;
+/** The prompt asks for 60 characters; this is only the cap past which a
+    suggestion is junk and dropped. Anything shorter is kept whole, because
+    picking it sends exactly this text: the chip trims it on screen (CSS). */
+export const MAX_SUGGESTION_LENGTH = 160;
 
 const playerRollRequest = z.object({
   die: z.enum(DICE),
@@ -189,9 +192,9 @@ function cleanSuggestions(raw: unknown): string[] {
   for (const item of raw) {
     if (typeof item !== "string") continue;
     const text = item.trim().replace(/\s+/g, " ");
-    const cut = text.length > MAX_SUGGESTION_LENGTH ? `${text.slice(0, MAX_SUGGESTION_LENGTH - 1).trimEnd()}…` : text;
-    if (cut === "" || kept.some((k) => k.toLowerCase() === cut.toLowerCase())) continue;
-    kept.push(cut);
+    if (text === "" || text.length > MAX_SUGGESTION_LENGTH) continue;
+    if (kept.some((k) => k.toLowerCase() === text.toLowerCase())) continue;
+    kept.push(text);
     if (kept.length === MAX_SUGGESTIONS) break;
   }
   return kept;
