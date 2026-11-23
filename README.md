@@ -9,7 +9,8 @@ Un Dungeon Master con IA para jugar D&D en solitario desde el navegador. Creás 
 - **Memoria en tres capas**: estado estructurado (personaje y nivel, inventario, ubicación, NPCs, misiones; la ficha completa con PG y estadísticas la llevás vos), un resumen acumulado de la historia y los últimos turnos. Nunca se manda el historial completo.
 - **Guardado automático** en IndexedDB después de cada turno, con lista de campañas, importación y exportación.
 - **Generador de personajes SRD**: describís una idea y la IA propone personajes con ficha completa según las reglas del SRD 5.2.1.
-- **Sin servidor**: sitio 100 % estático; tu key y tus partidas quedan en tu navegador.
+- **Sincronización con Google Drive (opcional)**: tus campañas viajan entre dispositivos usando tu propio Drive. Ver [Sincronización](#sincronización-con-google-drive).
+- **Casi sin servidor**: las páginas son estáticas; tu key y tus partidas quedan en tu navegador. La única parte que corre en un servidor son tres rutas opcionales para renovar la conexión con Drive automáticamente.
 
 ## Stack
 
@@ -34,7 +35,7 @@ Después entrá a **Configuración**, pegá tu API key de Gemini (la podés crea
 
 | Comando        | Qué hace                         |
 | -------------- | -------------------------------- |
-| `pnpm build`   | Genera el sitio estático en `dist/` |
+| `pnpm build`   | Genera `dist/client/` (sitio) y `dist/server/entry.mjs` (rutas de Drive) |
 | `pnpm preview` | Sirve el build localmente        |
 | `pnpm check`   | Chequeo de tipos de Astro        |
 | `pnpm test`    | Corre los tests con Vitest       |
@@ -52,11 +53,54 @@ src/
 ├── llm/          # LLMClient (interfaz), GeminiClient y FakeLLMClient para tests
 ├── persistence/  # GameRepo (interfaz), IndexedDB, en memoria y migraciones
 ├── game/         # Isla de React con la pantalla de juego
-├── pages/        # Bienvenida, personaje, juego y configuración
+├── sync/         # Sincronización: motor, almacén en Drive, autenticación con Google y piezas de UI
+├── server/       # Solo servidor: cookie sellada, intercambio de tokens con Google y helpers de rutas
+├── pages/        # Bienvenida, personaje, juego y configuración (y api/drive/ con las tres rutas del servidor)
 └── styles/       # Tokens de diseño y estilos globales
 ```
 
-Cada capa vive detrás de una interfaz (`LLMClient`, `GameRepo`) para poder reemplazarla después, por ejemplo por un proxy o Firestore, sin tocar el motor de turnos.
+Cada capa vive detrás de una interfaz (`LLMClient`, `GameRepo`, `RemoteGameStore`, `DriveAuth`) para poder reemplazarla sin tocar el motor de turnos; así Drive se suma como una capa sobre `GameRepo` sin que el motor lo sepa.
+
+## Sincronización con Google Drive
+
+Es opcional. Con `PUBLIC_GOOGLE_CLIENT_ID` vacío la función queda oculta y la app no contacta a Google.
+
+- **Dónde viven los datos**: en la carpeta oculta de la app (`appDataFolder`) del Drive de cada jugador, con el alcance `drive.appdata`. Un archivo por campaña. Los borrados se sincronizan como lápidas y los conflictos los resuelve el jugador. La API key de Gemini y los ajustes no se sincronizan.
+- **Modo por defecto, sin servidor**: el permiso dura cerca de 1 hora y se guarda en `sessionStorage`, así que sobrevive a la navegación dentro de la misma pestaña (se pierde al cerrarla). Al vencer se renueva con el próximo toque del jugador (Enviar, Jugar/Continuar, Reconectar); puede parpadear una ventana de Google.
+- **Modo opcional "Renovar la conexión automáticamente"**: usa tres rutas del servidor, `/api/drive/connect`, `/api/drive/token` y `/api/drive/disconnect`. El refresh token queda sellado (AES-256-GCM) en una cookie HttpOnly del jugador; el servidor no guarda nada. Si el servidor ya no puede renovar (cookie borrada, permiso revocado, o los 7 días que dura el refresh token mientras la pantalla de consentimiento está en Testing), "Reconectar" o "Sincronizar ahora" vuelven a abrir la ventana de Google.
+
+Las páginas se prerenderizan y solo esas tres rutas corren en el servidor (`@astrojs/node`, modo standalone).
+
+### Puesta en marcha (una vez, el dueño del sitio, gratis)
+
+1. En [Google Cloud Console](https://console.cloud.google.com) creá o elegí un proyecto y habilitá **Google Drive API**.
+2. **Pantalla de consentimiento de OAuth**: tipo External, con el alcance `drive.appdata` (no sensible). Mientras esté en modo Testing solo pueden conectarse los usuarios de prueba que cargues (máximo 100). Al publicar a Production puede pedirte un enlace a una política de privacidad.
+3. **Credenciales**: cliente OAuth de tipo "Aplicación web" con Orígenes de JavaScript autorizados `https://<tu-dominio>` y `http://localhost:4321`. No hacen falta URIs de redireccionamiento (el flujo del servidor usa `postmessage`).
+
+### Variables de entorno
+
+| Variable                 | Dónde se usa                                              |
+| ------------------------ | --------------------------------------------------------- |
+| `PUBLIC_GOOGLE_CLIENT_ID` | Pública; se usa en el build y también la lee el servidor en runtime |
+| `GOOGLE_CLIENT_SECRET`   | Solo servidor, leída en runtime                           |
+| `SESSION_SECRET`         | Solo servidor, leída en runtime: una cadena larga y aleatoria (`openssl rand -base64 32`) |
+
+`GOOGLE_CLIENT_SECRET` y `SESSION_SECRET` se leen en runtime, así que tienen que estar definidas como variables de entorno del hosting y no solo en el build. En local van en `.env` (ignorado por git); hay un modelo en `.env.example`.
+
+### Probarlo en local
+
+Abrí la app como `http://localhost:4321` (no `127.0.0.1` ni la IP de la red local), que es el origen autorizado.
+
+- Modo por defecto: `pnpm dev`.
+- Renovación automática: `pnpm build && node dist/server/entry.mjs` (puerto 4321).
+
+### Despliegue en Hostinger (Node.js app)
+
+- Preset: **Astro**.
+- Comando de build: `pnpm run build`.
+- Directorio de salida: `dist`.
+- Archivo de entrada: `server/entry.mjs`, relativo al directorio de salida (con `dist/server/entry.mjs` falla con "Entry file not found").
+- En "Variables de entorno": las tres de arriba.
 
 ## Generador de personajes
 

@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import "../sync/sync.css";
 
 interface Props {
   title: string;
@@ -9,6 +10,7 @@ interface Props {
 }
 
 const { title, footer = true, game = false } = Astro.props;
+const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
 ---
 
 <!doctype html>
@@ -58,6 +60,14 @@ const { title, footer = true, game = false } = Astro.props;
             </svg>
           </a>
         )}
+        {syncBuild && (
+          <button id="sync-nav" class="icon-button sync-nav" type="button" hidden>
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 17.8 8.5 4.75 4.75 0 0 1 17.5 18Z" />
+              <path class="sync-nav__arrows" d="M9.5 12.5a2.75 2.75 0 0 1 4.9-1.2M14.5 13.5a2.75 2.75 0 0 1-4.9 1.2M14.6 9.8v1.6H13M9.4 16.2v-1.6H11" />
+            </svg>
+          </button>
+        )}
         <a class="icon-button" href="/settings" aria-label="Configuración" title="Configuración">
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
             <circle cx="12" cy="12" r="3" />
@@ -89,6 +99,10 @@ const { title, footer = true, game = false } = Astro.props;
     )}
     <script>
       import { enterPage } from "../animations/motion";
+
+      // Sync button: the module loads only in builds that have it.
+      const syncNav = document.querySelector<HTMLButtonElement>("#sync-nav");
+      if (syncNav) void import("../sync/indicator").then(({ mountSyncIndicator }) => mountSyncIndicator(syncNav));
 
       const blocks = [...document.querySelectorAll(".page > *")];
       enterPage(blocks);

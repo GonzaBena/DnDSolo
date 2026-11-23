@@ -1,5 +1,8 @@
 ---
 import Base from "../layouts/Base.astro";
+
+// Without a Google client id the build has no sync at all: none of its markup ships.
+const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
 ---
 
 <Base title="Bienvenida">
@@ -22,6 +25,13 @@ import Base from "../layouts/Base.astro";
     </g>
   </svg>
   <h1>Tu aventura, tu Dungeon Master</h1>
+  {syncBuild && (
+    <>
+      <div id="sync-gesture" class="notice" hidden>
+        <button id="sync-gesture-button" type="button" class="button">Tocá para traer tus partidas de Drive</button>
+      </div>
+    </>
+  )}
 
   <div id="menu-main">
     <p>Una IA narra la campaña. Vos decidís qué hace tu personaje.</p>
@@ -56,11 +66,16 @@ import Base from "../layouts/Base.astro";
 
 <script>
   import type { GameState } from "../domain/types";
-  import { IndexedDBGameRepo } from "../persistence/IndexedDBGameRepo";
   import { downloadGame } from "../persistence/exportGame";
   import { migrateSave } from "../persistence/migrations";
+  import { loadGis } from "../sync/gis";
+  import { SYNC_TAPPED_EVENT } from "../sync/indicator";
+  import { syncBeforeOpen } from "../sync/openGame";
+  import { createGameRepo, getSyncRuntime, withRenewal } from "../sync/runtime";
 
-  const repo = new IndexedDBGameRepo();
+  // Null when sync is off: then the page works exactly as without sync.
+  const sync = getSyncRuntime();
+  const repo = createGameRepo();
   const main = document.querySelector<HTMLElement>("#menu-main")!;
   const loadPanel = document.querySelector<HTMLElement>("#menu-load")!;
   const continueLink = document.querySelector<HTMLAnchorElement>("#continue")!;
@@ -112,7 +127,7 @@ import Base from "../layouts/Base.astro";
         remove.addEventListener("click", async () => {
           if (remove.dataset.armed !== "true") {
             remove.dataset.armed = "true";
-            remove.textContent = "¿Seguro?";
+            remove.textContent = sync ? "¿Seguro? Se borra en todos tus dispositivos" : "¿Seguro?";
             return;
           }
           try {
@@ -159,10 +174,75 @@ import Base from "../layouts/Base.astro";
     renderSaves(games);
   }
 
-  refresh().catch(() => {
+  const showRefreshError = () => {
     info.dataset.tone = "error";
     info.textContent = "No se pudo leer las partidas guardadas en este navegador.";
-  });
+  };
+  // Local first, so the list never waits for Drive.
+  const firstPaint = refresh().catch(showRefreshError);
+
+  if (sync) {
+    // A tap on the navbar sync button may have brought games from Drive.
+    document.addEventListener(SYNC_TAPPED_EVENT, () => {
+      updateGesture();
+      void refresh().catch(showRefreshError);
+    });
+    const gesture = document.querySelector<HTMLElement>("#sync-gesture");
+    const gestureButton = document.querySelector<HTMLButtonElement>("#sync-gesture-button");
+
+    // Renewing opens a Google window, which needs GIS already loaded when the click lands.
+    let gisReady = false;
+    const updateGesture = () => {
+      if (gesture) gesture.hidden = !(gisReady && sync.auth.needsGesture());
+    };
+    loadGis()
+      .then(() => {
+        gisReady = true;
+        updateGesture();
+      })
+      .catch(() => undefined);
+
+    void firstPaint
+      .then(() => sync.engine.syncAll())
+      .catch(() => undefined)
+      .then(() => {
+        updateGesture(); // auto-renewal learns only now whether the server lost the grant
+        return refresh().catch(showRefreshError);
+      });
+
+    gestureButton?.addEventListener("click", () => {
+      // Synchronous inside the click, before any await: browsers block the popup otherwise.
+      void withRenewal(sync, () => sync.engine.syncAll()).then(() => {
+        updateGesture();
+        return refresh().catch(showRefreshError);
+      });
+    });
+
+    // "Continuar" and "Jugar" renew with that same tap, reconcile the game, then navigate.
+    let opening = false;
+    document.addEventListener("click", (event) => {
+      const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>("a[href^='/play']") : null;
+      if (!link || link.getAttribute("aria-disabled") === "true") return;
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (!gisReady || !sync.auth.needsGesture()) return; // navigate normally
+      event.preventDefault();
+      if (opening) return;
+      opening = true;
+      const href = link.href;
+      const id = new URL(href).searchParams.get("id");
+      // A closed or failed Google window still opens the local copy.
+      void withRenewal(sync, () => syncBeforeOpen(sync, id)).finally(() => {
+        opening = false;
+        location.href = href;
+      });
+    });
+    // Back from /play restores this page from the bfcache with its old state: unlock the links.
+    window.addEventListener("pageshow", (event) => {
+      if (!event.persisted) return;
+      opening = false;
+      updateGesture();
+    });
+  }
 
   openLoad.addEventListener("click", () => {
     main.hidden = true;

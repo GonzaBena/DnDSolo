@@ -26,3 +26,6 @@ pnpm-debug.log*
 # Claude Code worktrees
 .claude/worktrees/
 *.tsbuildinfo
+
+# Superpowers plan workspaces
+.superpowers/

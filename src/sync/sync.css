@@ -1,0 +1,67 @@
+/* Sync UI: the conflict dialog and the status indicator. Tokens only, so it follows light and dark. */
+.sync-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+.sync-indicator::before {
+  content: "";
+  width: 0.6rem;
+  height: 0.6rem;
+  border: var(--line) solid var(--color-ink);
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+.sync-indicator[data-state="syncing"]::before { background: var(--color-sun); }
+.sync-indicator[data-state="offline"]::before { background: var(--color-ink-soft); }
+.sync-indicator[data-state="reconnect"]::before,
+.sync-indicator[data-state="error"]::before { background: var(--color-primary); }
+.sync-indicator[hidden] { display: none; }
+
+/* Navbar sync button: one color per state; the icon keeps dark ink so it reads on every fill. */
+.sync-nav { color: var(--color-sun-ink); transition: background-color 0.2s; }
+.sync-nav[hidden] { display: none; }
+.sync-nav[data-state="idle"] { background: var(--color-turn-calm); }
+.sync-nav[data-state="syncing"] { background: var(--color-sun); cursor: progress; }
+.sync-nav[data-state="reconnect"] { background: var(--color-turn-combat); }
+.sync-nav[data-state="error"] { background: var(--color-primary); }
+.sync-nav[data-state="offline"] { background: var(--color-ink-soft); }
+.sync-nav__arrows { transform-origin: 12px 13.5px; }
+.sync-nav[data-state="syncing"] .sync-nav__arrows { animation: sync-spin 1.2s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .sync-nav[data-state="syncing"] .sync-nav__arrows { animation: none; }
+}
+@keyframes sync-spin { to { transform: rotate(360deg); } }
+
+.sync-dialog {
+  width: min(34rem, calc(100% - 2 * var(--space-3)));
+  padding: 0;
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-flat);
+}
+.sync-dialog::backdrop { background: rgb(0 0 0 / 0.4); }
+.sync-dialog__panel { display: grid; gap: var(--space-3); padding: var(--space-4); }
+.sync-dialog__title { margin: 0; font-family: var(--font-display); font-size: var(--text-lg); }
+.sync-dialog__row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-3); }
+.sync-dialog__version { font-weight: 700; }
+.sync-dialog__footer { margin: 0; font-size: var(--text-sm); color: var(--color-ink-soft); }
+.sync-dialog__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Configuración: the sync section under the Gemini form. */
+.sync-settings { display: grid; gap: var(--space-3); margin-top: var(--space-5); }
+.sync-settings h2 { margin: 0; }
+.sync-settings p { margin: 0; }
+.sync-settings .field--check small { display: block; }
