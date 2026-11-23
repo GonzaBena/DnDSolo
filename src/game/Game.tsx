@@ -437,18 +437,18 @@ export default function Game() {
   const turnReady = screen.status === "playing" && !busy && !inFlight && !enemyRollsPending;
   const canAct = turnReady && hpPending === 0 && !paused;
 
-  // A game opened without suggestions (a save from before they existed, or a
-  // reply that brought none) asks for them once per turn. Kept on screen
-  // only: the next turn brings its own and saves them.
+  // An old save, from before suggestions existed, opens without them: ask
+  // once, on entering, unless the DM is waiting on a roll. Turns played
+  // afterwards bring their own. Kept on screen only: the next turn saves its own.
   const askedSuggestionsRef = useRef<string | null>(null);
   useEffect(() => {
     if (screen.status !== "playing" || !showSuggestions || !canAct) return;
     const { engine, state } = screen;
-    if (state.turns.length === 0 || state.suggestedActions.length > 0 || state.pendingPlayerRoll) return;
+    if (state.turns.length === 0 || state.turns.length !== screen.loadedTurns) return; // only on entering
+    if (state.suggestedActions.length > 0 || state.pendingPlayerRoll) return;
     if (!state.players.some((p) => p.condition === "ok")) return;
-    const key = `${state.id}:${state.turns.length}`;
-    if (askedSuggestionsRef.current === key) return;
-    askedSuggestionsRef.current = key;
+    if (askedSuggestionsRef.current === state.id) return;
+    askedSuggestionsRef.current = state.id;
     const generation = generationRef.current;
     void engine.suggestFor(state).then((actions) => {
       if (actions.length === 0 || generation !== generationRef.current) return;

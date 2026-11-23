@@ -322,9 +322,9 @@ export class TurnEngine {
     return chained;
   }
 
-  /** Suggestions for a game shown without any: a save from before they
-      existed, or a reply that brought none. One small call that saves
-      nothing; [] when the model fails, so the game just shows none. */
+  /** Suggestions for an old save, opened without any because it is from
+      before they existed. One small call that saves nothing; [] when the
+      model fails, so the game just shows none. */
   async suggestFor(state: GameState, signal?: AbortSignal): Promise<string[]> {
     if (state.turns.length === 0) return [];
     try {
