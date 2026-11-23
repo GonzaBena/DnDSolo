@@ -16,7 +16,8 @@ Análisis de DungeonSolo en cinco ejes: seguridad, rendimiento, modularidad y ma
 4. [x] Cargar el SDK de Gemini solo cuando se usa y pasar a `zod/mini`.
    - Hecho: el SDK se reemplazó por `fetch` a la API REST (−395 KB, −73 KB gzip en `/play`, `/generator` y `/settings`). El indicador de sincronización se carga recién cuando la sincronización arranca: `/docs` y `/credits` pasaron de ~262 KB a ~40 KB de JS.
    - Descartado: `zod/mini` ahorra ~13 KB gzip a cambio de reescribir ~320 líneas de esquemas en una sintaxis menos legible.
-5. [ ] Sacar los scripts inline de `index.astro` y `settings.astro` a módulos con tests.
+5. [x] Sacar los scripts inline de `index.astro` y `settings.astro` a módulos con tests.
+   - Hecho: `index.astro` pasó de 677 a 185 líneas (módulos en `src/home/`: filas, importar, borrar, "Ver todas" y `homePage.ts`); `settings.astro` de 430 a 133 (`src/settings/`). Tests nuevos de la decisión de importar y del DOM con `happy-dom` (solo desarrollo).
 
 ## Para después
 
