@@ -1,0 +1,58 @@
+/* Creator (/character): the form with a live character card beside it.
+   Below 56rem the card moves into a drawer opened by a floating button. */
+.character-page { max-width: 62rem; margin-inline: auto; }
+.creator-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.creator-header h1 { margin: 0; }
+.creator-header__ai { background: var(--color-accent); color: var(--color-accent-ink); }
+
+.creator-layout { display: grid; gap: var(--space-5); align-items: start; }
+.character-form { gap: var(--space-3); min-width: 0; }
+.form-row { display: grid; gap: var(--space-3); }
+.form-row--name { grid-template-columns: minmax(0, 1fr) 6rem; align-items: end; }
+.form-row--name input { font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; }
+.form-hints { display: grid; gap: var(--space-1); }
+
+/* HP and AC side by side, chained under them by a bracket with a link in the
+   middle: plain while empty, red with only one, green once both are set. */
+.form-row--stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.field--background { grid-column: 1 / -1; }
+.stat-link {
+  position: relative;
+  grid-column: 1 / -1;
+  height: 1.1rem;
+  /* From the middle of the HP field to the middle of the AC field, touching them. */
+  margin: calc(-1 * var(--space-3)) 25% 0;
+  border: var(--line) solid var(--color-ink);
+  border-top: 0;
+  border-radius: 0 0 10px 10px;
+  color: var(--color-ink);
+}
+.stat-link[data-state="partial"] { border-color: var(--color-primary); color: var(--color-primary); }
+.stat-link[data-state="complete"] { border-color: var(--color-turn-calm); color: var(--color-turn-calm); }
+.stat-link__chain {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translate(-50%, 50%);
+  padding-inline: 3px;
+  background: var(--color-bg);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .stat-link { transition: border-color 400ms ease, color 400ms ease; }
+}
+@media (min-width: 34rem) {
+  .form-row--stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .field--background { grid-column: auto; }
+  .stat-link { grid-column: 2 / 4; }
+}
+.form-hint { font-size: var(--text-sm); color: var(--color-ink-soft); }

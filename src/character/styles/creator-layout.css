@@ -1,0 +1,75 @@
+/* Narrow: the side card is hidden; the floating d20 opens the drawer. */
+.character-preview { display: none; }
+.character-fab {
+  position: fixed;
+  right: calc(var(--space-3) + env(safe-area-inset-right, 0px));
+  bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  width: 3.75rem;
+  height: 4rem;
+  padding: 0;
+  border: 0;
+  background: var(--color-ink);
+  color: var(--color-primary-ink);
+  font: 800 var(--text-lg) var(--font-display);
+  cursor: pointer;
+  isolation: isolate;
+}
+.character-fab::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  z-index: -1;
+  background: var(--color-primary);
+  clip-path: inherit;
+}
+.character-fab svg { fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; }
+.character-fab:focus-visible { outline: none; background: var(--color-sun); }
+/* Room under the last button so the floating die never covers it. */
+.creator-layout { padding-bottom: var(--space-6); }
+
+.character-drawer {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink);
+  overflow: clip;
+}
+:root:has(.character-drawer[open]) { overflow: hidden; }
+.character-drawer::backdrop { background: rgb(0 0 0 / 0.4); }
+.character-drawer__panel {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: min(var(--drawer-width), 88vw);
+  padding: calc(var(--space-4) + env(safe-area-inset-top, 0px)) var(--space-3) var(--space-6);
+  overflow-y: auto;
+  border-left: var(--border);
+  background: var(--color-bg);
+}
+
+@media (min-width: 56rem) {
+  .creator-layout { grid-template-columns: minmax(0, 1fr) 17rem; padding-bottom: 0; }
+  .form-row--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .character-preview {
+    position: sticky;
+    top: calc(var(--header-offset, 0px) + var(--space-3));
+    display: grid;
+    gap: var(--space-3);
+  }
+  .character-preview .button { width: 100%; }
+  /* The card carries the main button here; the form keeps only "Volver". */
+  .character-form .form-submit { display: none; }
+  .character-fab, .character-drawer { display: none; }
+}
+@media (min-width: 34rem) and (max-width: 55.99rem) {
+  .form-row--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
