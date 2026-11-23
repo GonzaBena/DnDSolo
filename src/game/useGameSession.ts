@@ -26,6 +26,7 @@ export type PauseReason = "renewing" | "replacing" | "opening";
 
 export const SAVE_WARNING = "El turno se jugó pero no se pudo guardar. Si recargás, lo perdés.";
 const DRIVE_NEWER_NOTICE = "Se cargó la versión más reciente de Drive";
+const DRIVE_NOTICE_MS = 4000;
 
 export type GameSession = ReturnType<typeof useGameSession>;
 
@@ -38,6 +39,16 @@ export function useGameSession() {
   const [inFlight, setInFlight] = useState<InFlight | null>(null);
   const [error, setError] = useState<FailureNotice | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
+  // The Drive notice is informational: it fades on its own. The save warning
+  // stays, since it tells the player something they must act on.
+  useEffect(() => {
+    if (warning !== DRIVE_NEWER_NOTICE) return;
+    const timer = setTimeout(
+      () => setWarning((current) => (current === DRIVE_NEWER_NOTICE ? null : current)),
+      DRIVE_NOTICE_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [warning]);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
   useEffect(() => () => abortRef.current?.abort(), []);
