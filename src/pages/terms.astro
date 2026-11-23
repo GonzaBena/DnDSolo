@@ -1,0 +1,78 @@
+---
+import Base from "../layouts/Base.astro";
+import { CONTACT_EMAIL, LEGAL_UPDATED } from "../legal";
+---
+
+<Base title="Condiciones de uso" description="Condiciones para usar DungeonSolo, el juego de rol en solitario narrado con IA.">
+  <h1>Condiciones de uso</h1>
+  <p><em>Última actualización: {LEGAL_UPDATED}</em></p>
+
+  <section class="legal">
+    <p>
+      Al usar DungeonSolo (<a href="https://dungeonsolo.com.ar">dungeonsolo.com.ar</a>) aceptás estas condiciones. Si no
+      estás de acuerdo, no uses el servicio.
+    </p>
+
+    <h2>1. El servicio</h2>
+    <p>
+      DungeonSolo es un juego de rol en solitario gratuito que corre en tu navegador. Un modelo de inteligencia artificial
+      (Google Gemini) narra la partida. Podés sincronizar tus partidas con tu Google Drive de forma opcional.
+    </p>
+
+    <h2>2. Tu clave de API y servicios de Google</h2>
+    <p>
+      Para jugar necesitás tu propia clave de la API de Gemini. Sos responsable de esa clave, de su uso y de los costos o
+      límites que Google aplique a tu cuenta. El uso de Gemini y de Google Drive también está sujeto a los
+      <a href="https://policies.google.com/terms">términos de servicio de Google</a> y a los
+      <a href="https://ai.google.dev/gemini-api/terms">términos de la API de Gemini</a>.
+    </p>
+
+    <h2>3. Contenido generado por IA</h2>
+    <p>
+      La narración la genera un modelo de IA y puede ser inexacta, incoherente o inesperada. Es ficción para entretenimiento:
+      no la tomes como consejo de ningún tipo. No uses el juego para generar contenido ilegal, ni para intentar eludir los
+      filtros o políticas de uso de Google.
+    </p>
+
+    <h2>4. Tus datos y tus partidas</h2>
+    <p>
+      Tus partidas se guardan en tu navegador y, si lo activás, en tu Google Drive. Son tuyas. Como no tenemos copia de ellas,
+      no podemos recuperarlas si se pierden (por ejemplo, al borrar los datos del navegador sin haber sincronizado). Cómo
+      tratamos tus datos se explica en la <a href="/privacy">política de privacidad</a>.
+    </p>
+
+    <h2>5. Propiedad intelectual</h2>
+    <p>
+      El código, el diseño y los textos propios de DungeonSolo pertenecen a sus autores. Las reglas provienen del SRD 5.2.1 de
+      Wizards of the Coast LLC, bajo licencia CC-BY-4.0 (ver <a href="/credits">créditos</a>). DungeonSolo no está afiliado
+      a Wizards of the Coast ni a Google, ni cuenta con su respaldo.
+    </p>
+
+    <h2>6. Uso aceptable</h2>
+    <p>
+      No intentes dañar, sobrecargar o acceder sin autorización al sitio ni a su servidor, ni usarlo para fines distintos de
+      jugar.
+    </p>
+
+    <h2>7. Sin garantías</h2>
+    <p>
+      DungeonSolo se ofrece «tal como está», sin garantías de disponibilidad, continuidad ni ausencia de errores. Podemos
+      cambiar, suspender o discontinuar el servicio o cualquiera de sus funciones en cualquier momento. En la medida que lo
+      permita la ley, no somos responsables por pérdidas de datos ni por daños derivados del uso del servicio.
+    </p>
+
+    <h2>8. Cambios y ley aplicable</h2>
+    <p>
+      Podemos actualizar estas condiciones; la fecha de arriba indica la última versión. Seguir usando el servicio implica
+      aceptarlas. Estas condiciones se rigen por las leyes de la República Argentina.
+    </p>
+
+    <h2>9. Contacto</h2>
+    <p>Consultas: <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p>
+  </section>
+
+  <div class="actions">
+    <a class="button" href="/privacy">Política de privacidad</a>
+    <a class="button" href="/">Volver</a>
+  </div>
+</Base>
