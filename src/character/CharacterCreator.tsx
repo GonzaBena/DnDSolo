@@ -140,7 +140,7 @@ export default function CharacterCreator() {
     const className = findClass(values.classId)?.name ?? values.classId;
 
     return (
-      <div ref={containerRef} className="campaign-picker" role="region" aria-labelledby="campaign-picker-title">
+      <div ref={containerRef} className="campaign-picker character-page" role="region" aria-labelledby="campaign-picker-title">
         <h1 id="campaign-picker-title">Elegí tu campaña</h1>
         <p className="campaign-picker__character">
           Personaje: <strong>{values.name}</strong> ({speciesName} · {className} · Nivel {values.level})
@@ -207,15 +207,17 @@ export default function CharacterCreator() {
   }
 
   return (
-    <div ref={containerRef}>
-      <h1>Creá tu personaje</h1>
-      <div className="actions">
-        <a className="button button--primary" href="/generator">
+    <div ref={containerRef} className="character-page">
+      <div className="creator-header">
+        <h1>Creá tu personaje</h1>
+        <a className="button button--small creator-header__ai" href="/generator">
           Generar con IA a partir de una historia
         </a>
       </div>
       <section className="creator-form" aria-labelledby="form-title">
-        <h2 id="form-title">Tu personaje</h2>
+        <h2 id="form-title" className="sr-only">
+          Tu personaje
+        </h2>
         <CharacterForm values={values} onChange={setValues} onNext={goToCampaignStep} />
       </section>
     </div>
