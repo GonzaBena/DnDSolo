@@ -581,3 +581,8 @@ a { color: var(--color-accent); text-underline-offset: 0.15em; }
 .drive-row[data-status="newer_remote"] .drive-row__status { color: var(--color-accent); font-weight: 700; }
 .drive-import .button { justify-self: start; }
 .import-dialog__footer { justify-content: flex-end; }
+
+/* Delete confirmation: the red button is the primary one. */
+.delete-dialog__actions { justify-content: flex-end; }
+#delete-warning { margin: 0; }
+#delete-error[hidden] { display: none; }

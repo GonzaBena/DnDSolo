@@ -115,6 +115,19 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     </div>
   </div>
 
+  <dialog id="delete-dialog" class="sync-dialog" aria-labelledby="delete-title">
+    <div class="sync-dialog__panel">
+      <h2 id="delete-title" class="sync-dialog__title"></h2>
+      <p id="delete-detail" class="sync-dialog__footer"></p>
+      <p id="delete-warning"></p>
+      <p id="delete-error" class="status" data-tone="error" hidden>No se pudo borrar la campaña.</p>
+      <div class="sync-dialog__row delete-dialog__actions">
+        <button id="delete-cancel" type="button" class="button">Cancelar</button>
+        <button id="delete-confirm" type="button" class="button button--primary">Borrar</button>
+      </div>
+    </div>
+  </dialog>
+
   <dialog id="import-dialog" class="sync-dialog" aria-labelledby="import-title">
     <div class="sync-dialog__panel">
       <h2 id="import-title" class="sync-dialog__title">Importar campaña</h2>
@@ -152,6 +165,7 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
 
 <script>
   import type { GameState } from "../domain/types";
+  import { enterPage } from "../animations/motion";
   import { downloadGame } from "../persistence/exportGame";
   import { summarizeCampaign } from "../home/campaignSummary";
   import { matchImport } from "../home/importMatch";
@@ -266,26 +280,11 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
         play.href = playHref(game.id);
         play.textContent = "Jugar";
 
-        // Two clicks to delete: the first arms the button, no browser dialog.
         const remove = document.createElement("button");
         remove.type = "button";
         remove.className = "button";
         remove.textContent = "Borrar";
-        remove.addEventListener("click", async () => {
-          if (remove.dataset.armed !== "true") {
-            remove.dataset.armed = "true";
-            remove.textContent = sync ? "¿Seguro? Se borra en todos tus dispositivos" : "¿Seguro?";
-            return;
-          }
-          try {
-            await repo.delete(game.id);
-            await refresh();
-            if (!savesList.children.length) showMain();
-          } catch {
-            info.dataset.tone = "error";
-            info.textContent = "No se pudo borrar la campaña.";
-          }
-        });
+        remove.addEventListener("click", () => askDelete(game));
 
         const exportButton = document.createElement("button");
         exportButton.type = "button";
@@ -299,10 +298,74 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     );
   }
 
+  // "Ver todas" looks like its own page, so it gets a history entry: the
+  // browser's back button returns to the home instead of leaving it.
+  const CAMPAIGNS_HASH = "#campanas";
+  const visibleChildren = (parent: Element) => [...parent.children].filter((el) => el.getClientRects().length > 0);
+
   function showMain() {
+    const wasOpen = !loadPanel.hidden;
     loadPanel.hidden = true;
     for (const home of homes) home.hidden = false; // CSS shows the active one
+    if (wasOpen) enterPage(homes.flatMap(visibleChildren));
   }
+
+  function showCampaigns() {
+    if (!loadPanel.hidden) return;
+    for (const home of homes) home.hidden = true;
+    loadPanel.hidden = false;
+    // The rows rise one by one, not the list as a block.
+    enterPage(visibleChildren(loadPanel).flatMap((el) => (el === savesList ? [...savesList.children] : [el])));
+  }
+
+  /** Back to the home: pops our own entry, or rewrites a URL opened directly at #campanas. */
+  function leaveCampaigns() {
+    if ((history.state as { view?: string } | null)?.view === "campaigns") return history.back();
+    history.replaceState(null, "", location.pathname + location.search);
+    showMain();
+  }
+
+  window.addEventListener("popstate", () => {
+    if (location.hash === CAMPAIGNS_HASH) showCampaigns();
+    else showMain();
+  });
+
+  // Delete asks in a centred dialog; Cancel, Escape or the backdrop keep the campaign.
+  const deleteDialog = byId<HTMLDialogElement>("delete-dialog");
+  const deleteConfirm = byId<HTMLButtonElement>("delete-confirm");
+  const deleteError = byId("delete-error");
+  let deleting: GameState | null = null;
+  function askDelete(game: GameState) {
+    const { name, subtitle, detail } = summarizeCampaign(game);
+    deleting = game;
+    byId("delete-title").textContent = `¿Borrar «${name}»?`;
+    byId("delete-detail").textContent = [subtitle, detail].filter(Boolean).join(" · ");
+    byId("delete-warning").textContent = sync
+      ? "Se borra en este dispositivo y en tu Google Drive."
+      : "No se puede deshacer. Exportala antes si querés guardar una copia.";
+    deleteError.hidden = true;
+    deleteConfirm.disabled = false;
+    deleteDialog.showModal();
+    byId("delete-cancel").focus();
+  }
+  byId("delete-cancel").addEventListener("click", () => deleteDialog.close());
+  deleteDialog.addEventListener("click", (event) => {
+    if (event.target === deleteDialog) deleteDialog.close(); // backdrop
+  });
+  deleteDialog.addEventListener("close", () => (deleting = null));
+  deleteConfirm.addEventListener("click", async () => {
+    if (!deleting) return;
+    deleteConfirm.disabled = true;
+    try {
+      await repo.delete(deleting.id);
+      await refresh();
+      deleteDialog.close();
+      if (!savesList.children.length) leaveCampaigns();
+    } catch {
+      deleteError.hidden = false;
+      deleteConfirm.disabled = false;
+    }
+  });
 
   async function refresh() {
     const games = await repo.list();
@@ -322,6 +385,8 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
   };
   // Local first, so the list never waits for Drive.
   const firstPaint = refresh().catch(showRefreshError);
+  // Reloading (or sharing) /#campanas opens the list again.
+  if (location.hash === CAMPAIGNS_HASH) void firstPaint.then(showCampaigns);
   // Back from /play restores this page from the bfcache: the card would show
   // the campaign as it was before that session.
   window.addEventListener("pageshow", (event) => {
@@ -542,8 +607,8 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     if (file) void importGameFile(file);
   });
   byId("open-load").addEventListener("click", () => {
-    for (const home of homes) home.hidden = true;
-    loadPanel.hidden = false;
+    history.pushState({ view: "campaigns" }, "", CAMPAIGNS_HASH);
+    showCampaigns();
   });
   importFile.addEventListener("change", () => {
     const file = importFile.files?.[0];
@@ -591,7 +656,7 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
       showDropError("No se pudo guardar la campaña.");
     }
   }
-  document.querySelector("#close-load")!.addEventListener("click", showMain);
+  document.querySelector("#close-load")!.addEventListener("click", leaveCampaigns);
 
   // The dynamic import sits behind the DEV check so a production build
   // doesn't ship the sample game.
