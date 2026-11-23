@@ -514,3 +514,70 @@ a { color: var(--color-accent); text-underline-offset: 0.15em; }
 .campaign-row .button { box-shadow: none; }
 /* After the state rules, so opening the load panel can still hide both. */
 #home-first[hidden], #home-returning[hidden] { display: none; }
+
+/* Import dialog: a file (picked or dropped), then what the player's Drive holds. */
+.drop-zone {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-3);
+  border: var(--line) dashed var(--color-ink-soft);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 250ms ease, color 250ms ease;
+}
+.drop-zone small { transition: color 250ms ease; }
+.drop-zone svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.drop-zone small { font-size: var(--text-sm); color: var(--color-ink-soft); }
+.drop-zone:hover, .drop-zone[data-over] { border-color: var(--color-accent); color: var(--color-accent); }
+.drop-zone[data-error] { border-color: var(--color-primary); color: var(--color-primary); }
+.drop-zone[data-error] small { color: var(--color-primary); }
+.drop-zone[data-notice], .drop-zone[data-notice] small { border-color: var(--color-accent); color: var(--color-accent); }
+.import-conflict {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+}
+.import-conflict[hidden] { display: none; }
+.import-conflict p { margin: 0; overflow-wrap: anywhere; }
+.import-conflict__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+@media (prefers-reduced-motion: reduce) {
+  .drop-zone, .drop-zone small { transition: none; }
+}
+.drive-import { display: grid; gap: var(--space-3); }
+.import-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-ink-soft);
+}
+.import-divider::before, .import-divider::after { content: ""; flex: 1; border-top: var(--line) dashed var(--color-ink-soft); }
+.drive-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); max-height: 40vh; overflow-y: auto; }
+.drive-list[hidden], .drive-import [hidden] { display: none; }
+.drive-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+}
+.drive-row > div { min-width: 0; }
+.drive-row strong, .drive-row small { display: block; overflow-wrap: anywhere; }
+.drive-row small { font-size: var(--text-sm); color: var(--color-ink-soft); }
+.drive-row__status { flex: none; font-size: var(--text-sm); color: var(--color-ink-soft); text-align: right; }
+.drive-row[data-status="new"] .drive-row__status,
+.drive-row[data-status="newer_remote"] .drive-row__status { color: var(--color-accent); font-weight: 700; }
+.drive-import .button { justify-self: start; }
+.import-dialog__footer { justify-content: flex-end; }

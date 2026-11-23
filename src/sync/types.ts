@@ -9,6 +9,8 @@ export interface RemoteEntry {
   updatedAt: string;
   turnCount: number;
   deleted: boolean;
+  /** "Aria, Mago nivel 3": lets a device name a campaign it hasn't downloaded. Missing on files from older versions. */
+  hero?: string;
 }
 
 /** gameId -> updatedAt that both sides agreed on the last time they synced. */

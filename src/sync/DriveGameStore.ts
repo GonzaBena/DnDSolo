@@ -27,6 +27,23 @@ interface DriveFile {
 
 const gameFileName = (id: string) => `game-${id}.json`;
 
+/** Drive caps a property's key plus value at 124 bytes; the name is cut to fit. */
+const HERO_MAX_BYTES = 100;
+
+/** The campaign's hero, so the import list can name a game it hasn't downloaded. */
+export function heroProperty(state: GameState): { hero?: string } {
+  const player = state.players?.[0];
+  if (!player) return {};
+  const full = `${player.name}, ${player.characterClass} nivel ${player.level}`;
+  const encoder = new TextEncoder();
+  let hero = "";
+  for (const char of full) {
+    if (encoder.encode(hero + char).length > HERO_MAX_BYTES) break;
+    hero += char;
+  }
+  return { hero };
+}
+
 export class DriveGameStore implements RemoteGameStore {
   private readonly fetchFn: typeof fetch;
   private accountFileId: Promise<string> | null = null;
@@ -141,6 +158,7 @@ export class DriveGameStore implements RemoteGameStore {
         turnCount: Number(props.turnCount ?? 0),
         deleted: props.deleted === "true",
       };
+      if (props.hero) entry.hero = props.hero;
       // Duplicates of one game: keep the newest.
       const current = entries.get(entry.id);
       if (current && current.updatedAt >= entry.updatedAt) continue;
@@ -200,6 +218,7 @@ export class DriveGameStore implements RemoteGameStore {
         gameId: state.id,
         updatedAt: state.updatedAt,
         turnCount: String(state.turns.length),
+        ...heroProperty(state),
       },
       state,
     );

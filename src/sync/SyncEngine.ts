@@ -67,6 +67,8 @@ export class SyncEngine {
   private readonly guards = new Map<string, LocalGuard>();
   /** A full sync failed before reconciling: `flush` owes one, since no id is pending for it. */
   private fullSyncOwed = false;
+  /** Ids the player brought back on purpose (an import): a delete made elsewhere doesn't ask, it is undone. */
+  private readonly restoring = new Set<string>();
   /** Replaced by another runtime: tasks still in flight must not overwrite its status. */
   private retired = false;
 
@@ -95,6 +97,7 @@ export class SyncEngine {
           try {
             const outcome = await this.apply(action, bases, localById.get(action.id) ?? null);
             if (outcome !== "unchanged") summary[outcome]++;
+            this.restoring.delete(action.id);
           } catch (error) {
             this.pending.add(action.id);
             failure ??= error;
@@ -130,6 +133,12 @@ export class SyncEngine {
   schedulePush(id: string): void {
     this.pending.add(id);
     this.queueOne(id);
+  }
+
+  /** Call before saving a game the player imported: if Drive holds a delete
+      of it, the import wins instead of asking "borrarla o restaurarla". */
+  allowRestore(id: string): void {
+    this.restoring.add(id);
   }
 
   /** Called after the local delete: the per-game sync sees "local missing,
@@ -200,6 +209,7 @@ export class SyncEngine {
       for (const action of actions) {
         if ((await this.apply(action, bases, state)) === "downloaded") outcome = "downloaded";
       }
+      this.restoring.delete(id); // reconciled: a later delete elsewhere asks again
       return outcome;
     } catch (error) {
       this.pending.add(id);
@@ -291,6 +301,7 @@ export class SyncEngine {
     bases: SyncBases,
     seen: GameState | null,
   ): Promise<Outcome> {
+    if (kind === "deleted_remotely" && this.restoring.delete(id)) return this.upload(id, bases);
     const remote = kind === "both_changed" ? await this.readRemote(id) : null;
     // Never offer (or upload over) a remote save this version can't read.
     if (kind === "both_changed" && !remote) return "unchanged";

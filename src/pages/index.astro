@@ -22,14 +22,6 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
       }
     })();
   </script>
-  {syncBuild && (
-    <>
-      <div id="sync-gesture" class="notice" hidden>
-        <button id="sync-gesture-button" type="button" class="button">Tocá para traer tus partidas de Drive</button>
-      </div>
-    </>
-  )}
-
   <div id="home-first" class="home" data-enter-children>
     <svg class="hero" viewBox="0 0 320 180" role="img" aria-label="Un dado de veinte caras sobre un camino hacia las montañas">
       <defs>
@@ -53,7 +45,7 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     <p class="home-lead">Jugá D&amp;D en solitario desde el navegador. Una IA narra la campaña; vos decidís qué hace tu personaje.</p>
     <a class="button button--primary home-cta" href="/character">Empezar una campaña</a>
     <p class="home-secondary">
-      ¿Ya tenés una partida? <button id="import-save-first" type="button" class="link-button">Importala</button>{syncBuild && (<> o <a href="/settings#sync-section">traela de Drive</a></>)}
+      ¿Ya tenés una partida? <button id="import-save-first" type="button" class="link-button">Importala</button>{syncBuild ? " de un archivo o de tu Drive." : "."}
     </p>
 
     <section class="home-steps" aria-labelledby="how-title">
@@ -120,9 +112,41 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     <div class="actions">
       <button id="close-load" type="button" class="button">Volver</button>
       <button id="import-save" type="button" class="button">Importar campaña</button>
-      <input id="import-file" type="file" accept="application/json,.json" hidden />
     </div>
   </div>
+
+  <dialog id="import-dialog" class="sync-dialog" aria-labelledby="import-title">
+    <div class="sync-dialog__panel">
+      <h2 id="import-title" class="sync-dialog__title">Importar campaña</h2>
+      <button id="drop-zone" type="button" class="drop-zone">
+        <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
+          <path d="M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
+        </svg>
+        <strong id="drop-title">Seleccioná o arrastrá una campaña</strong>
+        <small id="drop-hint">El archivo .json que exportaste desde DnDSolo</small>
+      </button>
+      <input id="import-file" type="file" accept="application/json,.json" hidden />
+      <div id="import-conflict" class="import-conflict" role="group" aria-labelledby="import-conflict-text" hidden>
+        <p id="import-conflict-text"></p>
+        <div class="import-conflict__actions">
+          <button id="import-replace" type="button" class="button button--primary">Reemplazar</button>
+          <button id="import-copy" type="button" class="button">Guardar como copia</button>
+        </div>
+      </div>
+      {syncBuild && (
+        <section class="drive-import" aria-labelledby="drive-import-title">
+          <h3 id="drive-import-title" class="import-divider"><span>En tu Google Drive</span></h3>
+          <p id="drive-note" class="sync-dialog__footer" aria-live="polite"></p>
+          <ul id="drive-list" class="drive-list" hidden></ul>
+          <button id="drive-action" type="button" class="button" hidden></button>
+          <a id="drive-connect" class="button" href="/settings#sync-section" hidden>Conectar Google Drive</a>
+        </section>
+      )}
+      <div class="sync-dialog__row import-dialog__footer">
+        <button id="import-close" type="button" class="button">Cerrar</button>
+      </div>
+    </div>
+  </dialog>
   <p id="save-info" class="status" role="status" aria-live="polite"></p>
 </Base>
 
@@ -130,9 +154,13 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
   import type { GameState } from "../domain/types";
   import { downloadGame } from "../persistence/exportGame";
   import { summarizeCampaign } from "../home/campaignSummary";
+  import { matchImport } from "../home/importMatch";
   import { migrateSave } from "../persistence/migrations";
   import { loadGis } from "../sync/gis";
+  import { describeSummary, showSyncToast } from "../sync/firstConnect";
+  import { driveRows, pendingCount, STATUS_TEXT } from "../sync/driveImport";
   import { SYNC_TAPPED_EVENT } from "../sync/indicator";
+  import { syncStatus } from "../sync/status";
   import { syncBeforeOpen } from "../sync/openGame";
   import { createGameRepo, getSyncRuntime, withRenewal } from "../sync/runtime";
 
@@ -144,8 +172,9 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
   const savesList = document.querySelector<HTMLUListElement>("#saves")!;
   const info = document.querySelector<HTMLParagraphElement>("#save-info")!;
   const emptyNote = document.querySelector<HTMLElement>("#saves-empty")!;
-  const importButton = document.querySelector<HTMLButtonElement>("#import-save")!;
   const importFile = document.querySelector<HTMLInputElement>("#import-file")!;
+  const importDialog = document.querySelector<HTMLDialogElement>("#import-dialog")!;
+  const dropZone = document.querySelector<HTMLButtonElement>("#drop-zone")!;
 
   function report(message: string, tone: "ok" | "error") {
     info.dataset.tone = tone;
@@ -301,40 +330,26 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
 
   if (sync) {
     // A tap on the navbar sync button may have brought games from Drive.
-    document.addEventListener(SYNC_TAPPED_EVENT, () => {
-      updateGesture();
-      void refresh().catch(showRefreshError);
+    document.addEventListener(SYNC_TAPPED_EVENT, () => void refresh().catch(showRefreshError));
+    // Any sync may have changed this device's games (a download, a delete the
+    // player agreed to in the conflict dialog): re-read the list when one ends.
+    let wasSyncing = false;
+    syncStatus.subscribe(({ state }) => {
+      if (wasSyncing && state !== "syncing") void refresh().catch(showRefreshError);
+      wasSyncing = state === "syncing";
     });
-    const gesture = document.querySelector<HTMLElement>("#sync-gesture");
-    const gestureButton = document.querySelector<HTMLButtonElement>("#sync-gesture-button");
 
     // Renewing opens a Google window, which needs GIS already loaded when the click lands.
     let gisReady = false;
-    const updateGesture = () => {
-      if (gesture) gesture.hidden = !(gisReady && sync.auth.needsGesture());
-    };
     loadGis()
-      .then(() => {
-        gisReady = true;
-        updateGesture();
-      })
+      .then(() => (gisReady = true))
       .catch(() => undefined);
 
+    // Without a token this does nothing; the import dialog is where a tap brings Drive's campaigns.
     void firstPaint
       .then(() => sync.engine.syncAll())
       .catch(() => undefined)
-      .then(() => {
-        updateGesture(); // auto-renewal learns only now whether the server lost the grant
-        return refresh().catch(showRefreshError);
-      });
-
-    gestureButton?.addEventListener("click", () => {
-      // Synchronous inside the click, before any await: browsers block the popup otherwise.
-      void withRenewal(sync, () => sync.engine.syncAll()).then(() => {
-        updateGesture();
-        return refresh().catch(showRefreshError);
-      });
-    });
+      .then(() => refresh().catch(showRefreshError));
 
     // "Seguir jugando" and "Jugar" renew with that same tap, reconcile the game, then navigate.
     let opening = false;
@@ -356,35 +371,226 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     });
     // Back from /play restores this page from the bfcache with its old state: unlock the links.
     window.addEventListener("pageshow", (event) => {
-      if (!event.persisted) return;
-      opening = false;
-      updateGesture();
+      if (event.persisted) opening = false;
     });
   }
 
-  importButton.addEventListener("click", () => importFile.click());
-  for (const id of ["import-save-first", "import-save-returning"]) byId(id).addEventListener("click", () => importFile.click());
+  // Drive half of the import dialog. Listing needs a token: with one it loads
+  // on open; without one, a tap renews (the Google window needs that tap).
+  const driveNote = document.querySelector<HTMLElement>("#drive-note");
+  const driveList = document.querySelector<HTMLUListElement>("#drive-list");
+  const driveAction = document.querySelector<HTMLButtonElement>("#drive-action");
+  const driveConnect = document.querySelector<HTMLElement>("#drive-connect");
+  type DriveStep = "list" | "bring";
+  let driveStep: DriveStep = "list";
+  let driveBusy = false;
+
+  function showDrive(note: string, action: string | null, step: DriveStep = "list") {
+    if (!driveNote || !driveAction) return;
+    driveNote.textContent = note;
+    driveAction.hidden = !action;
+    driveAction.textContent = action ?? "";
+    driveAction.classList.toggle("button--primary", step === "bring");
+    driveStep = step;
+  }
+
+  async function loadDrive() {
+    if (!sync || !driveList) return;
+    driveBusy = true;
+    showDrive("Buscando en tu Drive…", null);
+    driveList.hidden = true;
+    try {
+      const [remote, local] = await Promise.all([sync.listRemote(), repo.list()]);
+      const rows = driveRows(remote, local);
+      driveList.replaceChildren(
+        ...rows.map((row) => {
+          const item = document.createElement("li");
+          item.className = "drive-row";
+          item.dataset.status = row.status;
+          const text = document.createElement("div");
+          const name = document.createElement("strong");
+          name.textContent = row.name;
+          const date = document.createElement("small");
+          date.textContent = new Date(row.updatedAt).toLocaleDateString("es-AR");
+          text.append(name, date);
+          const badge = document.createElement("span");
+          badge.className = "drive-row__status";
+          badge.textContent = STATUS_TEXT[row.status];
+          item.append(text, badge);
+          return item;
+        }),
+      );
+      driveList.hidden = rows.length === 0;
+      const pending = pendingCount(rows);
+      if (!rows.length) showDrive("Todavía no hay campañas en tu Drive.", null);
+      else if (!pending) showDrive("Tenés todo al día.", null);
+      else showDrive("", pending === 1 ? "Traer 1 campaña" : `Traer ${pending} campañas`, "bring");
+    } catch {
+      showDrive(
+        sync.auth.needsGesture() ? "Hace falta volver a dar permiso a Google Drive." : "No se pudo leer tu Drive.",
+        "Reintentar",
+      );
+    } finally {
+      driveBusy = false;
+    }
+  }
+
+  function openImport() {
+    if (!importDialog.open) importDialog.showModal();
+    if (!driveNote) return; // build without sync
+    driveConnect!.hidden = Boolean(sync);
+    if (!sync) {
+      driveList!.hidden = true;
+      return showDrive("Conectá tu Google Drive para traer las campañas de tus otros dispositivos.", null);
+    }
+    if (driveBusy) return;
+    if (sync.auth.needsGesture()) {
+      driveList!.hidden = true;
+      return showDrive("Tocá para ver las campañas que tenés guardadas en Drive.", "Ver campañas de Drive");
+    }
+    void loadDrive();
+  }
+
+  driveAction?.addEventListener("click", () => {
+    if (!sync || driveBusy) return;
+    driveAction.disabled = true;
+    // withRenewal runs synchronously in the click: the Google window needs the live gesture.
+    const run =
+      driveStep === "bring"
+        ? async () => {
+            const summary = await sync.engine.syncAll();
+            if (summary) showSyncToast(describeSummary(summary));
+            await refresh().catch(showRefreshError);
+            await loadDrive();
+          }
+        : loadDrive;
+    void withRenewal(sync, run).finally(() => (driveAction.disabled = false));
+  });
+
+  for (const id of ["import-save", "import-save-first", "import-save-returning"]) byId(id).addEventListener("click", openImport);
+  byId("import-close").addEventListener("click", () => importDialog.close());
+  importDialog.addEventListener("click", (event) => {
+    if (event.target === importDialog) importDialog.close(); // backdrop
+  });
+  // A bad file keeps the dialog open: the zone turns red with the reason for a
+  // few seconds, or until the next try, so the player can pick another one.
+  const dropTitle = byId("drop-title");
+  const dropHint = byId("drop-hint");
+  const dropDefaults = [dropTitle.textContent, dropHint.textContent];
+  const DROP_ERROR_MS = 4000;
+  let dropErrorTimer: ReturnType<typeof setTimeout> | undefined;
+  function clearDropError() {
+    clearTimeout(dropErrorTimer);
+    delete dropZone.dataset.error;
+    delete dropZone.dataset.notice;
+    [dropTitle.textContent, dropHint.textContent] = dropDefaults;
+  }
+  /** "error" turns the zone red; "notice" only tells (the file was fine). */
+  function showDropError(message: string, hint = "Probá con otro archivo.", tone: "error" | "notice" = "error") {
+    clearDropError();
+    dropZone.dataset[tone] = "";
+    dropTitle.textContent = message;
+    dropHint.textContent = hint;
+    dropErrorTimer = setTimeout(clearDropError, DROP_ERROR_MS);
+  }
+
+  // Importing a campaign this device already has: identical saves are
+  // skipped; a different version asks whether to replace it or keep both.
+  const conflictBox = byId("import-conflict");
+  const conflictText = byId("import-conflict-text");
+  let conflictGame: GameState | null = null;
+  function clearConflict() {
+    conflictGame = null;
+    conflictBox.hidden = true;
+  }
+  function askConflict(game: GameState, newer: boolean) {
+    conflictGame = game;
+    const { name } = summarizeCampaign(game);
+    conflictText.textContent = newer
+      ? `Ya tenés «${name}». La del archivo es más nueva.`
+      : `Ya tenés «${name}», y la tuya es más nueva que la del archivo.`;
+    conflictBox.hidden = false;
+    byId(newer ? "import-replace" : "import-copy").focus();
+  }
+  byId("import-replace").addEventListener("click", () => {
+    if (conflictGame) void saveImported(conflictGame, "Campaña importada.", true);
+  });
+  byId("import-copy").addEventListener("click", () => {
+    if (conflictGame) void saveImported({ ...conflictGame, id: crypto.randomUUID() }, "Se guardó como una campaña aparte.");
+  });
+  importDialog.addEventListener("close", () => {
+    clearDropError();
+    clearConflict();
+  });
+
+  dropZone.addEventListener("click", () => {
+    clearDropError();
+    clearConflict();
+    importFile.click();
+  });
+  dropZone.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    clearDropError();
+    clearConflict();
+    dropZone.dataset.over = "";
+  });
+  dropZone.addEventListener("dragleave", () => delete dropZone.dataset.over);
+  dropZone.addEventListener("drop", (event) => {
+    event.preventDefault();
+    delete dropZone.dataset.over;
+    const file = event.dataTransfer?.files[0];
+    if (file) void importGameFile(file);
+  });
   byId("open-load").addEventListener("click", () => {
     for (const home of homes) home.hidden = true;
     loadPanel.hidden = false;
   });
-  importFile.addEventListener("change", async () => {
+  importFile.addEventListener("change", () => {
     const file = importFile.files?.[0];
     importFile.value = "";
-    if (!file) return;
+    if (file) void importGameFile(file);
+  });
+
+  async function importGameFile(file: File) {
+    clearDropError();
+    clearConflict();
+    let game: GameState | null;
     try {
       // Same gate as loading from disk: migrate, validate, or refuse.
-      const game = migrateSave(JSON.parse(await file.text()));
-      if (!game) return report("Ese archivo no es una campaña válida de esta versión.", "error");
-      // Never overwrite a campaign that already has this id.
-      const imported = (await repo.load(game.id)) ? { ...game, id: crypto.randomUUID() } : game;
-      await repo.save(imported);
-      await refresh();
-      report("Campaña importada.", "ok");
+      game = migrateSave(JSON.parse(await file.text()));
     } catch {
-      report("No se pudo importar el archivo.", "error");
+      game = null;
     }
-  });
+    if (!game) return showDropError("Ese archivo no es una campaña válida.");
+    let match;
+    try {
+      match = matchImport(game, await repo.load(game.id));
+    } catch {
+      return showDropError("No se pudo leer tus campañas guardadas.");
+    }
+    if (match === "same") return showDropError("Ya tenés esta campaña.", "No hacía falta importarla.", "notice");
+    if (match === "new") return saveImported(game, "Campaña importada.", true);
+    askConflict(game, match === "newer");
+  }
+
+  // Replacing keeps the id, so it overwrites (and syncs) the campaign already here.
+  // `restore`: the file keeps its id, and the player wants it back even if it
+  // was deleted from Drive before (otherwise sync would ask to delete it again).
+  async function saveImported(game: GameState, message = "Campaña importada.", restore = false) {
+    if (restore) sync?.engine.allowRestore(game.id);
+    try {
+      await repo.save(game);
+      await refresh();
+      importDialog.close();
+      report(message, "ok");
+      setTimeout(() => {
+        if (info.textContent === message) info.textContent = "";
+      }, DROP_ERROR_MS);
+    } catch {
+      clearConflict();
+      showDropError("No se pudo guardar la campaña.");
+    }
+  }
   document.querySelector("#close-load")!.addEventListener("click", showMain);
 
   // The dynamic import sits behind the DEV check so a production build
