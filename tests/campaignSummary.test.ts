@@ -38,6 +38,12 @@ describe("summarizeCampaign", () => {
     expect(summary.initials).toBe("?");
   });
 
+  it("keeps a whole emoji as the initial", () => {
+    const game = gameWith({});
+    const summary = summarizeCampaign({ ...game, players: [{ ...game.players[0]!, name: "🐉 Ignis" }] });
+    expect(summary.initials).toBe("🐉");
+  });
+
   it("skips turns without narration for the excerpt", () => {
     const summary = summarizeCampaign(gameWith({ turns: [turn(1, "La puerta cede."), turn(2, "  ")] }));
     expect(summary.excerpt).toBe("La puerta cede.");
@@ -66,6 +72,10 @@ describe("narrationExcerpt", () => {
     const text = "La lluvia golpea las tejas del molino abandonado. La puerta de la cripta cede con un crujido. Abajo, algo respira en la oscuridad.";
     expect(narrationExcerpt(text).length).toBeLessThanOrEqual(90);
     expect(narrationExcerpt(text).endsWith("algo respira en la oscuridad.")).toBe(true);
+  });
+
+  it("strips markdown headings, list marks and links", () => {
+    expect(narrationExcerpt("## La cripta\n- Ves una [puerta](https://x.y) cerrada.")).toBe("La cripta Ves una puerta cerrada.");
   });
 
   it("strips markdown marks and collapses whitespace", () => {

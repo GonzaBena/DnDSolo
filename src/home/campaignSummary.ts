@@ -20,7 +20,8 @@ export function summarizeCampaign(game: GameState): CampaignSummary {
     id: game.id,
     name: player ? player.name : "Sin personaje",
     subtitle: player ? `${player.characterClass} · nivel ${player.level}` : "",
-    initials: player?.name.trim()[0]?.toUpperCase() ?? "?",
+    // Array.from splits by code point, so an emoji stays whole.
+    initials: Array.from(player?.name.trim() ?? "")[0]?.toUpperCase() ?? "?",
     detail: `${turns} · ${new Date(game.updatedAt).toLocaleDateString("es-AR")}`,
     excerpt: latest ? narrationExcerpt(latest.narration) : "",
   };
@@ -30,7 +31,12 @@ export function summarizeCampaign(game: GameState): CampaignSummary {
     lines of the card on a phone): where the story left off. A single sentence
     too long is cut at a word, with "…". */
 export function narrationExcerpt(text: string, max = 90): string {
-  const plain = text.replace(/[*_]/g, "").replace(/\s+/g, " ").trim();
+  const plain = text
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1") // [text](url) keeps the text
+    .replace(/^\s*(#{1,6}|[-+]|\d+\.)\s+/gm, "") // headings and list marks
+    .replace(/[*_]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
   const sentences = plain.split(/(?<=[.!?…])\s+/);
   let excerpt = "";
   for (let i = sentences.length - 1; i >= 0; i--) {
