@@ -371,10 +371,6 @@ a { color: var(--color-accent); text-underline-offset: 0.15em; }
 }
 .docs-drawer__header { display: flex; justify-content: space-between; align-items: center; }
 .docs-drawer__header .docs-nav__title { margin: 0; }
-@media (prefers-reduced-motion: no-preference) {
-  .docs-drawer[open] .docs-drawer__panel { transition: translate 220ms ease-out; }
-  @starting-style { .docs-drawer[open] .docs-drawer__panel { translate: 100% 0; } }
-}
 
 /* Home (/): first-visit landing and the returning player's screen. */
 .home { display: grid; gap: var(--space-4); }

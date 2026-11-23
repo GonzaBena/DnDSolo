@@ -76,27 +76,52 @@ const sections = [
 </Base>
 
 <script>
+  import { enterDrawer, leaveDrawer } from "../animations/motion";
   import { currentSection } from "../docs/currentSection";
 
   const drawer = document.querySelector<HTMLDialogElement>("#docs-drawer")!;
   const openButton = document.querySelector<HTMLButtonElement>("#docs-menu-open")!;
 
-  const close = () => drawer.close();
+  const panel = drawer.querySelector<HTMLElement>(".docs-drawer__panel")!;
+
+  // Slides out, then closes; `then` runs once it is gone (e.g. to jump to a section).
+  let leaving = false;
+  const close = (then?: () => void) => {
+    if (!drawer.open || leaving) return;
+    leaving = true;
+    leaveDrawer(panel, () => {
+      leaving = false;
+      drawer.close();
+      panel.style.transform = ""; // the next opening slides in from scratch
+      then?.();
+    });
+  };
   openButton.addEventListener("click", () => {
     drawer.showModal();
     openButton.setAttribute("aria-expanded", "true");
+    enterDrawer(panel);
   });
   drawer.addEventListener("close", () => openButton.setAttribute("aria-expanded", "false"));
-  document.querySelector("#docs-menu-close")!.addEventListener("click", close);
+  // Escape: animate the way out instead of the browser's instant close.
+  drawer.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    close();
+  });
+  document.querySelector("#docs-menu-close")!.addEventListener("click", () => close());
   // The dialog covers the screen; a click outside the panel lands on it.
   drawer.addEventListener("click", (event) => {
     if (event.target === drawer) close();
   });
-  // Picking a section closes the drawer; the link then scrolls to it.
-  for (const link of drawer.querySelectorAll("a")) link.addEventListener("click", close);
-  // Back to a wide screen with the drawer open: the sidebar takes over.
+  // Picking a section: the drawer slides out, then the page jumps to it.
+  for (const link of drawer.querySelectorAll("a")) {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      close(() => (location.hash = link.hash));
+    });
+  }
+  // Back to a wide screen with the drawer open: the sidebar takes over, at once.
   matchMedia("(min-width: 56rem)").addEventListener("change", (event) => {
-    if (event.matches) close();
+    if (event.matches && drawer.open) drawer.close();
   });
 
   // The section being read is marked in both lists, like the current page in a docs site.
