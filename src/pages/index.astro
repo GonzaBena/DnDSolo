@@ -6,12 +6,21 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
 ---
 
 <Base title="Bienvenida">
-  <script is:inline>
-    // Before first paint: a returning player sees the continue screen at once,
-    // not a flash of the first-visit landing. refresh() confirms it later.
-    try {
-      if (localStorage.getItem("dnsolo.home") === "returning") document.documentElement.dataset.home = "returning";
-    } catch {}
+  <script is:inline slot="head">
+    // Before first paint, so a returning player never sees the first-visit
+    // landing flash. "pending" (no hint yet, e.g. the first load after an
+    // update) keeps both states invisible until refresh() decides; the timeout
+    // shows the landing if the page script never runs.
+    (() => {
+      let hint = null;
+      try { hint = localStorage.getItem("dnsolo.home"); } catch {}
+      const root = document.documentElement;
+      if (hint === "returning") root.dataset.home = "returning";
+      if (hint === null) {
+        root.dataset.home = "pending";
+        setTimeout(() => { if (root.dataset.home === "pending") delete root.dataset.home; }, 1500);
+      }
+    })();
   </script>
   {syncBuild && (
     <>
@@ -21,7 +30,7 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     </>
   )}
 
-  <div id="home-first" class="home">
+  <div id="home-first" class="home" data-enter-children>
     <svg class="hero" viewBox="0 0 320 180" role="img" aria-label="Un dado de veinte caras sobre un camino hacia las montañas">
       <defs>
         <clipPath id="hero-frame"><rect x="2" y="2" width="316" height="176" rx="12" /></clipPath>
@@ -71,7 +80,7 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     )}
   </div>
 
-  <div id="home-returning" class="home">
+  <div id="home-returning" class="home" data-enter-children>
     <h1>La aventura sigue</h1>
     <article class="continue-card" aria-labelledby="continue-name">
       <svg class="continue-card__banner" viewBox="0 0 320 90" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
@@ -84,7 +93,7 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
         <span id="continue-initials" class="continue-card__avatar" aria-hidden="true"></span>
         <h2 id="continue-name"></h2>
         <p id="continue-subtitle" class="continue-card__subtitle"></p>
-        <p id="continue-excerpt" class="continue-card__excerpt"></p>
+        <p id="continue-excerpt" class="continue-card__excerpt" hidden></p>
         <p id="continue-detail" class="continue-card__detail"></p>
         <a id="continue-play" class="button button--primary home-cta" href="/play">Seguir jugando</a>
       </div>
@@ -166,12 +175,22 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     excerpt.hidden = !summary.excerpt;
     byId("continue-detail").textContent = summary.detail;
     byId<HTMLAnchorElement>("continue-play").href = playHref(game.id);
+    byId("home-returning").dataset.ready = ""; // filled: CSS stops hiding it
   }
 
   // Names come from the player and the model, so they go in as text, never as HTML.
   function renderOthers(games: GameState[], total: number) {
     // "Ver todas" stays even without others: it is the way to export or delete.
+    const others = byId("others");
     byId("others-title").hidden = games.length === 0;
+    // The hidden title can't name the section; a label does instead.
+    if (games.length) {
+      others.setAttribute("aria-labelledby", "others-title");
+      others.removeAttribute("aria-label");
+    } else {
+      others.removeAttribute("aria-labelledby");
+      others.setAttribute("aria-label", "Tus campañas");
+    }
     byId("others-count").textContent = String(total);
     byId("others-list").replaceChildren(
       ...games.map((game) => {
@@ -267,6 +286,8 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
   }
 
   const showRefreshError = () => {
+    // Saves unreadable: show the landing rather than keep the page blank.
+    if (document.documentElement.dataset.home === "pending") setHome("first");
     info.dataset.tone = "error";
     info.textContent = "No se pudo leer las partidas guardadas en este navegador.";
   };
@@ -315,7 +336,7 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
       });
     });
 
-    // "Continuar" and "Jugar" renew with that same tap, reconcile the game, then navigate.
+    // "Seguir jugando" and "Jugar" renew with that same tap, reconcile the game, then navigate.
     let opening = false;
     document.addEventListener("click", (event) => {
       const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>("a[href^='/play']") : null;

@@ -25,6 +25,7 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     <meta name="theme-color" content="#f4e7cf" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#1b1512" media="(prefers-color-scheme: dark)" />
     <title>{title} · DnDSolo</title>
+    <slot name="head" />
     <script is:inline>
       // Theme is resolved before first paint so the page never flashes the
       // wrong palette: the saved choice wins, otherwise the system setting.
@@ -109,7 +110,12 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
       const syncNav = document.querySelector<HTMLButtonElement>("#sync-nav");
       if (syncNav) void import("../sync/indicator").then(({ mountSyncIndicator }) => mountSyncIndicator(syncNav));
 
-      const blocks = [...document.querySelectorAll(".page > *")];
+      // A block marked data-enter-children rises child by child, so a page that
+      // wraps its content (the home's two states) keeps the staggered entrance.
+      // Blocks not rendered (display: none) are skipped so they add no delay.
+      const blocks = [...document.querySelectorAll(".page > *")]
+        .flatMap((block) => (block.matches("[data-enter-children]") ? [...block.children] : [block]))
+        .filter((block) => block.getClientRects().length > 0);
       enterPage(blocks);
       document.documentElement.classList.remove("entering");
 

@@ -364,10 +364,12 @@ a { color: var(--color-accent); text-underline-offset: 0.15em; }
 .home-steps li strong { color: var(--color-ink); font-size: var(--text-base); font-weight: 800; }
 .home-steps li > :not(strong) { grid-column: 2; }
 .home-privacy { display: flex; gap: var(--space-2); align-items: flex-start; font-size: var(--text-sm); color: var(--color-ink-soft); }
-.home-privacy svg { flex: none; margin-top: 0.2em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.home-privacy svg { flex: none; margin-top: var(--space-1); fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 /* Which home state shows: set on <html> before paint and by refresh(). */
 #home-returning { display: none; }
+[data-home="pending"] .home { visibility: hidden; }
+#home-returning:not([data-ready]) { visibility: hidden; } /* until refresh() fills the card */
 [data-home="returning"] #home-returning { display: grid; }
 [data-home="returning"] #home-first { display: none; }
 
@@ -406,7 +408,7 @@ a { color: var(--color-accent); text-underline-offset: 0.15em; }
   -webkit-box-orient: vertical;
   overflow: hidden;
   padding-top: var(--space-3);
-  border-top: 2px dashed var(--color-ink-soft);
+  border-top: var(--line) dashed var(--color-ink-soft);
   font-size: var(--text-sm);
   font-style: italic;
 }
@@ -415,11 +417,9 @@ a { color: var(--color-accent); text-underline-offset: 0.15em; }
 .home-pair .button { text-align: center; }
 
 .others { display: grid; gap: var(--space-3); }
-.others[hidden] { display: none; }
 .others__header { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); }
-.others__header h2 { margin: 0; }
 .others__header h2[hidden] { display: none; }
-.others__header h2 { font-size: var(--text-lg); }
+.others__header h2 { margin: 0; font-size: var(--text-lg); }
 .others__header .link-button { margin-left: auto; white-space: nowrap; }
 .others__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
 .campaign-row {
