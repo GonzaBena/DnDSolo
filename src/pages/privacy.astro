@@ -1,0 +1,107 @@
+---
+import Base from "../layouts/Base.astro";
+import { CONTACT_EMAIL, LEGAL_UPDATED } from "../legal";
+---
+
+<Base title="Política de privacidad" description="Qué datos usa DungeonSolo, dónde se guardan y cómo usa el acceso a Google Drive.">
+  <h1>Política de privacidad</h1>
+  <p><em>Última actualización: {LEGAL_UPDATED}</em></p>
+
+  <section class="legal">
+    <p>
+      DungeonSolo (<a href="https://dungeonsolo.com.ar">dungeonsolo.com.ar</a>) es un juego de rol en solitario que corre en tu
+      navegador. Esta política explica qué datos usa, dónde quedan guardados y qué hace con el acceso a tu cuenta de Google
+      cuando activás la sincronización. En resumen: no tenemos cuentas de usuario, no vendemos datos, no mostramos publicidad
+      y no usamos herramientas de analítica ni de seguimiento.
+    </p>
+
+    <h2>1. Datos que se guardan en tu navegador</h2>
+    <p>Todo lo que generás al jugar se guarda en el almacenamiento local de tu navegador (IndexedDB y localStorage):</p>
+    <ul>
+      <li>tus partidas, personajes y el historial de la narración;</li>
+      <li>tu configuración (modelo elegido y preferencias de juego);</li>
+      <li>la clave de la API de Gemini que cargues en Configuración.</li>
+    </ul>
+    <p>
+      Esos datos no se envían a nuestro servidor. Podés borrarlos cuando quieras eliminando las partidas desde la app o
+      limpiando los datos del sitio en tu navegador.
+    </p>
+
+    <h2>2. Narración con Google Gemini</h2>
+    <p>
+      Para narrar la partida, tu navegador envía directamente a la API de Google Gemini el contexto de la partida (personaje,
+      historial y tus acciones) junto con la clave de API que cargaste. Ese tráfico no pasa por nuestro servidor. El uso que
+      Google hace de esos datos se rige por los
+      <a href="https://ai.google.dev/gemini-api/terms">términos de la API de Gemini</a> y la
+      <a href="https://policies.google.com/privacy">política de privacidad de Google</a>, que dependen del tipo de cuenta
+      asociada a tu clave. No escribas en el juego información personal que no quieras compartir con ese servicio.
+    </p>
+
+    <h2>3. Sincronización con Google Drive (opcional)</h2>
+    <p>
+      Si activás la sincronización, DungeonSolo te pide permiso para usar la carpeta de datos de la aplicación de tu Google
+      Drive (permiso <code>https://www.googleapis.com/auth/drive.appdata</code>). Esa es una carpeta oculta y exclusiva de
+      esta app:
+    </p>
+    <ul>
+      <li>DungeonSolo <strong>no puede ver, leer ni modificar</strong> ningún otro archivo de tu Drive;</li>
+      <li>en esa carpeta solo se guardan copias de tus partidas, para tenerlas en varios dispositivos;</li>
+      <li>tu clave de API de Gemini <strong>no</strong> se sube a Drive.</li>
+    </ul>
+    <p>
+      Para que la sincronización siga funcionando sin pedirte permiso cada vez, nuestro servidor recibe de Google un token
+      de actualización y lo guarda cifrado (AES-256-GCM) en una cookie de tu propio navegador, marcada como
+      <code>HttpOnly</code>, <code>Secure</code> y <code>SameSite=Strict</code>, que vence a los 180 días. El servidor no
+      guarda ese token ni el contenido de tus partidas en ninguna base de datos: solo lo usa en el momento para pedirle a
+      Google un permiso de acceso temporal.
+    </p>
+    <p>
+      Podés desconectar Drive en cualquier momento desde Configuración: eso revoca el permiso en Google y borra la cookie.
+      También podés revocarlo desde <a href="https://myaccount.google.com/permissions">la configuración de tu cuenta de Google</a>.
+      Las copias de la carpeta de la app se pueden borrar desde DungeonSolo o desde
+      <em>Drive → Configuración → Administrar aplicaciones</em>.
+    </p>
+
+    <h3>Uso limitado de los datos de Google</h3>
+    <p>
+      El uso y la transferencia a cualquier otra aplicación de la información recibida de las API de Google se ajustan a la
+      <a href="https://developers.google.com/terms/api-services-user-data-policy">Política de datos de usuario de los servicios
+      de las API de Google</a>, incluidos los requisitos de uso limitado. En particular, los datos de Google Drive se usan
+      únicamente para guardar y sincronizar tus partidas; no se transfieren a terceros, no se usan para publicidad, no se
+      venden, no los lee ninguna persona y no se usan para entrenar modelos de inteligencia artificial.
+    </p>
+
+    <h2>4. Registros del servidor y proveedores</h2>
+    <p>
+      El sitio está alojado en Hostinger, que puede registrar datos técnicos de cada visita (dirección IP, navegador, fecha y
+      página pedida) para operar y proteger el servicio. Las fuentes tipográficas se sirven desde nuestro propio dominio. No
+      usamos cookies de publicidad ni de analítica; la única cookie propia es la de sincronización descrita arriba.
+    </p>
+
+    <h2>5. Menores de edad</h2>
+    <p>
+      DungeonSolo no está dirigido a menores de 13 años y no recopila a sabiendas datos de ellos. Para usar la API de Gemini
+      y Google Drive tenés que cumplir los requisitos de edad de Google.
+    </p>
+
+    <h2>6. Tus derechos</h2>
+    <p>
+      Como casi todos tus datos están en tu navegador o en tu propio Drive, podés verlos, exportarlos y borrarlos vos mismo.
+      Si querés ejercer tus derechos de acceso, rectificación o supresión según la Ley 25.326 de Protección de Datos
+      Personales, o tenés cualquier consulta, escribinos a <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>. La Agencia
+      de Acceso a la Información Pública, órgano de control de esa ley, atiende denuncias y reclamos relacionados con la
+      protección de datos personales.
+    </p>
+
+    <h2>7. Cambios</h2>
+    <p>
+      Si cambiamos esta política, actualizaremos la fecha de arriba. Si el cambio afecta cómo se usan los datos de Google,
+      te lo avisaremos en la app antes de que se aplique.
+    </p>
+  </section>
+
+  <div class="actions">
+    <a class="button" href="/terms">Condiciones de uso</a>
+    <a class="button" href="/">Volver</a>
+  </div>
+</Base>
