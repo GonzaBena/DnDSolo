@@ -13,7 +13,9 @@ Análisis de DungeonSolo en cinco ejes: seguridad, rendimiento, modularidad y ma
    - Pendiente: dar de alta el sitemap en Google Search Console (ver "Para después").
 3. [x] Arreglar el `aria-live` del log de narración.
    - Hecho: el log ya no es región viva; cada turno terminado se anuncia una vez como texto plano (`src/game/announcement.ts`). También: enlace "Saltar al contenido", `aria-pressed` en el botón de tema y halo de foco en el campo de acción.
-4. [ ] Cargar el SDK de Gemini solo cuando se usa y pasar a `zod/mini`.
+4. [x] Cargar el SDK de Gemini solo cuando se usa y pasar a `zod/mini`.
+   - Hecho: el SDK se reemplazó por `fetch` a la API REST (−395 KB, −73 KB gzip en `/play`, `/generator` y `/settings`). El indicador de sincronización se carga recién cuando la sincronización arranca: `/docs` y `/credits` pasaron de ~262 KB a ~40 KB de JS.
+   - Descartado: `zod/mini` ahorra ~13 KB gzip a cambio de reescribir ~320 líneas de esquemas en una sintaxis menos legible.
 5. [ ] Sacar los scripts inline de `index.astro` y `settings.astro` a módulos con tests.
 
 ## Para después

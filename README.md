@@ -15,7 +15,7 @@ Un Dungeon Master con IA para jugar D&D en solitario desde el navegador. Creás 
 ## Stack
 
 - [Astro](https://astro.build) + TypeScript (estricto), con la pantalla de juego como isla de React
-- [@google/genai](https://www.npmjs.com/package/@google/genai) para Gemini
+- La [API REST de Gemini](https://ai.google.dev/api) con `fetch` (sin SDK: pesaba ~400 KB en el navegador)
 - [Zod](https://zod.dev) para validar las respuestas estructuradas del DM
 - [anime.js](https://animejs.com) para animaciones (respeta `prefers-reduced-motion`)
 - [Vitest](https://vitest.dev) + `fake-indexeddb` para tests

@@ -141,10 +141,21 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     )}
     <script>
       import { enterPage } from "../animations/motion";
+      import { syncStatus } from "../sync/status";
 
-      // Sync button: the module loads only in builds that have it.
+      // Sync button: only in builds that have sync, and only once a page
+      // starts it (home, play, settings...). Its module pulls the whole sync
+      // runtime (schemas, rules), which pages like the guide never need.
       const syncNav = document.querySelector<HTMLButtonElement>("#sync-nav");
-      if (syncNav) void import("../sync/indicator").then(({ mountSyncIndicator }) => mountSyncIndicator(syncNav));
+      if (syncNav) {
+        const mountWhenOn = () => {
+          if (syncStatus.get().state === "off") return;
+          stop();
+          void import("../sync/indicator").then(({ mountSyncIndicator }) => mountSyncIndicator(syncNav));
+        };
+        const stop = syncStatus.subscribe(mountWhenOn);
+        mountWhenOn();
+      }
 
       // A block marked data-enter-children rises child by child, so a page that
       // wraps its content (the home's two states) keeps the staggered entrance.

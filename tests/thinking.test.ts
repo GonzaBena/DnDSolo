@@ -1,4 +1,3 @@
-import { ThinkingLevel } from "@google/genai";
 import { describe, expect, it } from "vitest";
 import { thinkingConfigFor } from "../src/llm/thinking";
 
@@ -11,7 +10,7 @@ describe("thinkingConfigFor", () => {
   });
   it("uses the low level on gemini 3", () => {
     expect(thinkingConfigFor("models/gemini-3-pro-preview", true)).toEqual({
-      thinkingLevel: ThinkingLevel.LOW,
+      thinkingLevel: "LOW",
     });
   });
   it("sends nothing for unknown models", () => {
