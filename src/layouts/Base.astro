@@ -2,6 +2,10 @@
 import "../styles/global.css";
 import "../sync/sync.css";
 import { SITE_DESCRIPTION } from "../site";
+// The two latin fonts, preloaded: the CSS that names them is found late, and
+// waiting for it makes the text repaint in another font.
+import displayFont from "@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2?url";
+import bodyFont from "@fontsource-variable/nunito/files/nunito-latin-wght-normal.woff2?url";
 
 interface Props {
   title: string;
@@ -31,6 +35,8 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="preload" href={displayFont} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={bodyFont} as="font" type="font/woff2" crossorigin />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -64,13 +70,6 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
         document.documentElement.dataset.theme = theme;
       })();
 
-      // Runs before first paint: hides the page's blocks only when they are
-      // about to be animated in, so there's no flash of final content. The
-      // timeout is a safety net in case the animation script never loads.
-      if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        document.documentElement.classList.add("entering");
-        setTimeout(() => document.documentElement.classList.remove("entering"), 1500);
-      }
     </script>
   </head>
   <body class:list={{ "game-shell": game, "wide-shell": wide }}>
@@ -140,7 +139,6 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
       </footer>
     )}
     <script>
-      import { enterPage } from "../animations/motion";
       import { syncStatus } from "../sync/status";
 
       // Sync button: only in builds that have sync, and only once a page
@@ -156,15 +154,6 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
         const stop = syncStatus.subscribe(mountWhenOn);
         mountWhenOn();
       }
-
-      // A block marked data-enter-children rises child by child, so a page that
-      // wraps its content (the home's two states) keeps the staggered entrance.
-      // Blocks not rendered (display: none) are skipped so they add no delay.
-      const blocks = [...document.querySelectorAll(".page > *")]
-        .flatMap((block) => (block.matches("[data-enter-children]") ? [...block.children] : [block]))
-        .filter((block) => block.getClientRects().length > 0);
-      enterPage(blocks);
-      document.documentElement.classList.remove("entering");
 
       const root = document.documentElement;
       const toggle = document.querySelector<HTMLButtonElement>(".theme-toggle");
