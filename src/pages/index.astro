@@ -1,11 +1,26 @@
 ---
 import Base from "../layouts/Base.astro";
+import { SITE_DESCRIPTION } from "../site";
 
 // Without a Google client id the build has no sync at all: none of its markup ships.
 const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
+
+// Lets search engines show DnDSolo as a free web app.
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "DnDSolo",
+  url: Astro.site?.href,
+  description: SITE_DESCRIPTION,
+  applicationCategory: "GameApplication",
+  operatingSystem: "Web",
+  inLanguage: "es-AR",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+};
 ---
 
-<Base title="Bienvenida">
+<Base title="D&D en solitario con un Dungeon Master de IA">
+  <script type="application/ld+json" slot="head" set:html={JSON.stringify(structuredData)} />
   <script is:inline slot="head">
     // Before first paint, so a returning player never sees the first-visit
     // landing flash. "pending" (no hint yet, e.g. the first load after an

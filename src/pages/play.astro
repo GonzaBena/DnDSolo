@@ -3,7 +3,7 @@ import Base from "../layouts/Base.astro";
 import Game from "../game/Game";
 ---
 
-<Base title="Partida" footer={false} game>
+<Base title="Partida" footer={false} game noindex>
   <!-- client:only: the game reads localStorage/IndexedDB, which don't exist
        at build time, so there is nothing useful to prerender. -->
   <Game client:only="react" />

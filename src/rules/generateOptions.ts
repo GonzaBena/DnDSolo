@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "../domain/zod";
 import { toProviderSchema } from "../domain/schemas";
 import { LLMError } from "../llm/LLMClient";
 import type { LLMClient } from "../llm/LLMClient";

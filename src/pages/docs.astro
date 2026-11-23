@@ -14,7 +14,11 @@ const sections = [
 const title = (id: string) => sections.find((section) => section.id === id)!.title;
 ---
 
-<Base title="Guía" wide>
+<Base
+  title="Guía"
+  description="Cómo jugar D&D en solitario con DnDSolo: conseguir tu API key de Gemini, crear un personaje, tirar dados, guardar campañas y sincronizarlas con Google Drive."
+  wide
+>
   {/* Narrow screens: the sidebar moves into a drawer opened from the header. */}
   <button
     slot="nav"
