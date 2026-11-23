@@ -6,25 +6,6 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
 ---
 
 <Base title="Bienvenida">
-  <svg class="hero" viewBox="0 0 320 180" role="img" aria-label="Un dado de veinte caras sobre un camino hacia las montañas">
-    <defs>
-      <clipPath id="hero-frame"><rect x="2" y="2" width="316" height="176" rx="12" /></clipPath>
-    </defs>
-    <g clip-path="url(#hero-frame)">
-      <rect class="hero__sky" x="2" y="2" width="316" height="176" />
-      <circle class="hero__sun" cx="250" cy="52" r="22" />
-      <polygon class="hero__far" points="2,140 70,62 120,112 170,48 240,128 318,84 318,178 2,178" />
-      <polygon class="hero__near" points="2,178 2,150 90,120 190,150 318,128 318,178" />
-    </g>
-    <rect class="hero__frame" x="2" y="2" width="316" height="176" rx="12" />
-    <g class="hero__die">
-      <polygon points="120,58 166,84 166,134 120,160 74,134 74,84" />
-      <polygon class="hero__face" points="120,82 148,128 92,128" />
-      <path d="M120 58L120 82M74 84L120 82L166 84M74 84L92 128L74 134M166 84L148 128L166 134M92 128L120 160L148 128" />
-      <text x="120" y="121" text-anchor="middle">20</text>
-    </g>
-  </svg>
-  <h1>Tu aventura, tu Dungeon Master</h1>
   {syncBuild && (
     <>
       <div id="sync-gesture" class="notice" hidden>
@@ -33,22 +14,54 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     </>
   )}
 
-  <div id="menu-main">
-    <p>Una IA narra la campaña. Vos decidís qué hace tu personaje.</p>
-    <nav class="menu" aria-label="Menú principal">
-      <a class="button button--primary" href="/character">Nueva campaña</a>
-      <a class="button" href="/generator">Generar personaje</a>
-      <a id="continue" class="button" href="/play" aria-disabled="true">
-        Continuar
-        <small id="continue-info">Todavía no hay campañas</small>
-      </a>
-      <button id="open-load" type="button" class="button">Cargar campaña</button>
-      <a class="button" href="/settings">Configuración</a>
-      {/* Development aid: only rendered by `npm run dev`, never in a build. */}
-      {import.meta.env.DEV && (
-        <button id="load-mock" type="button" class="button">Cargar partida de ejemplo</button>
-      )}
-    </nav>
+  <div id="home-first" class="home">
+    <svg class="hero" viewBox="0 0 320 180" role="img" aria-label="Un dado de veinte caras sobre un camino hacia las montañas">
+      <defs>
+        <clipPath id="hero-frame"><rect x="2" y="2" width="316" height="176" rx="12" /></clipPath>
+      </defs>
+      <g clip-path="url(#hero-frame)">
+        <rect class="hero__sky" x="2" y="2" width="316" height="176" />
+        <circle class="hero__sun" cx="250" cy="52" r="22" />
+        <polygon class="hero__far" points="2,140 70,62 120,112 170,48 240,128 318,84 318,178 2,178" />
+        <polygon class="hero__near" points="2,178 2,150 90,120 190,150 318,128 318,178" />
+      </g>
+      <rect class="hero__frame" x="2" y="2" width="316" height="176" rx="12" />
+      <g class="hero__die">
+        <polygon points="120,58 166,84 166,134 120,160 74,134 74,84" />
+        <polygon class="hero__face" points="120,82 148,128 92,128" />
+        <path d="M120 58L120 82M74 84L120 82L166 84M74 84L92 128L74 134M166 84L148 128L166 134M92 128L120 160L148 128" />
+        <text x="120" y="121" text-anchor="middle">20</text>
+      </g>
+    </svg>
+    <h1>Tu aventura, tu Dungeon Master</h1>
+    <p class="home-lead">Jugá D&amp;D en solitario desde el navegador. Una IA narra la campaña; vos decidís qué hace tu personaje.</p>
+    <a class="button button--primary home-cta" href="/character">Empezar una campaña</a>
+    <p class="home-secondary">
+      ¿Ya tenés una partida? <button id="import-save-first" type="button" class="link-button">Importala</button>{syncBuild && (<> o <a href="/settings#sync-section">traela de Drive</a></>)}
+    </p>
+
+    <section class="home-steps" aria-labelledby="how-title">
+      <h2 id="how-title">Cómo funciona</h2>
+      <ol>
+        <li><strong>Creá tu personaje</strong><span>Elegí raza y clase, o dejá que la app lo genere por vos.</span></li>
+        <li><strong>Pegá tu API key</strong><span>La narración usa tu propia clave de Gemini. <a href="/docs#api-key">Cómo conseguirla</a></span></li>
+        <li><strong>Jugá</strong><span>La IA narra; los dados y las reglas los resuelve la app.</span></li>
+      </ol>
+      <a class="home-steps__more" href="/docs">Leer la guía completa</a>
+    </section>
+
+    <p class="home-privacy">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <rect x="3" y="11" width="18" height="11" rx="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      </svg>
+      <span>Tus partidas se guardan en este navegador.{syncBuild && " Si querés, sincronizalas con tu Google Drive."}</span>
+    </p>
+
+    {/* Development aid: only rendered by `npm run dev`, never in a build. */}
+    {import.meta.env.DEV && (
+      <button id="load-mock" type="button" class="button">Cargar partida de ejemplo</button>
+    )}
   </div>
 
   <div id="menu-load" hidden>
@@ -76,11 +89,8 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
   // Null when sync is off: then the page works exactly as without sync.
   const sync = getSyncRuntime();
   const repo = createGameRepo();
-  const main = document.querySelector<HTMLElement>("#menu-main")!;
+  const main = document.querySelector<HTMLElement>("#home-first")!;
   const loadPanel = document.querySelector<HTMLElement>("#menu-load")!;
-  const continueLink = document.querySelector<HTMLAnchorElement>("#continue")!;
-  const continueInfo = document.querySelector<HTMLElement>("#continue-info")!;
-  const openLoad = document.querySelector<HTMLButtonElement>("#open-load")!;
   const savesList = document.querySelector<HTMLUListElement>("#saves")!;
   const info = document.querySelector<HTMLParagraphElement>("#save-info")!;
   const emptyNote = document.querySelector<HTMLElement>("#saves-empty")!;
@@ -159,17 +169,6 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
 
   async function refresh() {
     const games = await repo.list();
-    const latest = games[0];
-    if (latest) {
-      const { who, detail } = describe(latest);
-      continueLink.removeAttribute("aria-disabled");
-      continueLink.href = `/play?id=${encodeURIComponent(latest.id)}`;
-      continueInfo.textContent = `${who} · ${detail}`;
-    } else {
-      continueLink.setAttribute("aria-disabled", "true");
-      continueLink.removeAttribute("href");
-      continueInfo.textContent = "Todavía no hay campañas";
-    }
     emptyNote.hidden = games.length > 0;
     renderSaves(games);
   }
@@ -244,11 +243,8 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     });
   }
 
-  openLoad.addEventListener("click", () => {
-    main.hidden = true;
-    loadPanel.hidden = false;
-  });
   importButton.addEventListener("click", () => importFile.click());
+  document.querySelector("#import-save-first")!.addEventListener("click", () => importFile.click());
   importFile.addEventListener("change", async () => {
     const file = importFile.files?.[0];
     importFile.value = "";

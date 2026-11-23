@@ -187,12 +187,6 @@ a { color: var(--color-accent); text-underline-offset: 0.15em; }
 .button[hidden] { display: none; }
 .button--small { padding: var(--space-1) var(--space-3); font-size: var(--text-sm); }
 
-/* Game-style main menu: two columns of big buttons, the main action across the top. */
-.menu { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-3); max-width: 36rem; margin: var(--space-4) auto 0; }
-.menu > :first-child, .menu > :last-child:nth-child(even) { grid-column: 1 / -1; }
-@media (max-width: 30rem) { .menu { grid-template-columns: 1fr; } }
-.menu .button { display: grid; align-content: center; gap: var(--space-1); padding: var(--space-3) var(--space-4); text-align: center; font-size: var(--text-lg); }
-.menu .button small { font-size: var(--text-sm); font-weight: 400; }
 .button[aria-disabled="true"] { opacity: 0.5; pointer-events: none; }
 
 .saves { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
@@ -210,7 +204,7 @@ a { color: var(--color-accent); text-underline-offset: 0.15em; }
 .save strong, .save small { display: block; }
 .save small { color: var(--color-ink-soft); }
 .save .button { padding: var(--space-1) var(--space-3); box-shadow: none; }
-#menu-main[hidden], #menu-load[hidden] { display: none; }
+#home-first[hidden], #menu-load[hidden] { display: none; }
 @media (max-width: 30rem) { .save { grid-template-columns: repeat(3, 1fr); } .save > div { grid-column: 1 / -1; } }
 
 .form { display: grid; gap: var(--space-4); }
@@ -313,3 +307,61 @@ a { color: var(--color-accent); text-underline-offset: 0.15em; }
 .docs-toc ol { margin: 0; padding-left: var(--space-4); display: grid; gap: var(--space-1); }
 .docs-section { margin-top: var(--space-5); scroll-margin-top: var(--space-6); }
 .docs-pending { color: var(--color-ink-soft); font-style: italic; }
+
+/* Home (/): first-visit landing and the returning player's screen. */
+.home { display: grid; gap: var(--space-4); }
+.home h1, .home p { margin: 0; }
+.home .hero { margin-bottom: 0; }
+.home-lead { color: var(--color-ink-soft); }
+.home-cta { display: block; padding: var(--space-3) var(--space-4); text-align: center; font-size: var(--text-lg); }
+.home-secondary { text-align: center; font-size: var(--text-sm); color: var(--color-ink-soft); }
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.home-secondary a, .home-steps a { font-weight: 700; }
+.home-steps {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-flat);
+}
+.home-steps h2 { margin: 0; }
+.home-steps ol { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); counter-reset: step; }
+.home-steps li {
+  display: grid;
+  grid-template-columns: 2.25rem 1fr;
+  column-gap: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+  counter-increment: step;
+}
+.home-steps li::before {
+  content: counter(step);
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  box-sizing: border-box;
+  border: var(--border);
+  border-radius: 50%;
+  background: var(--color-sun);
+  color: var(--color-sun-ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-base);
+}
+.home-steps li strong { color: var(--color-ink); font-size: var(--text-base); font-weight: 800; }
+.home-steps li > :not(strong) { grid-column: 2; }
+.home-privacy { display: flex; gap: var(--space-2); align-items: flex-start; font-size: var(--text-sm); color: var(--color-ink-soft); }
+.home-privacy svg { flex: none; margin-top: 0.2em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
