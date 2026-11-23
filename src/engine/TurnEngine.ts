@@ -1,7 +1,7 @@
 import { applyStateChanges, type RejectedChange } from "../domain/applyChanges";
 import { applyDeathSave } from "../domain/deathSaves";
 import { diceRolled, rollForEnemy } from "../domain/dice";
-import { dmResponseJsonSchema, parseDMResponse } from "../domain/schemas";
+import { dmResponseJsonSchema, parseDMResponse, parseSuggestions, suggestionsJsonSchema } from "../domain/schemas";
 import type {
   DMResponse,
   EnemyRollResult,
@@ -17,6 +17,8 @@ import {
   buildTurnPrompt,
   DM_SYSTEM_PROMPT,
   SUMMARY_SYSTEM_PROMPT,
+  SUGGESTIONS_SYSTEM_PROMPT,
+  buildSuggestionsPrompt,
 } from "./dmPrompt";
 import { extractPartialNarration } from "./narrationStream";
 
@@ -318,6 +320,24 @@ export class TurnEngine {
       chained += 1;
     }
     return chained;
+  }
+
+  /** Suggestions for an old save, opened without any because it is from
+      before they existed. One small call that saves nothing; [] when the
+      model fails, so the game just shows none. */
+  async suggestFor(state: GameState, signal?: AbortSignal): Promise<string[]> {
+    if (state.turns.length === 0) return [];
+    try {
+      const raw = await this.llm.generateStructured({
+        system: SUGGESTIONS_SYSTEM_PROMPT,
+        prompt: buildSuggestionsPrompt(state, this.config.recentTurns),
+        jsonSchema: suggestionsJsonSchema,
+        signal,
+      });
+      return parseSuggestions(raw);
+    } catch {
+      return [];
+    }
   }
 
   /** Memory layer 2, run after the turn so the player never waits for it.

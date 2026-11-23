@@ -169,6 +169,20 @@ export function parseDMResponse(raw: string): ParseResult {
   return { ok: true, response: normalizeRollCounts(parsed.data) };
 }
 
+/** The reply of the suggestions-only call (TurnEngine.suggestFor). */
+export const suggestionsJsonSchema: unknown = toProviderSchema(
+  z.toJSONSchema(z.object({ suggestions: z.array(z.string()).max(MAX_SUGGESTIONS) })),
+);
+
+/** Cleaned suggestions from that reply; [] when it is not what was asked. */
+export function parseSuggestions(text: string): string[] {
+  try {
+    return cleanSuggestions((JSON.parse(text) as { suggestions?: unknown }).suggestions);
+  } catch {
+    return [];
+  }
+}
+
 function cleanSuggestions(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   const kept: string[] = [];

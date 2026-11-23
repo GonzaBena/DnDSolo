@@ -231,6 +231,22 @@ export function buildSummaryPrompt(previousSummary: string, newTurns: Turn[]): s
   ].join("\n\n");
 }
 
+export const SUGGESTIONS_SYSTEM_PROMPT = `Sos el Dungeon Master de una partida de D&D en solitario. El jugador retoma la partida y le vas a mostrar ideas de qué hacer.
+
+Con el ESTADO, el RESUMEN y los TURNOS RECIENTES, proponé hasta tres acciones cortas y distintas que el personaje podría hacer ahora, justo después del último turno: en español rioplatense, en primera persona, 60 caracteres como máximo ("Interrogo al guardia"). Ninguna obvia ni que decida por él. Lo que es "secret" el jugador no lo sabe: no lo nombres.
+
+Respondé únicamente con el JSON del esquema indicado.`;
+
+/** The context for the suggestions-only call: the same memory layers as a turn, without one. */
+export function buildSuggestionsPrompt(state: GameState, recentTurns: number): string {
+  const recent = turnsForPrompt(state, recentTurns);
+  return [
+    `ESTADO\n${JSON.stringify(stateForModel(state))}`,
+    `RESUMEN\n${state.summary || "(La aventura recién empieza.)"}`,
+    `TURNOS RECIENTES\n${recent.map(describeTurn).join("\n\n")}`,
+  ].join("\n\n");
+}
+
 /** Appended to the retry prompt so the model knows what was wrong with its previous reply. */
 export function buildCorrection(reason: string): string {
   return `CORRECCIÓN\nTu respuesta anterior no respetó el esquema: ${reason}\nRespondé de nuevo, solo con el JSON válido.`;

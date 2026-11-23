@@ -1167,3 +1167,26 @@ describe("suggested actions", () => {
     expect(outcome.ok && outcome.state.suggestedActions).toEqual([]);
   });
 });
+
+describe("suggestFor", () => {
+  it("asks only for suggestions, about the turns so far, and saves nothing", async () => {
+    const ctx = setup();
+    const state = await started(ctx);
+    const saved = await ctx.repo.load(state.id);
+    ctx.llm.queueStructured({ suggestions: ["Interrogo al guardia", "  Interrogo  al guardia ", "Reviso la puerta"] });
+    expect(await ctx.engine.suggestFor(state)).toEqual(["Interrogo al guardia", "Reviso la puerta"]);
+    const request = ctx.llm.structuredRequests.at(-1)!;
+    expect(request.prompt).toContain("TURNOS RECIENTES");
+    expect(request.prompt).toContain(state.turns[0]!.narration);
+    expect(await ctx.repo.load(state.id)).toEqual(saved);
+  });
+
+  it("returns none for a game not started or when the model fails", async () => {
+    const ctx = setup();
+    expect(await ctx.engine.suggestFor(newGame())).toEqual([]);
+    const state = await started(ctx);
+    ctx.llm.queueStructured(new Error("boom"), "not json");
+    expect(await ctx.engine.suggestFor(state)).toEqual([]);
+    expect(await ctx.engine.suggestFor(state)).toEqual([]);
+  });
+});

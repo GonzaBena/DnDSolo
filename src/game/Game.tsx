@@ -437,6 +437,32 @@ export default function Game() {
   const turnReady = screen.status === "playing" && !busy && !inFlight && !enemyRollsPending;
   const canAct = turnReady && hpPending === 0 && !paused;
 
+  // An old save, from before suggestions existed, opens without them: ask
+  // once, on entering, unless the DM is waiting on a roll. Turns played
+  // afterwards bring their own. Kept on screen only: the next turn saves its own.
+  const askedSuggestionsRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (screen.status !== "playing" || !showSuggestions || !canAct) return;
+    const { engine, state } = screen;
+    if (state.turns.length === 0 || state.turns.length !== screen.loadedTurns) return; // only on entering
+    if (state.suggestedActions.length > 0 || state.pendingPlayerRoll) return;
+    if (!state.players.some((p) => p.condition === "ok")) return;
+    if (askedSuggestionsRef.current === state.id) return;
+    askedSuggestionsRef.current = state.id;
+    const generation = generationRef.current;
+    void engine.suggestFor(state).then((actions) => {
+      if (actions.length === 0 || generation !== generationRef.current) return;
+      setScreen((current) =>
+        current.status === "playing" &&
+        current.state.id === state.id &&
+        current.state.turns.length === state.turns.length &&
+        current.state.suggestedActions.length === 0
+          ? { ...current, state: { ...current.state, suggestedActions: actions } }
+          : current,
+      );
+    });
+  }, [screen, showSuggestions, canAct]);
+
   // Focus the composer whenever it is the player's turn, unless they are
   // already in another field. Skipped on touch screens, where focusing
   // would pop the on-screen keyboard over the story.
@@ -682,16 +708,6 @@ export default function Game() {
           onSubmit={submitDeathSave}
         />
 
-        {showSuggestions && canAct && !dying && !playerRoll && (
-          <Suggestions
-            actions={state.suggestedActions}
-            onPick={(action) => {
-              setDraft((current) => withSuggestion(current, action));
-              draftRef.current?.focus();
-            }}
-          />
-        )}
-
         {dying && hero ? (
           <div className="action-form dying-notice" role="status">
             <p className="dying-notice__title">
@@ -741,6 +757,16 @@ export default function Game() {
                 />
               </svg>
             </button>
+          )}
+          {showSuggestions && (
+            <Suggestions
+              actions={state.suggestedActions}
+              visible={turnReady && !paused && !dying && !playerRoll}
+              onPick={(action) => {
+                setDraft((current) => withSuggestion(current, action));
+                draftRef.current?.focus();
+              }}
+            />
           )}
           <div className="field">
             <label htmlFor="action-input">¿Qué hacés?</label>
