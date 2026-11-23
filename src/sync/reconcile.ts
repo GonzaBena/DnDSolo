@@ -45,10 +45,8 @@ function reconcileOne(
   // Both exist and already identical.
   if (l.updatedAt === r.updatedAt) return [{ type: "mark_synced", id, updatedAt: l.updatedAt }];
 
-  // First connection: the newest wins.
-  if (base === undefined) {
-    return [{ type: l.updatedAt > r.updatedAt ? "upload" : "download", id }];
-  }
+  // First connection with two different copies: nothing says which one is newer on purpose, so ask.
+  if (base === undefined) return [{ type: "conflict", id, kind: "both_changed" }];
 
   const localChanged = l.updatedAt !== base;
   const remoteChanged = r.updatedAt !== base;

@@ -128,6 +128,9 @@ const switchAttr: Record<string, string> = { switch: "" };
   import { loadSettings, saveSettings } from "../persistence/settings";
   import { loadSyncConfig, saveSyncConfig } from "../sync/config";
   import { clearDismissedConflicts } from "../sync/conflictDialog";
+  import { askWhichToKeep, describeSummary, showSyncToast } from "../sync/firstConnect";
+  import { IndexedDBGameRepo } from "../persistence/IndexedDBGameRepo";
+  import type { SyncRuntime } from "../sync/runtime";
   import type { DriveAuth } from "../sync/DriveAuth";
   import { loadGis } from "../sync/gis";
   import { createDriveAuth, disconnectSync, getSyncRuntime, startSyncRuntime, withRenewal } from "../sync/runtime";
@@ -324,15 +327,34 @@ const switchAttr: Record<string, string> = { switch: "" };
     }
     if (getSyncRuntime()) ensureGis();
 
-    /** Runs `connect` (already called inside the click) and, on success, makes `auth` the page's runtime. */
-    const finishConnect = async (auth: DriveAuth, connecting: Promise<boolean>, autoRenew: boolean) => {
+    /** A full sync that ends with the "se cargaron N campañas" toast (nothing when it failed). */
+    const syncAndReport = (sync: SyncRuntime, run = () => sync.engine.syncAll()) =>
+      run().then((summary) => {
+        if (summary) showSyncToast(describeSummary(summary));
+      });
+
+    /** Before the first sync: the player picks which of this device's campaigns go up; the rest are deleted here. */
+    const chooseLocalGames = async () => {
+      const local = new IndexedDBGameRepo();
+      const games = await local.list().catch(() => []);
+      const keep = await askWhichToKeep(games);
+      for (const game of games) {
+        if (!keep.has(game.id)) await local.delete(game.id).catch(() => undefined);
+      }
+    };
+
+    /** Runs `connect` (already called inside the click) and, on success, makes `auth` the page's runtime.
+        `firstTime`: connecting from off, so ask which local campaigns to keep before syncing. */
+    const finishConnect = async (auth: DriveAuth, connecting: Promise<boolean>, autoRenew: boolean, firstTime = false) => {
       let failure: unknown = false;
       try {
         if (await connecting) {
+          if (firstTime) await chooseLocalGames();
           saveSyncConfig({ enabled: true, autoRenew });
           const sync = startSyncRuntime(auth);
           say("Conectado a Google Drive.", "ok");
-          void sync.engine.syncAll();
+          if (firstTime) void syncAndReport(sync);
+          else void sync.engine.syncAll();
           return true;
         }
       } catch (error) {
@@ -350,7 +372,7 @@ const switchAttr: Record<string, string> = { switch: "" };
       busy = true;
       render();
       say("Esperando a Google…");
-      void finishConnect(auth, connecting, false).finally(() => {
+      void finishConnect(auth, connecting, false, true).finally(() => {
         busy = false;
         render();
       });
@@ -385,7 +407,7 @@ const switchAttr: Record<string, string> = { switch: "" };
       // An explicit action: conflicts dismissed earlier are asked again.
       clearDismissedConflicts();
       say("");
-      void withRenewal(sync, () => sync.engine.syncAll());
+      void syncAndReport(sync, () => withRenewal(sync, () => sync.engine.syncAll()));
     });
 
     disconnectButton.addEventListener("click", () => {

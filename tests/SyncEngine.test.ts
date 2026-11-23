@@ -50,6 +50,31 @@ function device(
 }
 
 describe("SyncEngine", () => {
+  it("asks instead of picking the newest when both sides have a game on first connection", async () => {
+    const remote = new InMemoryRemoteGameStore();
+    const older = game(1, 1);
+    await remote.put({ ...older, updatedAt: game(5).updatedAt });
+    const asked: SyncConflict[] = [];
+    const b = device("B", remote, async (c) => {
+      asked.push(c);
+      return "local";
+    });
+    await b.local.save(older);
+    const summary = await b.engine.syncAll();
+    expect(asked.map((c) => c.kind)).toEqual(["both_changed"]);
+    expect(summary).toEqual({ downloaded: 0, uploaded: 1 });
+    expect((await remote.list()).find((r) => r.id === older.id)?.updatedAt).toBe(older.updatedAt);
+  });
+
+  it("counts what a full sync moved", async () => {
+    const remote = new InMemoryRemoteGameStore();
+    await remote.put({ ...game(1), id: "drive-1" });
+    await remote.put({ ...game(2), id: "drive-2" });
+    const b = device("B", remote);
+    await b.local.save({ ...game(3), id: "local-1" });
+    await expect(b.engine.syncAll()).resolves.toEqual({ downloaded: 2, uploaded: 1 });
+  });
+
   it("carries a game saved on one device to another", async () => {
     const remote = new InMemoryRemoteGameStore();
     const a = device("A", remote);
@@ -257,7 +282,7 @@ describe("SyncEngine", () => {
     await b.engine.flush();
 
     await remote.put({ ...game(2), version: 999 });
-    await expect(b.engine.syncAll()).resolves.toBeUndefined();
+    await expect(b.engine.syncAll()).resolves.toEqual({ downloaded: 0, uploaded: 0 });
     expect(await b.local.load(old.id)).toEqual(old);
   });
 

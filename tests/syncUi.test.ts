@@ -3,6 +3,7 @@ import type { GameState, Turn } from "../src/domain/types";
 import { vi } from "vitest";
 import { clearDismissedConflicts, describeVersion, rememberDismissals } from "../src/sync/conflictDialog";
 import { ConflictPendingError } from "../src/sync/errors";
+import { describeSummary } from "../src/sync/firstConnect";
 import { STATUS_LABEL } from "../src/sync/indicator";
 import { newGame } from "./helpers";
 
@@ -69,5 +70,19 @@ describe("rememberDismissals", () => {
     const resolve = rememberDismissals(show);
     await expect(resolve(conflict)).rejects.toThrow("boom");
     await expect(resolve(conflict)).resolves.toBe("remote");
+  });
+});
+
+describe("describeSummary", () => {
+  it("says when nothing moved", () => {
+    expect(describeSummary({ downloaded: 0, uploaded: 0 })).toBe("Todo al día: no había campañas nuevas para cargar.");
+  });
+  it("counts downloads with the right plural", () => {
+    expect(describeSummary({ downloaded: 1, uploaded: 0 })).toBe("Se cargó 1 campaña de tu Drive.");
+    expect(describeSummary({ downloaded: 3, uploaded: 0 })).toBe("Se cargaron 3 campañas de tu Drive.");
+  });
+  it("counts uploads alone and together with downloads", () => {
+    expect(describeSummary({ downloaded: 0, uploaded: 2 })).toBe("Se subieron 2 campañas a tu Drive.");
+    expect(describeSummary({ downloaded: 2, uploaded: 1 })).toBe("Se cargaron 2 campañas de tu Drive · se subió 1.");
   });
 });

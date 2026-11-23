@@ -59,3 +59,42 @@
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* First connection: which local campaigns to keep. */
+.sync-keep__list { display: grid; gap: var(--space-2); max-height: 50vh; overflow-y: auto; }
+.sync-keep__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.sync-keep__item input { width: 1.2rem; height: 1.2rem; flex: none; accent-color: var(--color-accent); }
+.sync-keep__text { display: grid; gap: 2px; min-width: 0; }
+.sync-keep__text small { font-size: var(--text-sm); color: var(--color-ink-soft); }
+
+/* Toast after a sync: how many campaigns came down or went up. */
+.sync-toasts {
+  position: fixed;
+  top: var(--space-4);
+  right: var(--space-4);
+  z-index: 100;
+  display: grid;
+  gap: var(--space-2);
+  width: min(24rem, calc(100vw - 2 * var(--space-4)));
+  pointer-events: none;
+}
+.sync-toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-flat);
+  font-size: var(--text-sm);
+}

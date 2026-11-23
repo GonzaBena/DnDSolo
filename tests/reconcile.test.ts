@@ -60,11 +60,11 @@ describe("reconcile", () => {
       { type: "mark_synced", id: "g", updatedAt: newer },
     ]);
   });
-  it("uploads the newer local on first connection (no base)", () => {
-    expect(reconcile([local(newer)], [remote(B)], {})).toEqual([{ type: "upload", id: "g" }]);
+  it("asks on first connection (no base) when local is newer", () => {
+    expect(reconcile([local(newer)], [remote(B)], {})).toEqual([{ type: "conflict", id: "g", kind: "both_changed" }]);
   });
-  it("downloads the newer remote on first connection (no base)", () => {
-    expect(reconcile([local(B)], [remote(newer)], {})).toEqual([{ type: "download", id: "g" }]);
+  it("asks on first connection (no base) when remote is newer", () => {
+    expect(reconcile([local(B)], [remote(newer)], {})).toEqual([{ type: "conflict", id: "g", kind: "both_changed" }]);
   });
   it("reports deleted_remotely when there is no base, remote is a tombstone and local exists", () => {
     expect(reconcile([local(B)], [remote(newer, true)], {})).toEqual([

@@ -1,4 +1,5 @@
 import { clearDismissedConflicts } from "./conflictDialog";
+import { describeSummary, showSyncToast } from "./firstConnect";
 import { getSyncRuntime, withRenewal } from "./runtime";
 import { syncStatus, type SyncState, type SyncStatus } from "./status";
 
@@ -65,7 +66,12 @@ export function mountSyncIndicator(button: HTMLButtonElement): () => void {
     const sync = getSyncRuntime();
     if (!sync || !action) return;
     clearDismissedConflicts();
-    const run = action === "sync" ? () => sync.engine.syncAll() : () => sync.engine.flush();
+    const fullSync = action === "sync";
+    const run = async () => {
+      if (!fullSync) return sync.engine.flush();
+      const summary = await sync.engine.syncAll();
+      if (summary) showSyncToast(describeSummary(summary));
+    };
     void withRenewal(sync, run).then(() => document.dispatchEvent(new Event(SYNC_TAPPED_EVENT)));
   };
   button.addEventListener("click", onClick);

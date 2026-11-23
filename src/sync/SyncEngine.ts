@@ -37,7 +37,13 @@ interface Deps {
   resolveConflict: (c: SyncConflict) => Promise<ConflictChoice>;
 }
 
-type Outcome = "downloaded" | "unchanged";
+type Outcome = "downloaded" | "uploaded" | "unchanged";
+
+/** What a full sync moved, for the "se cargaron N campañas" toast. */
+export interface SyncSummary {
+  downloaded: number;
+  uploaded: number;
+}
 
 const toLocalEntry = (state: GameState): LocalEntry => ({
   id: state.id,
@@ -71,7 +77,8 @@ export class SyncEngine {
     this.retired = true;
   }
 
-  syncAll(): Promise<void> {
+  /** Resolves with what moved, or undefined when the run failed before reconciling. */
+  syncAll(): Promise<SyncSummary | undefined> {
     return this.enqueue(async () => {
       const retried = [...this.pending];
       this.pending.clear();
@@ -83,9 +90,11 @@ export class SyncEngine {
         const localById = new Map(localGames.map((g) => [g.id, g]));
         // One failing game (an unresolved conflict, a bad file) must not stall the others.
         let failure: unknown = null;
+        const summary: SyncSummary = { downloaded: 0, uploaded: 0 };
         for (const action of actions) {
           try {
-            await this.apply(action, bases, localById.get(action.id) ?? null);
+            const outcome = await this.apply(action, bases, localById.get(action.id) ?? null);
+            if (outcome !== "unchanged") summary[outcome]++;
           } catch (error) {
             this.pending.add(action.id);
             failure ??= error;
@@ -93,18 +102,19 @@ export class SyncEngine {
         }
         // Not rethrown: the run did the rest. Only the status reflects the failure.
         if (failure) this.lastFailure = failureState(failure);
+        return summary;
       } catch (error) {
         for (const id of retried) this.pending.add(id);
         this.fullSyncOwed = true;
         throw error;
       }
-    }).then(() => undefined);
+    });
   }
 
   /** Reconciles one game; tells the caller whether local changed. */
-  syncGame(id: string): Promise<Outcome> {
+  syncGame(id: string): Promise<"downloaded" | "unchanged"> {
     this.pending.add(id);
-    return this.enqueue(() => this.syncOne(id)).then((outcome) => outcome ?? "unchanged");
+    return this.enqueue(() => this.syncOne(id)).then((outcome) => (outcome === "downloaded" ? "downloaded" : "unchanged"));
   }
 
   /** Registers the guard for `id`; returns the unregister. */
@@ -235,7 +245,7 @@ export class SyncEngine {
     if (!state) return "unchanged";
     await this.deps.remote.put(state);
     bases.set(id, state.updatedAt);
-    return "unchanged";
+    return "uploaded";
   }
 
   /** `chosen`: the player picked Drive's copy in the dialog, so no guard can veto it. */
