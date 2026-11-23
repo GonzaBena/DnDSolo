@@ -708,17 +708,6 @@ export default function Game() {
           onSubmit={submitDeathSave}
         />
 
-        {showSuggestions && (
-          <Suggestions
-            actions={state.suggestedActions}
-            visible={turnReady && !paused && !dying && !playerRoll}
-            onPick={(action) => {
-              setDraft((current) => withSuggestion(current, action));
-              draftRef.current?.focus();
-            }}
-          />
-        )}
-
         {dying && hero ? (
           <div className="action-form dying-notice" role="status">
             <p className="dying-notice__title">
@@ -768,6 +757,16 @@ export default function Game() {
                 />
               </svg>
             </button>
+          )}
+          {showSuggestions && (
+            <Suggestions
+              actions={state.suggestedActions}
+              visible={turnReady && !paused && !dying && !playerRoll}
+              onPick={(action) => {
+                setDraft((current) => withSuggestion(current, action));
+                draftRef.current?.focus();
+              }}
+            />
           )}
           <div className="field">
             <label htmlFor="action-input">¿Qué hacés?</label>
