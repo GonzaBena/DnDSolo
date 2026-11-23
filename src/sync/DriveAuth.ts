@@ -11,6 +11,11 @@ export interface DriveAuth {
    * (20 s for the browser's silent renewal; 120 s for the server's full consent after a 401).
    */
   renewWithGesture(): Promise<boolean>;
+  /**
+   * Drive answered 401 to `token` before it expired (revoked elsewhere, another tab disconnected):
+   * stop handing it out, so the next action renews. A token that is no longer the current one is ignored.
+   */
+  invalidate(token: string): void;
   /** First consent; false if closed/denied. */
   connect(): Promise<boolean>;
   /** Revokes at Google: ends the whole grant for this client (both modes share it). */

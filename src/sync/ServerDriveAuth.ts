@@ -91,6 +91,11 @@ export class ServerDriveAuth implements DriveAuth {
     }
   }
 
+  /** The next getAccessToken asks the server again; a 401 there means the grant is gone. */
+  invalidate(token: string): void {
+    if (this.token?.value === token) this.token = null;
+  }
+
   async disconnect(): Promise<void> {
     this.token = null;
     try {

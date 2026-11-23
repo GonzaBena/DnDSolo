@@ -258,4 +258,19 @@ describe("ServerDriveAuth", () => {
     expect(await auth.renewWithGesture()).toBe(true);
     expect(gis.requestCode).not.toHaveBeenCalled();
   });
+
+  it("invalidate drops the cached token so the next getAccessToken asks /api/drive/token", async () => {
+    const { fetchFn, auth } = await connected(60, [() => jsonResponse(401)]);
+    auth.invalidate("at1");
+    await expect(auth.getAccessToken()).rejects.toBeInstanceOf(AuthExpiredError);
+    expect(fetchFn.mock.calls[1]![0]).toBe("/api/drive/token");
+    expect(auth.needsGesture()).toBe(true); // the server lost the grant too
+  });
+
+  it("invalidate with a stale token keeps the current one", async () => {
+    const { fetchFn, auth } = await connected(60);
+    auth.invalidate("someone-else");
+    expect(await auth.getAccessToken()).toBe("at1");
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
 });

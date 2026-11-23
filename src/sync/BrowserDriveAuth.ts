@@ -73,6 +73,10 @@ export class BrowserDriveAuth implements DriveAuth {
     return this.request(undefined, CONNECT_TIMEOUT_MS);
   }
 
+  invalidate(token: string): void {
+    if (this.token?.value === token) this.setToken(null);
+  }
+
   async disconnect(): Promise<void> {
     const token = this.token?.value;
     this.setToken(null);

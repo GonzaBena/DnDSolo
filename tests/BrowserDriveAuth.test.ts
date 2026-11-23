@@ -4,6 +4,7 @@ import { InMemoryGameRepo } from "../src/persistence/InMemoryGameRepo";
 import { SyncBases } from "../src/sync/bases";
 import { BrowserDriveAuth } from "../src/sync/BrowserDriveAuth";
 import { DRIVE_SCOPE } from "../src/sync/DriveAuth";
+import { DriveGameStore } from "../src/sync/DriveGameStore";
 import type { GisTokenApi, GisTokenClientConfig, GisTokenResponse } from "../src/sync/gis";
 import { InMemoryRemoteGameStore } from "../src/sync/InMemoryRemoteGameStore";
 import { AuthExpiredError } from "../src/sync/RemoteGameStore";
@@ -264,6 +265,39 @@ describe("BrowserDriveAuth token in sessionStorage", () => {
   it("works without any sessionStorage (SSR, tests)", () => {
     const auth = new BrowserDriveAuth({ clientId: "cid", gis: () => fakeGis().api });
     expect(auth.needsGesture()).toBe(true);
+  });
+});
+
+describe("BrowserDriveAuth.invalidate (Drive refused a token that has not expired)", () => {
+  it("a stored unexpired token that Drive answers 401 needs a gesture, and the next tap renews", async () => {
+    const storage = memoryStorage();
+    storage.setItem(TOKEN_KEY, JSON.stringify({ value: "dead", expiresAt: 1_000_000 + 50 * MIN }));
+    const { gis, auth } = setup(storage); // a new page: the revoked token came back from sessionStorage
+    expect(auth.needsGesture()).toBe(false);
+
+    const fetchFn = vi.fn(async () => new Response("", { status: 401 }));
+    const remote = new DriveGameStore(() => auth.getAccessToken(), fetchFn, (t) => auth.invalidate(t));
+    await expect(remote.list()).rejects.toBeInstanceOf(AuthExpiredError);
+
+    expect(auth.needsGesture()).toBe(true);
+    await expect(auth.getAccessToken()).rejects.toBeInstanceOf(AuthExpiredError);
+    expect(storage.data.has(TOKEN_KEY)).toBe(false);
+    void withRenewal({ auth } as unknown as SyncRuntime, async () => undefined);
+    expect(gis.requestAccessToken).toHaveBeenCalledTimes(1);
+  });
+
+  it("a stale token does not drop a newer one", async () => {
+    const { gis, auth } = setup();
+    let done = auth.connect();
+    gis.grant({ access_token: "old" });
+    await done;
+    done = auth.renewWithGesture();
+    gis.grant({ access_token: "new" });
+    await done;
+
+    auth.invalidate("old");
+    expect(auth.needsGesture()).toBe(false);
+    await expect(auth.getAccessToken()).resolves.toBe("new");
   });
 });
 

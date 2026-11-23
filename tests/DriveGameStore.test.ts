@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DriveGameStore } from "../src/sync/DriveGameStore";
 import { InMemoryRemoteGameStore } from "../src/sync/InMemoryRemoteGameStore";
 import { AuthExpiredError, OfflineError } from "../src/sync/RemoteGameStore";
@@ -124,6 +124,15 @@ describe("DriveGameStore", () => {
     const store = new DriveGameStore(token, makeDrive().fetchFn);
     await store.tombstone("z");
     expect((await store.list())[0]).toMatchObject({ id: "z", deleted: true });
+  });
+
+  it("401 tells the auth which token was refused, then rejects AuthExpiredError", async () => {
+    const drive = makeDrive();
+    drive.setStatus(401);
+    const onUnauthorized = vi.fn();
+    const store = new DriveGameStore(token, drive.fetchFn, onUnauthorized);
+    await expect(store.list()).rejects.toBeInstanceOf(AuthExpiredError);
+    expect(onUnauthorized).toHaveBeenCalledWith("tok");
   });
 
   it("401 rejects with AuthExpiredError", async () => {

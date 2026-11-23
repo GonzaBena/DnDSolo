@@ -15,8 +15,9 @@ let store: Map<string, string>;
 /** Module state: the runtime registers its page listeners once per page, so this outlives each test. */
 const windowListeners = new Map<string, Array<() => void>>();
 
-function fakeAuth(): DriveAuth & { disconnect: ReturnType<typeof vi.fn> } {
+function fakeAuth(): DriveAuth & { disconnect: ReturnType<typeof vi.fn>; invalidate: ReturnType<typeof vi.fn> } {
   return {
+    invalidate: vi.fn((_token: string) => undefined),
     getAccessToken: vi.fn(async () => "token"),
     needsGesture: () => false,
     renewWithGesture: async () => true,
@@ -93,6 +94,16 @@ describe("replacing the runtime", () => {
     const secondRetire = vi.spyOn(second.engine, "retire");
     resetSyncRuntime();
     expect(secondRetire).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Drive refusing the token", () => {
+  it("reports the refused token to the runtime's auth", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 401 })));
+    const auth = fakeAuth();
+    const sync = startSyncRuntime(auth);
+    await expect(sync.accountId()).rejects.toThrow();
+    expect(auth.invalidate).toHaveBeenCalledWith("token");
   });
 });
 

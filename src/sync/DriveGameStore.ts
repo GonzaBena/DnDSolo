@@ -36,6 +36,8 @@ export class DriveGameStore implements RemoteGameStore {
   constructor(
     private readonly getToken: () => Promise<string>,
     fetchFn: typeof fetch = globalThis.fetch.bind(globalThis),
+    /** Drive refused `token` (401): the auth must stop handing it out. */
+    private readonly onUnauthorized: (token: string) => void = () => undefined,
   ) {
     this.fetchFn = fetchFn;
   }
@@ -50,7 +52,14 @@ export class DriveGameStore implements RemoteGameStore {
     } catch (cause) {
       throw new OfflineError(`Network error: ${String(cause)}`);
     }
-    if (response.status === 401) throw new AuthExpiredError("Drive token expired");
+    if (response.status === 401) {
+      try {
+        this.onUnauthorized(token);
+      } catch {
+        // The auth's bug is its own; the caller still learns the token is dead.
+      }
+      throw new AuthExpiredError("Drive token expired");
+    }
     if (!response.ok) throw new DriveStatusError(response.status);
     return response;
   }

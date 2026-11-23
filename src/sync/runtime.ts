@@ -79,7 +79,11 @@ export function getSyncRuntime(): SyncRuntime | null {
 export function startSyncRuntime(auth: DriveAuth): SyncRuntime {
   conflictResolver ??= showConflictDialog;
   const local = new IndexedDBGameRepo();
-  const remote = new DriveGameStore(() => auth.getAccessToken());
+  const remote = new DriveGameStore(
+    () => auth.getAccessToken(),
+    undefined,
+    (token) => auth.invalidate(token),
+  );
   const engine = new SyncEngine({
     local,
     remote,
