@@ -21,14 +21,14 @@ Análisis de DungeonSolo en cinco ejes: seguridad, rendimiento, modularidad y ma
 
 ## Para después
 
-- [ ] Push de `main` (CSP + SEO ya mergeados localmente; el push publica en Hostinger).
+- [x] Push de `main` (CSP + SEO).
 - [ ] Google Search Console, cuando propague el DNS:
   1. search.google.com/search-console → agregar propiedad **Prefijo de URL** `https://dungeonsolo.com.ar`.
   2. Verificar con **registro DNS TXT** (hPanel → Dominios → DNS).
   3. **Sitemaps** → enviar `sitemap.xml`.
   4. Opcional: **Inspección de URLs** en `/` → solicitar indexación. Bing Webmaster Tools importa todo desde Search Console.
 - [ ] Revisar la vista previa al compartir con opengraph.xyz o developers.facebook.com/tools/debug.
-- [ ] Cabeceras HTTP (`frame-ancestors`, HSTS, `X-Content-Type-Options`): ver si el CDN de Hostinger permite agregarlas.
+- [ ] Cabeceras HTTP (`frame-ancestors`, HSTS, `X-Content-Type-Options`): Hostinger no tiene API para cabeceras propias, y `staticHeaders` del adaptador de Node reemplaza la CSP en `<meta>` por una cabecera que el CDN podría pisar. Queda pendiente; riesgo bajo para este sitio.
 
 ## 1. Seguridad
 
@@ -93,3 +93,9 @@ Análisis de DungeonSolo en cinco ejes: seguridad, rendimiento, modularidad y ma
 - Falta un "saltar al contenido".
 - El botón de tema podría usar `aria-pressed`.
 - La animación de entrada oculta el contenido en el primer instante.
+
+## Rendimiento: pendientes resueltos
+
+- Animación de entrada en CSS puro: ya no espera a anime.js ni oculta el contenido (LCP de `/docs` en local: 76 ms).
+- Retratos a 256 px (2,9 MB → 1 MB; ~11 KB cada uno).
+- Precarga de las fuentes latinas de Fraunces y Nunito.

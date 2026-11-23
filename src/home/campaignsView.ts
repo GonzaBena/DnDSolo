@@ -19,10 +19,9 @@ export function setUpCampaignsView(): CampaignsView {
   const savesList = byId<HTMLUListElement>("saves");
 
   function showMain() {
-    const wasOpen = !loadPanel.hidden;
     loadPanel.hidden = true;
-    for (const home of homes) home.hidden = false; // CSS shows the active one
-    if (wasOpen) enterPage(homes.flatMap(visibleChildren));
+    // CSS shows the active one, and its entrance animation replays as it appears.
+    for (const home of homes) home.hidden = false;
   }
 
   function show() {
