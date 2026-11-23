@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "./zod";
 import { PORTRAIT_IDS } from "./portraits";
 import { DICE, ROLL_MODES, TURN_EVENTS, type DMResponse, type GameState } from "./types";
 

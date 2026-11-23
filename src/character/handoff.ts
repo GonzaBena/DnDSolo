@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "../domain/zod";
 import type { CharacterInput } from "../domain/character";
 import { findBackground, findClass, findSpecies } from "../rules";
 

@@ -3,7 +3,7 @@ import Base from "../layouts/Base.astro";
 import CharacterCreator from "../character/CharacterCreator";
 ---
 
-<Base title="Crear personaje">
+<Base title="Crear personaje" noindex>
   <!-- client:only: the form reads localStorage and saves to IndexedDB. -->
   <CharacterCreator client:only="react" />
 </Base>
