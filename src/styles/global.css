@@ -187,12 +187,6 @@ a { color: var(--color-accent); text-underline-offset: 0.15em; }
 .button[hidden] { display: none; }
 .button--small { padding: var(--space-1) var(--space-3); font-size: var(--text-sm); }
 
-/* Game-style main menu: two columns of big buttons, the main action across the top. */
-.menu { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-3); max-width: 36rem; margin: var(--space-4) auto 0; }
-.menu > :first-child, .menu > :last-child:nth-child(even) { grid-column: 1 / -1; }
-@media (max-width: 30rem) { .menu { grid-template-columns: 1fr; } }
-.menu .button { display: grid; align-content: center; gap: var(--space-1); padding: var(--space-3) var(--space-4); text-align: center; font-size: var(--text-lg); }
-.menu .button small { font-size: var(--text-sm); font-weight: 400; }
 .button[aria-disabled="true"] { opacity: 0.5; pointer-events: none; }
 
 .saves { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
@@ -210,7 +204,7 @@ a { color: var(--color-accent); text-underline-offset: 0.15em; }
 .save strong, .save small { display: block; }
 .save small { color: var(--color-ink-soft); }
 .save .button { padding: var(--space-1) var(--space-3); box-shadow: none; }
-#menu-main[hidden], #menu-load[hidden] { display: none; }
+#home-first[hidden], #home-returning[hidden], #menu-load[hidden] { display: none; }
 @media (max-width: 30rem) { .save { grid-template-columns: repeat(3, 1fr); } .save > div { grid-column: 1 / -1; } }
 
 .form { display: grid; gap: var(--space-4); }
@@ -301,3 +295,222 @@ a { color: var(--color-accent); text-underline-offset: 0.15em; }
   .button { transition: none; }
   .button:hover:not(:disabled) { transform: none; }
 }
+
+/* Wide pages (the guide): header, page and footer share a wider column. */
+.wide-shell { --content-width: 72rem; }
+
+/* Guide (/docs): sidebar on the left, the text centred at reading width.
+   Below 56rem the sidebar moves into a drawer opened from the header. */
+.docs { display: grid; gap: var(--space-5); }
+.docs-content { width: 100%; max-width: var(--reading-width); margin: 0 auto; min-width: 0; }
+.docs-content h1 { margin-top: 0; }
+.docs-lead { color: var(--color-ink-soft); }
+.docs-section { margin-top: var(--space-5); scroll-margin-top: var(--space-4); }
+.docs-pending { color: var(--color-ink-soft); font-style: italic; }
+.docs-sidebar { display: none; }
+.docs-menu-button { display: inline-grid; }
+
+@media (min-width: 56rem) {
+  .docs { grid-template-columns: 15rem minmax(0, 1fr); align-items: start; }
+  .docs-sidebar {
+    display: block;
+    position: sticky;
+    top: var(--space-4);
+    max-height: calc(100dvh - 2 * var(--space-4));
+    overflow-y: auto;
+    padding-right: var(--space-3);
+    border-right: var(--border);
+  }
+  .docs-menu-button { display: none; }
+}
+
+.docs-nav__title { margin: 0 0 var(--space-2); font-family: var(--font-display); font-weight: 800; font-size: var(--text-lg); }
+.docs-nav ol { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
+.docs-nav a {
+  display: block;
+  padding: var(--space-1) var(--space-2);
+  border: var(--line) solid transparent;
+  border-radius: var(--radius);
+  color: var(--color-ink);
+  text-decoration: none;
+  font-weight: 700;
+}
+.docs-nav a:hover { background: var(--color-surface); }
+/* The section being read: the same look as a resting button. */
+.docs-nav a[aria-current="location"] { border-color: var(--color-ink); background: var(--color-sun); color: var(--color-sun-ink); }
+
+/* Drawer: the <dialog> covers the screen so its backdrop catches clicks;
+   the panel is pinned to the right edge, under the header's menu button. */
+.docs-drawer {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink);
+  overflow: clip; /* see .drawer in game.css: no sideways scroll while sliding */
+}
+:root:has(.docs-drawer[open]) { overflow: hidden; }
+.docs-drawer::backdrop { background: rgb(0 0 0 / 0.4); }
+.docs-drawer__panel {
+  position: absolute;
+  inset: 0 0 0 auto;
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  width: min(var(--drawer-width), 85vw);
+  padding: var(--space-4) var(--space-3);
+  overflow-y: auto;
+  border-left: var(--border);
+  background: var(--color-bg);
+}
+.docs-drawer__header { display: flex; justify-content: space-between; align-items: center; }
+.docs-drawer__header .docs-nav__title { margin: 0; }
+
+/* Home (/): first-visit landing and the returning player's screen. */
+.home { display: grid; gap: var(--space-4); }
+.home h1, .home p { margin: 0; }
+.home .hero { margin-bottom: 0; }
+.home-lead { color: var(--color-ink-soft); }
+.home-cta { display: block; padding: var(--space-3) var(--space-4); text-align: center; font-size: var(--text-lg); }
+.home-secondary { text-align: center; font-size: var(--text-sm); color: var(--color-ink-soft); }
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.home-secondary a, .home-steps a { font-weight: 700; }
+.home-steps {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-flat);
+}
+.home-steps h2 { margin: 0; }
+.home-steps ol { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); counter-reset: step; }
+.home-steps li {
+  display: grid;
+  grid-template-columns: 2.25rem 1fr;
+  column-gap: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+  counter-increment: step;
+}
+.home-steps li::before {
+  content: counter(step);
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  box-sizing: border-box;
+  border: var(--border);
+  border-radius: 50%;
+  background: var(--color-sun);
+  color: var(--color-sun-ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-base);
+}
+.home-steps li strong { color: var(--color-ink); font-size: var(--text-base); font-weight: 800; }
+.home-steps li > :not(strong) { grid-column: 2; }
+.home-privacy { display: flex; gap: var(--space-2); align-items: flex-start; font-size: var(--text-sm); color: var(--color-ink-soft); }
+.home-privacy svg { flex: none; margin-top: var(--space-1); fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Which home state shows: set on <html> before paint and by refresh(). */
+#home-returning { display: none; }
+[data-home="pending"] .home { visibility: hidden; }
+#home-returning:not([data-ready]) { visibility: hidden; } /* until refresh() fills the card */
+[data-home="returning"] #home-returning { display: grid; }
+[data-home="returning"] #home-first { display: none; }
+
+.continue-card {
+  display: grid;
+  overflow: hidden;
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-flat);
+  text-align: center;
+}
+.continue-card__banner { display: block; width: 100%; height: 6rem; border-bottom: var(--border); }
+.continue-card__banner * { stroke: var(--color-ink); stroke-width: 2.5; stroke-linejoin: round; }
+.continue-card__body { display: grid; gap: var(--space-2); padding: 0 var(--space-3) var(--space-3); }
+.continue-card__avatar {
+  display: grid;
+  place-items: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  box-sizing: border-box;
+  margin: -2.25rem auto 0; /* half over the banner */
+  border: var(--border);
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.75rem;
+}
+.continue-card h2 { margin: 0; overflow-wrap: anywhere; line-height: 1.2; }
+.continue-card__subtitle, .continue-card__detail { color: var(--color-ink-soft); font-size: var(--text-sm); }
+.continue-card__excerpt {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  padding-top: var(--space-3);
+  border-top: var(--line) dashed var(--color-ink-soft);
+  font-size: var(--text-sm);
+  font-style: italic;
+}
+.continue-card__excerpt[hidden] { display: none; }
+.home-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.home-pair .button { text-align: center; }
+
+.others { display: grid; gap: var(--space-3); }
+.others__header { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); }
+.others__header h2[hidden] { display: none; }
+.others__header h2 { margin: 0; font-size: var(--text-lg); }
+.others__header .link-button { margin-left: auto; white-space: nowrap; }
+.others__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.campaign-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+.campaign-row strong, .campaign-row small { display: block; overflow-wrap: anywhere; }
+.campaign-row small { color: var(--color-ink-soft); }
+.campaign-row__avatar {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  box-sizing: border-box;
+  border: var(--border);
+  border-radius: 50%;
+  background: var(--color-dialog);
+  color: var(--color-dialog-ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+}
+.campaign-row .button { box-shadow: none; }
+/* After the state rules, so opening the load panel can still hide both. */
+#home-first[hidden], #home-returning[hidden] { display: none; }

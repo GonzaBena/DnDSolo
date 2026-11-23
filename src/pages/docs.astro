@@ -1,0 +1,151 @@
+---
+import Base from "../layouts/Base.astro";
+
+// Each section is an anchor other pages link to (the home links #api-key).
+const sections = [
+  { id: "que-es", title: "Qué es DnDSolo" },
+  { id: "api-key", title: "Cómo conseguir tu API key" },
+  { id: "costo", title: "Cuánto cuesta" },
+  { id: "que-podes-hacer", title: "Qué podés hacer" },
+  { id: "drive", title: "Tus partidas y Google Drive" },
+  { id: "preguntas", title: "Preguntas frecuentes" },
+];
+---
+
+<Base title="Guía" wide>
+  {/* Narrow screens: the sidebar moves into a drawer opened from the header. */}
+  <button
+    slot="nav"
+    id="docs-menu-open"
+    type="button"
+    class="icon-button docs-menu-button"
+    aria-label="Contenido de la guía"
+    aria-controls="docs-drawer"
+    aria-expanded="false"
+  >
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  </button>
+
+  <div class="docs">
+    <aside class="docs-sidebar">
+      <nav class="docs-nav" aria-label="Contenido de la guía">
+        <p class="docs-nav__title">Guía</p>
+        <ol>
+          {sections.map(({ id, title }) => <li><a href={`#${id}`}>{title}</a></li>)}
+        </ol>
+      </nav>
+    </aside>
+
+    <article class="docs-content">
+      <h1>Guía</h1>
+      <p class="docs-lead">Todo lo que necesitás para empezar a jugar: tu API key, qué cuesta, qué podés hacer y dónde quedan tus partidas.</p>
+
+      {sections.map(({ id, title }) => (
+        <section id={id} class="docs-section" aria-labelledby={`${id}-title`}>
+          <h2 id={`${id}-title`}>{title}</h2>
+          <p class="docs-pending">Próximamente.</p>
+          {id === "api-key" && <p><a href="/settings">Ir a Configuración</a></p>}
+        </section>
+      ))}
+
+      <div class="actions">
+        <a class="button" href="/">Volver</a>
+      </div>
+    </article>
+  </div>
+
+  <dialog id="docs-drawer" class="docs-drawer" aria-labelledby="docs-drawer-title">
+    <div class="docs-drawer__panel">
+      <div class="docs-drawer__header">
+        <p id="docs-drawer-title" class="docs-nav__title">Guía</p>
+        <button id="docs-menu-close" type="button" class="icon-button" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
+      <nav class="docs-nav" aria-label="Contenido de la guía">
+        <ol>
+          {sections.map(({ id, title }) => <li><a href={`#${id}`}>{title}</a></li>)}
+        </ol>
+      </nav>
+    </div>
+  </dialog>
+</Base>
+
+<script>
+  import { enterDrawer, leaveDrawer } from "../animations/motion";
+  import { currentSection } from "../docs/currentSection";
+
+  const drawer = document.querySelector<HTMLDialogElement>("#docs-drawer")!;
+  const openButton = document.querySelector<HTMLButtonElement>("#docs-menu-open")!;
+
+  const panel = drawer.querySelector<HTMLElement>(".docs-drawer__panel")!;
+
+  // Slides out, then closes; `then` runs once it is gone (e.g. to jump to a section).
+  let leaving = false;
+  const close = (then?: () => void) => {
+    if (!drawer.open || leaving) return;
+    leaving = true;
+    leaveDrawer(panel, () => {
+      leaving = false;
+      drawer.close();
+      panel.style.transform = ""; // the next opening slides in from scratch
+      then?.();
+    });
+  };
+  openButton.addEventListener("click", () => {
+    drawer.showModal();
+    openButton.setAttribute("aria-expanded", "true");
+    enterDrawer(panel);
+  });
+  drawer.addEventListener("close", () => openButton.setAttribute("aria-expanded", "false"));
+  // Escape: animate the way out instead of the browser's instant close.
+  drawer.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    close();
+  });
+  document.querySelector("#docs-menu-close")!.addEventListener("click", () => close());
+  // The dialog covers the screen; a click outside the panel lands on it.
+  drawer.addEventListener("click", (event) => {
+    if (event.target === drawer) close();
+  });
+  // Picking a section: the drawer slides out, then the page jumps to it.
+  for (const link of drawer.querySelectorAll("a")) {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      close(() => (location.hash = link.hash));
+    });
+  }
+  // Back to a wide screen with the drawer open: the sidebar takes over, at once.
+  matchMedia("(min-width: 56rem)").addEventListener("change", (event) => {
+    if (event.matches && drawer.open) drawer.close();
+  });
+
+  // The section being read is marked in both lists, like the current page in a docs site.
+  const links = [...document.querySelectorAll<HTMLAnchorElement>(".docs-nav a")];
+  const mark = (id: string) => {
+    for (const link of links) {
+      if (link.hash === `#${id}`) link.setAttribute("aria-current", "location");
+      else link.removeAttribute("aria-current");
+    }
+  };
+  const sections = [...document.querySelectorAll<HTMLElement>(".docs-section")];
+  let queued = false;
+  const update = () => {
+    queued = false;
+    const atBottom = innerHeight + scrollY >= document.documentElement.scrollHeight - 2;
+    const index = currentSection(sections.map((section) => section.getBoundingClientRect().top), innerHeight, atBottom);
+    const section = sections[index];
+    if (section) mark(section.id);
+  };
+  // At most one update per frame while scrolling.
+  addEventListener("scroll", () => {
+    if (!queued) requestAnimationFrame(update);
+    queued = true;
+  }, { passive: true });
+  addEventListener("resize", update);
+  update();
+</script>

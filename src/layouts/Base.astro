@@ -7,9 +7,11 @@ interface Props {
   footer?: boolean;
   /** Game screen: no generator link, and a header that hides while scrolling down. */
   game?: boolean;
+  /** Wider header, page and footer, for layouts with a sidebar (the guide). */
+  wide?: boolean;
 }
 
-const { title, footer = true, game = false } = Astro.props;
+const { title, footer = true, game = false, wide = false } = Astro.props;
 const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
 ---
 
@@ -25,6 +27,7 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     <meta name="theme-color" content="#f4e7cf" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#1b1512" media="(prefers-color-scheme: dark)" />
     <title>{title} · DnDSolo</title>
+    <slot name="head" />
     <script is:inline>
       // Theme is resolved before first paint so the page never flashes the
       // wrong palette: the saved choice wins, otherwise the system setting.
@@ -46,7 +49,7 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
       }
     </script>
   </head>
-  <body class:list={{ "game-shell": game }}>
+  <body class:list={{ "game-shell": game, "wide-shell": wide }}>
     <header class="site-header">
       <a class="brand" href="/">
         <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">
@@ -88,6 +91,8 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
             <path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" />
           </svg>
         </button>
+        {/* Page-specific buttons, at the far right (the guide's menu). */}
+        <slot name="nav" />
       </nav>
     </header>
     <main class="page">
@@ -98,7 +103,7 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
         <p>© {new Date().getFullYear()} DnDSolo. Todos los derechos reservados.</p>
         <p class="attribution">
           Incluye material del SRD 5.2.1 de Wizards of the Coast LLC, bajo licencia CC-BY-4.0.{" "}
-          <a href="/credits">Ver créditos</a>
+          <a href="/docs">Guía</a> · <a href="/credits">Ver créditos</a>
         </p>
       </footer>
     )}
@@ -109,7 +114,12 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
       const syncNav = document.querySelector<HTMLButtonElement>("#sync-nav");
       if (syncNav) void import("../sync/indicator").then(({ mountSyncIndicator }) => mountSyncIndicator(syncNav));
 
-      const blocks = [...document.querySelectorAll(".page > *")];
+      // A block marked data-enter-children rises child by child, so a page that
+      // wraps its content (the home's two states) keeps the staggered entrance.
+      // Blocks not rendered (display: none) are skipped so they add no delay.
+      const blocks = [...document.querySelectorAll(".page > *")]
+        .flatMap((block) => (block.matches("[data-enter-children]") ? [...block.children] : [block]))
+        .filter((block) => block.getClientRects().length > 0);
       enterPage(blocks);
       document.documentElement.classList.remove("entering");
 

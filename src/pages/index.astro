@@ -6,25 +6,22 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
 ---
 
 <Base title="Bienvenida">
-  <svg class="hero" viewBox="0 0 320 180" role="img" aria-label="Un dado de veinte caras sobre un camino hacia las montañas">
-    <defs>
-      <clipPath id="hero-frame"><rect x="2" y="2" width="316" height="176" rx="12" /></clipPath>
-    </defs>
-    <g clip-path="url(#hero-frame)">
-      <rect class="hero__sky" x="2" y="2" width="316" height="176" />
-      <circle class="hero__sun" cx="250" cy="52" r="22" />
-      <polygon class="hero__far" points="2,140 70,62 120,112 170,48 240,128 318,84 318,178 2,178" />
-      <polygon class="hero__near" points="2,178 2,150 90,120 190,150 318,128 318,178" />
-    </g>
-    <rect class="hero__frame" x="2" y="2" width="316" height="176" rx="12" />
-    <g class="hero__die">
-      <polygon points="120,58 166,84 166,134 120,160 74,134 74,84" />
-      <polygon class="hero__face" points="120,82 148,128 92,128" />
-      <path d="M120 58L120 82M74 84L120 82L166 84M74 84L92 128L74 134M166 84L148 128L166 134M92 128L120 160L148 128" />
-      <text x="120" y="121" text-anchor="middle">20</text>
-    </g>
-  </svg>
-  <h1>Tu aventura, tu Dungeon Master</h1>
+  <script is:inline slot="head">
+    // Before first paint, so a returning player never sees the first-visit
+    // landing flash. "pending" (no hint yet, e.g. the first load after an
+    // update) keeps both states invisible until refresh() decides; the timeout
+    // shows the landing if the page script never runs.
+    (() => {
+      let hint = null;
+      try { hint = localStorage.getItem("dnsolo.home"); } catch {}
+      const root = document.documentElement;
+      if (hint === "returning") root.dataset.home = "returning";
+      if (hint === null) {
+        root.dataset.home = "pending";
+        setTimeout(() => { if (root.dataset.home === "pending") delete root.dataset.home; }, 1500);
+      }
+    })();
+  </script>
   {syncBuild && (
     <>
       <div id="sync-gesture" class="notice" hidden>
@@ -33,22 +30,87 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     </>
   )}
 
-  <div id="menu-main">
-    <p>Una IA narra la campaña. Vos decidís qué hace tu personaje.</p>
-    <nav class="menu" aria-label="Menú principal">
-      <a class="button button--primary" href="/character">Nueva campaña</a>
-      <a class="button" href="/generator">Generar personaje</a>
-      <a id="continue" class="button" href="/play" aria-disabled="true">
-        Continuar
-        <small id="continue-info">Todavía no hay campañas</small>
-      </a>
-      <button id="open-load" type="button" class="button">Cargar campaña</button>
-      <a class="button" href="/settings">Configuración</a>
-      {/* Development aid: only rendered by `npm run dev`, never in a build. */}
-      {import.meta.env.DEV && (
-        <button id="load-mock" type="button" class="button">Cargar partida de ejemplo</button>
-      )}
-    </nav>
+  <div id="home-first" class="home" data-enter-children>
+    <svg class="hero" viewBox="0 0 320 180" role="img" aria-label="Un dado de veinte caras sobre un camino hacia las montañas">
+      <defs>
+        <clipPath id="hero-frame"><rect x="2" y="2" width="316" height="176" rx="12" /></clipPath>
+      </defs>
+      <g clip-path="url(#hero-frame)">
+        <rect class="hero__sky" x="2" y="2" width="316" height="176" />
+        <circle class="hero__sun" cx="250" cy="52" r="22" />
+        <polygon class="hero__far" points="2,140 70,62 120,112 170,48 240,128 318,84 318,178 2,178" />
+        <polygon class="hero__near" points="2,178 2,150 90,120 190,150 318,128 318,178" />
+      </g>
+      <rect class="hero__frame" x="2" y="2" width="316" height="176" rx="12" />
+      <g class="hero__die">
+        <polygon points="120,58 166,84 166,134 120,160 74,134 74,84" />
+        <polygon class="hero__face" points="120,82 148,128 92,128" />
+        <path d="M120 58L120 82M74 84L120 82L166 84M74 84L92 128L74 134M166 84L148 128L166 134M92 128L120 160L148 128" />
+        <text x="120" y="121" text-anchor="middle">20</text>
+      </g>
+    </svg>
+    <h1>Tu aventura, tu Dungeon Master</h1>
+    <p class="home-lead">Jugá D&amp;D en solitario desde el navegador. Una IA narra la campaña; vos decidís qué hace tu personaje.</p>
+    <a class="button button--primary home-cta" href="/character">Empezar una campaña</a>
+    <p class="home-secondary">
+      ¿Ya tenés una partida? <button id="import-save-first" type="button" class="link-button">Importala</button>{syncBuild && (<> o <a href="/settings#sync-section">traela de Drive</a></>)}
+    </p>
+
+    <section class="home-steps" aria-labelledby="how-title">
+      <h2 id="how-title">Cómo funciona</h2>
+      <ol>
+        <li><strong>Creá tu personaje</strong><span>Elegí raza y clase, o dejá que la app lo genere por vos.</span></li>
+        <li><strong>Pegá tu API key</strong><span>La narración usa tu propia clave de Gemini. <a href="/docs#api-key">Cómo conseguirla</a></span></li>
+        <li><strong>Jugá</strong><span>La IA narra; los dados y las reglas los resuelve la app.</span></li>
+      </ol>
+      <a class="home-steps__more" href="/docs">Leer la guía completa</a>
+    </section>
+
+    <p class="home-privacy">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <rect x="3" y="11" width="18" height="11" rx="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      </svg>
+      <span>Tus partidas se guardan en este navegador.{syncBuild && " Si querés, sincronizalas con tu Google Drive."}</span>
+    </p>
+
+    {/* Development aid: only rendered by `npm run dev`, never in a build. */}
+    {import.meta.env.DEV && (
+      <button id="load-mock" type="button" class="button">Cargar partida de ejemplo</button>
+    )}
+  </div>
+
+  <div id="home-returning" class="home" data-enter-children>
+    <h1>La aventura sigue</h1>
+    <article class="continue-card" aria-labelledby="continue-name">
+      <svg class="continue-card__banner" viewBox="0 0 320 90" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <rect class="hero__sky" x="-4" y="-4" width="328" height="98" />
+        <circle class="hero__sun" cx="262" cy="30" r="15" />
+        <polygon class="hero__far" points="-4,80 60,30 110,62 170,22 240,72 324,40 324,94 -4,94" />
+        <polygon class="hero__near" points="-4,94 -4,84 90,68 190,86 324,72 324,94" />
+      </svg>
+      <div class="continue-card__body">
+        <span id="continue-initials" class="continue-card__avatar" aria-hidden="true"></span>
+        <h2 id="continue-name"></h2>
+        <p id="continue-subtitle" class="continue-card__subtitle"></p>
+        <p id="continue-excerpt" class="continue-card__excerpt" hidden></p>
+        <p id="continue-detail" class="continue-card__detail"></p>
+        <a id="continue-play" class="button button--primary home-cta" href="/play">Seguir jugando</a>
+      </div>
+    </article>
+
+    <div class="home-pair">
+      <a class="button" href="/character">Nueva campaña</a>
+      <button id="import-save-returning" type="button" class="button">Importar</button>
+    </div>
+
+    <section id="others" class="others" aria-labelledby="others-title">
+      <div class="others__header">
+        <h2 id="others-title">Otras campañas</h2>
+        <button id="open-load" type="button" class="link-button">Ver todas (<span id="others-count"></span>)</button>
+      </div>
+      <ul id="others-list" class="others__list"></ul>
+    </section>
   </div>
 
   <div id="menu-load" hidden>
@@ -67,6 +129,7 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
 <script>
   import type { GameState } from "../domain/types";
   import { downloadGame } from "../persistence/exportGame";
+  import { summarizeCampaign } from "../home/campaignSummary";
   import { migrateSave } from "../persistence/migrations";
   import { loadGis } from "../sync/gis";
   import { SYNC_TAPPED_EVENT } from "../sync/indicator";
@@ -76,11 +139,8 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
   // Null when sync is off: then the page works exactly as without sync.
   const sync = getSyncRuntime();
   const repo = createGameRepo();
-  const main = document.querySelector<HTMLElement>("#menu-main")!;
+  const homes = [...document.querySelectorAll<HTMLElement>("#home-first, #home-returning")];
   const loadPanel = document.querySelector<HTMLElement>("#menu-load")!;
-  const continueLink = document.querySelector<HTMLAnchorElement>("#continue")!;
-  const continueInfo = document.querySelector<HTMLElement>("#continue-info")!;
-  const openLoad = document.querySelector<HTMLButtonElement>("#open-load")!;
   const savesList = document.querySelector<HTMLUListElement>("#saves")!;
   const info = document.querySelector<HTMLParagraphElement>("#save-info")!;
   const emptyNote = document.querySelector<HTMLElement>("#saves-empty")!;
@@ -92,31 +152,89 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     info.textContent = message;
   }
 
-  const describe = (game: GameState) => {
-    const player = game.players[0];
-    const who = player ? `${player.name}, ${player.characterClass} nivel ${player.level}` : "Sin personaje";
-    const turns = game.turns.length === 1 ? "1 turno" : `${game.turns.length} turnos`;
-    return { who, detail: `${turns} · ${new Date(game.updatedAt).toLocaleDateString("es-AR")}` };
-  };
+  const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+  const playHref = (id: string) => `/play?id=${encodeURIComponent(id)}`;
+
+  // The pre-paint script reads this hint; the saved list is the truth.
+  function setHome(state: "first" | "returning") {
+    document.documentElement.dataset.home = state;
+    try {
+      localStorage.setItem("dnsolo.home", state);
+    } catch {
+      // Blocked storage: only the pre-paint guess is lost.
+    }
+  }
+
+  function renderContinue(game: GameState) {
+    const summary = summarizeCampaign(game);
+    byId("continue-initials").textContent = summary.initials;
+    byId("continue-name").textContent = summary.name;
+    byId("continue-subtitle").textContent = summary.subtitle;
+    const excerpt = byId("continue-excerpt");
+    excerpt.textContent = summary.excerpt ? `“${summary.excerpt}”` : "";
+    excerpt.hidden = !summary.excerpt;
+    byId("continue-detail").textContent = summary.detail;
+    byId<HTMLAnchorElement>("continue-play").href = playHref(game.id);
+    byId("home-returning").dataset.ready = ""; // filled: CSS stops hiding it
+  }
+
+  // Names come from the player and the model, so they go in as text, never as HTML.
+  function renderOthers(games: GameState[], total: number) {
+    // "Ver todas" stays even without others: it is the way to export or delete.
+    const others = byId("others");
+    byId("others-title").hidden = games.length === 0;
+    // The hidden title can't name the section; a label does instead.
+    if (games.length) {
+      others.setAttribute("aria-labelledby", "others-title");
+      others.removeAttribute("aria-label");
+    } else {
+      others.removeAttribute("aria-labelledby");
+      others.setAttribute("aria-label", "Tus campañas");
+    }
+    byId("others-count").textContent = String(total);
+    byId("others-list").replaceChildren(
+      ...games.map((game) => {
+        const summary = summarizeCampaign(game);
+        const item = document.createElement("li");
+        item.className = "campaign-row";
+        const avatar = document.createElement("span");
+        avatar.className = "campaign-row__avatar";
+        avatar.setAttribute("aria-hidden", "true");
+        avatar.textContent = summary.initials;
+        const text = document.createElement("div");
+        const name = document.createElement("strong");
+        name.textContent = summary.name;
+        const sub = document.createElement("small");
+        sub.textContent = [summary.subtitle, summary.detail.split(" · ")[0]].filter(Boolean).join(" · ");
+        text.append(name, sub);
+        const play = document.createElement("a");
+        play.className = "button button--small";
+        play.href = playHref(game.id);
+        play.textContent = "Jugar";
+        item.append(avatar, text, play);
+        return item;
+      }),
+    );
+  }
 
   // Names come from the player and the model, so they go in as text, never as HTML.
   function renderSaves(games: GameState[]) {
     savesList.replaceChildren(
       ...games.map((game) => {
-        const { who, detail } = describe(game);
+        const { name, subtitle, detail } = summarizeCampaign(game);
         const item = document.createElement("li");
         item.className = "save";
 
         const text = document.createElement("div");
         const title = document.createElement("strong");
-        title.textContent = who;
+        title.textContent = subtitle ? `${name}, ${subtitle}` : name;
         const sub = document.createElement("small");
         sub.textContent = detail;
         text.append(title, sub);
 
         const play = document.createElement("a");
         play.className = "button button--primary";
-        play.href = `/play?id=${encodeURIComponent(game.id)}`;
+        play.href = playHref(game.id);
         play.textContent = "Jugar";
 
         // Two clicks to delete: the first arms the button, no browser dialog.
@@ -154,32 +272,32 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
 
   function showMain() {
     loadPanel.hidden = true;
-    main.hidden = false;
+    for (const home of homes) home.hidden = false; // CSS shows the active one
   }
 
   async function refresh() {
     const games = await repo.list();
-    const latest = games[0];
-    if (latest) {
-      const { who, detail } = describe(latest);
-      continueLink.removeAttribute("aria-disabled");
-      continueLink.href = `/play?id=${encodeURIComponent(latest.id)}`;
-      continueInfo.textContent = `${who} · ${detail}`;
-    } else {
-      continueLink.setAttribute("aria-disabled", "true");
-      continueLink.removeAttribute("href");
-      continueInfo.textContent = "Todavía no hay campañas";
-    }
+    const [latest, ...rest] = games;
+    if (latest) renderContinue(latest);
+    renderOthers(rest.slice(0, 2), games.length);
+    setHome(latest ? "returning" : "first");
     emptyNote.hidden = games.length > 0;
     renderSaves(games);
   }
 
   const showRefreshError = () => {
+    // Saves unreadable: show the landing rather than keep the page blank.
+    if (document.documentElement.dataset.home === "pending") setHome("first");
     info.dataset.tone = "error";
     info.textContent = "No se pudo leer las partidas guardadas en este navegador.";
   };
   // Local first, so the list never waits for Drive.
   const firstPaint = refresh().catch(showRefreshError);
+  // Back from /play restores this page from the bfcache: the card would show
+  // the campaign as it was before that session.
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) void refresh().catch(showRefreshError);
+  });
 
   if (sync) {
     // A tap on the navbar sync button may have brought games from Drive.
@@ -218,7 +336,7 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
       });
     });
 
-    // "Continuar" and "Jugar" renew with that same tap, reconcile the game, then navigate.
+    // "Seguir jugando" and "Jugar" renew with that same tap, reconcile the game, then navigate.
     let opening = false;
     document.addEventListener("click", (event) => {
       const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>("a[href^='/play']") : null;
@@ -244,11 +362,12 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     });
   }
 
-  openLoad.addEventListener("click", () => {
-    main.hidden = true;
+  importButton.addEventListener("click", () => importFile.click());
+  for (const id of ["import-save-first", "import-save-returning"]) byId(id).addEventListener("click", () => importFile.click());
+  byId("open-load").addEventListener("click", () => {
+    for (const home of homes) home.hidden = true;
     loadPanel.hidden = false;
   });
-  importButton.addEventListener("click", () => importFile.click());
   importFile.addEventListener("change", async () => {
     const file = importFile.files?.[0];
     importFile.value = "";
