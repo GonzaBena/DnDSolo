@@ -926,10 +926,14 @@
   overflow-y: auto;
   scrollbar-width: none;
 }
+/* The composer is always focused while playing, so no sun ring; the
+   pastel border alone is too faint (WCAG 1.4.11), so an ink halo outside
+   it makes the focus plain in both themes. */
 .field .action-input:focus,
 .field .action-input:focus-visible {
   outline: none;
   border-color: var(--color-focus);
+  box-shadow: 0 0 0 2px var(--color-ink);
 }
 .field .action-input::-webkit-scrollbar {
   display: none;
