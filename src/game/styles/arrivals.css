@@ -94,8 +94,10 @@
 }
 .ambush__title {
   font-family: var(--font-display);
-  font-size: var(--text-xl);
-  letter-spacing: 0.08em;
+  /* One line down to phone width. */
+  font-size: clamp(var(--text-base), 5.5vw, var(--text-xl));
+  white-space: nowrap;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-hostile);
 }
@@ -157,5 +159,22 @@
   }
   .ambush__row {
     gap: var(--space-2);
+  }
+}
+
+/* While the banner is up the toasts wait below it instead of hiding under
+   it (AmbushBanner sets --ambush-height); only where the two would overlap,
+   since on wide screens they sit apart. */
+.toasts-container {
+  transition: top 200ms ease-out;
+}
+@media (max-width: 90rem) {
+  body:has(> .ambush) > .toasts-container {
+    top: calc(var(--space-2) * 2 + var(--ambush-height, 0px));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toasts-container {
+    transition: none;
   }
 }

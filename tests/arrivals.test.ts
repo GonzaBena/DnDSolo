@@ -76,6 +76,18 @@ describe("arrivalsOf", () => {
     expect(arrivalsOf(prev, next)).toEqual([]);
   });
 
+  it("an NPC only mentioned before (never seen) arrives for the first time, not again", () => {
+    const prev = withNpcs(base, [npc("Mateo", { present: false, seen: false })]);
+    const next = withNpcs(base, [npc("Mateo", { present: true, seen: true })]);
+    expect(arrivalsOf(prev, next)).toMatchObject([{ name: "Mateo", returning: false }]);
+  });
+
+  it("old saves without the seen flag keep counting a known NPC as returning", () => {
+    const prev = withNpcs(base, [npc("Mateo", { present: false })]);
+    const next = withNpcs(base, [npc("Mateo", { present: true })]);
+    expect(arrivalsOf(prev, next)).toMatchObject([{ returning: true }]);
+  });
+
   it("ignores NPCs that were already present", () => {
     const state = withNpcs(base, [npc("Mateo")]);
     expect(arrivalsOf(state, state)).toEqual([]);
@@ -120,6 +132,18 @@ describe("groupArrivals", () => {
     expect(groupArrivals(a).map((g) => [g.name, g.count])).toEqual([
       ["Goblin 1", 1],
       ["Goblin 2", 1],
+    ]);
+  });
+
+  it("keeps a returning or hurt member apart, so the card tells the truth about each", () => {
+    const a = [
+      arrival("Goblin 1", { returning: true, health: "Herido" }),
+      arrival("Goblin 2"),
+      arrival("Goblin 3"),
+    ];
+    expect(groupArrivals(a).map((g) => [g.name, g.count])).toEqual([
+      ["Goblin 1", 1],
+      ["Goblin", 2],
     ]);
   });
 

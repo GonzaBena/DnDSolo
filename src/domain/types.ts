@@ -137,6 +137,9 @@ export interface Npc {
   /** Hit points, tracked by code once the DM sets `maxHp`; null for NPCs nobody fights. */
   hp: number | null;
   maxHp: number | null;
+  /** Whether they have ever been in the scene (false while only mentioned).
+      Absent in saves from before it was tracked: treat as seen. */
+  seen?: boolean;
 }
 
 /** What is happening right now, for the scene drawer. */
@@ -340,4 +343,4 @@ export interface GameState {
 /** Milestones needed since the last level to gain a new one. */
 export const MILESTONES_PER_LEVEL = 2;
 
-export const GAME_STATE_VERSION = 14;
+export const GAME_STATE_VERSION = 15;

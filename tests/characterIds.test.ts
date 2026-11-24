@@ -231,3 +231,12 @@ describe("v13 -> v14", () => {
     expect(migrated?.campaignId).toBeNull();
   });
 });
+
+describe("v14 -> v15", () => {
+  it("carries old saves over unchanged (turns gained optional arrivals)", () => {
+    const game = newGame();
+    const migrated = migrateSave({ ...game, version: 14 });
+    expect(migrated?.version).toBe(15);
+    expect(migrated?.turns).toEqual(game.turns);
+  });
+});

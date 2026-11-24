@@ -5,7 +5,7 @@ import { CharacterPanel } from "./CharacterPanel";
 import { Composer } from "./Composer";
 import DiceLoader from "./DiceLoader";
 import { DyingNotice } from "./DyingNotice";
-import { AmbushBanner } from "./AmbushBanner";
+import { AmbushBanner, dismissAmbush } from "./AmbushBanner";
 import { EventToasts, type ToastItem } from "./EventToasts";
 import { FailureBanner } from "./FailureBanner";
 import { GameOver } from "./GameOver";
@@ -167,7 +167,7 @@ export default function Game() {
       <div className="game__main">
         <EventToasts toasts={toasts} onDismiss={dismissToast} />
         {ambush && (
-          <AmbushBanner key={ambush.key} arrivals={ambush.hostiles} onDone={() => setAmbushState(null)} />
+          <AmbushBanner key={ambush.key} arrivals={ambush.hostiles} onDone={() => setAmbushState((current) => dismissAmbush(current, ambush.key))} />
         )}
         <CharacterPanel
           state={state}

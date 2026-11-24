@@ -309,6 +309,7 @@ export const gameStateSchema = z.object({
       portrait: z.string().nullable(),
       hp: z.number().int().nullable(),
       maxHp: z.number().int().nullable(),
+      seen: z.boolean().optional(),
     }),
   ),
   scene: z.object({ inCombat: z.boolean(), turnOf: z.string().nullable(), order: z.array(z.string()) }),

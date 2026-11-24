@@ -17,6 +17,12 @@ export function bannerSlots(
   return { shown: groups.slice(0, max - 1), hidden: groups.length - (max - 1) };
 }
 
+/** The banner state once the banner with `key` has left: cleared, unless a
+    newer ambush has replaced it meanwhile (its exit must not close that one). */
+export function dismissAmbush<T extends { key: number }>(current: T | null, key: number): T | null {
+  return current?.key === key ? null : current;
+}
+
 /** The banner's content: the title and a row of faces. Hidden from screen
     readers: the turn's announcement already names who arrived. */
 export function AmbushStrip({ arrivals }: { arrivals: readonly Arrival[] }) {
@@ -62,18 +68,27 @@ export function AmbushStrip({ arrivals }: { arrivals: readonly Arrival[] }) {
 export function AmbushBanner({ arrivals, onDone }: { arrivals: readonly Arrival[]; onDone: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const leavingRef = useRef(false);
+  const cancelLeaveRef = useRef<(() => void) | null>(null);
 
   const leave = () => {
     if (leavingRef.current) return;
     leavingRef.current = true;
-    if (ref.current) leaveBanner(ref.current, onDone);
+    if (ref.current) cancelLeaveRef.current = leaveBanner(ref.current, onDone);
     else onDone();
   };
 
   useEffect(() => {
-    if (ref.current) enterBanner(ref.current);
+    if (ref.current) {
+      enterBanner(ref.current);
+      // The toasts move below the banner while it is up (arrivals.css).
+      document.documentElement.style.setProperty("--ambush-height", `${ref.current.offsetHeight}px`);
+    }
     const timer = setTimeout(leave, SHOWN_MS);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      cancelLeaveRef.current?.();
+      document.documentElement.style.removeProperty("--ambush-height");
+    };
     // Mount-only: each ambush mounts a fresh banner (keyed by the caller).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

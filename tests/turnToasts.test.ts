@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { GameState, Npc, Quest } from "../src/domain/types";
+import type { Arrival, GameState, Npc, Quest } from "../src/domain/types";
 import { buildTurnToasts, tookDamage } from "../src/game/turnToasts";
 import { newGame } from "./helpers";
 
@@ -80,9 +80,38 @@ describe("buildTurnToasts", () => {
     expect(buildTurnToasts(prev, next, [], 1)).toEqual([]);
   });
 
-  it("skips the initiative toast when hostiles arrive as combat starts", () => {
+  const goblinArrival = {
+    name: "Goblin 1",
+    attitude: "hostile",
+    portrait: null,
+    blurb: "",
+    returning: false,
+    health: null,
+  } as const;
+  /** `state` after a turn whose stored arrivals are `arrivals`. */
+  const afterTurn = (state: GameState, arrivals: Arrival[]): GameState => ({
+    ...state,
+    turns: [
+      ...state.turns,
+      { number: state.turns.length + 1, input: { type: "start" }, narration: "", events: [], arrivals },
+    ],
+  });
+
+  it("skips the initiative toast when the new turn records hostile arrivals as combat starts", () => {
+    const titles = buildTurnToasts(base, afterTurn(base, [goblinArrival]), ["combat_start"], 1).map((t) => t.title);
+    expect(titles).not.toContain("¡Iniciativa!");
+  });
+
+  it("decides the ambush from the turn's stored arrivals, not from the npc list", () => {
     const next = { ...base, npcs: [{ ...npc("Goblin 1"), attitude: "hostile" as const }] };
-    expect(buildTurnToasts(base, next, ["combat_start"], 1).map((t) => t.title)).not.toContain("¡Iniciativa!");
+    expect(buildTurnToasts(base, afterTurn(next, []), ["combat_start"], 1)).toMatchObject([{ title: "¡Iniciativa!" }]);
+  });
+
+  it("an ambush that ends in the same turn gets no end-of-combat toast", () => {
+    const titles = buildTurnToasts(base, afterTurn(base, [goblinArrival]), ["combat_start", "combat_end"], 1).map(
+      (t) => t.title,
+    );
+    expect(titles).not.toContain("Fin del combate");
   });
 
   it("keeps the initiative toast when combat starts with no one new", () => {

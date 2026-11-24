@@ -20,7 +20,8 @@ export function arrivalsOf(prev: GameState, next: GameState): Arrival[] {
       attitude: npc.attitude,
       portrait: npc.portrait,
       blurb: firstSentence(npc.description),
-      returning: before !== undefined && !fallen,
+      // Only mentioned before (never seen): this is their first appearance.
+      returning: before !== undefined && before.seen !== false && !fallen,
       health: health === "Ileso" ? null : health,
     });
   }
@@ -45,8 +46,8 @@ export interface ArrivalGroup {
 
 const NUMBERED = /^(.*\S)\s+\d+$/;
 
-/** "Goblin 1", "Goblin 2" and "Goblin 3" with the same attitude become one
-    "Goblin ×3". A name without a trailing number is never grouped. Groups
+/** "Goblin 1", "Goblin 2" and "Goblin 3" with the same attitude (and the
+    same return and health) become one "Goblin ×3". A name without a trailing number is never grouped. Groups
     keep the order of their first member. */
 export function groupArrivals(arrivals: readonly Arrival[]): ArrivalGroup[] {
   const groups: { base: string | null; members: Arrival[] }[] = [];
@@ -59,7 +60,10 @@ export function groupArrivals(arrivals: readonly Arrival[]): ArrivalGroup[] {
             (g) =>
               g.base !== null &&
               g.base.toLowerCase() === base.toLowerCase() &&
-              g.members[0]!.attitude === arrival.attitude,
+              g.members[0]!.attitude === arrival.attitude &&
+              // The card shows the lead's return and health for all of them.
+              g.members[0]!.returning === arrival.returning &&
+              g.members[0]!.health === arrival.health,
           );
     if (group) group.members.push(arrival);
     else groups.push({ base, members: [arrival] });

@@ -181,6 +181,13 @@ function fromV13(raw: Raw): Raw {
   return { ...raw, version: 14, campaignId: null };
 }
 
+/** v14 -> v15. Turns may carry who arrived, and NPCs whether they have been
+    seen; both are optional, so old saves carry over as they are. The bump
+    keeps older app versions from rewriting a save and dropping them. */
+function fromV14(raw: Raw): Raw {
+  return { ...raw, version: 15 };
+}
+
 /** Turns whatever was stored into a GameState of the current version, or
     null if it can't be trusted (unknown version or wrong shape). Loading
     code must go through here so the screens never see a malformed save. */
@@ -200,6 +207,7 @@ export function migrateSave(raw: unknown): GameState | null {
   if (current.version === 11) current = fromV11(current);
   if (current.version === 12) current = fromV12(current);
   if (current.version === 13) current = fromV13(current);
+  if (current.version === 14) current = fromV14(current);
   if (current.version !== GAME_STATE_VERSION) return null;
   const parsed = gameStateSchema.safeParse(current);
   return parsed.success ? normalizeHp(parsed.data) : null;

@@ -151,6 +151,17 @@ describe("applyStateChanges", () => {
       expect(state.scene).toEqual({ inCombat: true, turnOf: null, order: [] });
     });
 
+    it("remembers whether an NPC has ever been in the scene", () => {
+      const mentioned = applyStateChanges(newGame(), [goblin(false)]).state;
+      expect(mentioned.npcs[0]!.seen).toBe(false);
+      const shown = applyStateChanges(mentioned, [goblin(true)]).state;
+      expect(shown.npcs[0]!.seen).toBe(true);
+      const away = applyStateChanges(shown, [goblin(false)]).state;
+      expect(away.npcs[0]!.seen).toBe(true);
+      const moved = applyStateChanges(shown, [{ type: "location", name: "Bosque", description: "" }]).state;
+      expect(moved.npcs[0]!.seen).toBe(true);
+    });
+
     it("clears the scene on a new location, whatever order the changes come in", () => {
       const before = applyStateChanges(newGame(), [
         { type: "location", name: "Posada", description: "" },

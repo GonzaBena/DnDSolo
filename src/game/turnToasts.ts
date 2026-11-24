@@ -1,4 +1,4 @@
-import { arrivalsOf, isAmbush } from "../domain/arrivals";
+import { isAmbush } from "../domain/arrivals";
 import type { GameState } from "../domain/types";
 import type { ToastItem } from "./EventToasts";
 
@@ -76,13 +76,17 @@ export function buildTurnToasts(
       detail: "Te recuperaste o recibiste curación.",
     });
   }
-  // An ambush gets its own banner (see AmbushBanner), not this toast.
-  if (events.includes("combat_start") && !isAmbush(events, arrivalsOf(prev, next))) {
-    drafts.push({
-      kind: "combat",
-      title: "¡Iniciativa!",
-      detail: "Comenzó un enfrentamiento en la escena.",
-    });
+  if (events.includes("combat_start")) {
+    // An ambush gets its own banner (see AmbushBanner) instead. Decided from
+    // the arrivals the new turn stored, the same ones the banner shows.
+    const arrivals = next.turns.length > prev.turns.length ? (next.turns.at(-1)?.arrivals ?? []) : [];
+    if (!isAmbush(events, arrivals)) {
+      drafts.push({
+        kind: "combat",
+        title: "¡Iniciativa!",
+        detail: "Comenzó un enfrentamiento en la escena.",
+      });
+    }
   } else if (events.includes("combat_end")) {
     drafts.push({
       kind: "info",

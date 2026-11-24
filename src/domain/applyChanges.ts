@@ -257,6 +257,8 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
           ...(existing && existing.maxHp !== null
             ? { hp: existing.hp, maxHp: existing.maxHp }
             : { hp: change.maxHp, maxHp: change.maxHp }),
+          // Once in the scene, always seen; an older NPC without the flag keeps none.
+          ...(change.present ? { seen: true } : existing ? (existing.seen === undefined ? {} : { seen: existing.seen }) : { seen: false }),
         };
         next = { ...next, npcs: upsert(next.npcs, npc, (n) => sameName(n.name, name)) };
         break;
