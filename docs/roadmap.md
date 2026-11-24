@@ -53,6 +53,8 @@ sacudida de pantalla al recibir daño.
   resumen.
 
 ## Ideas sueltas (sin prioridad)
+- Reglas: al subir de nivel no se recalculan los PG máximos (ni otras
+  estadísticas de la ficha); quedan los del nivel 1.
 - Tiradas con suspenso: el dado gira un poco más; animación propia para 20 y 1
   naturales.
 - Mostrar la CD después de tirar: "Necesitabas 15, sacaste 17 ✓".
