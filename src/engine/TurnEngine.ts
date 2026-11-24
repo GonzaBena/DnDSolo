@@ -1,3 +1,4 @@
+import { arrivalsOf } from "../domain/arrivals";
 import { applyStateChanges, type RejectedChange } from "../domain/applyChanges";
 import { applyDeathSave } from "../domain/deathSaves";
 import { diceRolled, rollForEnemy } from "../domain/dice";
@@ -235,11 +236,13 @@ export class TurnEngine {
     const known = this.latestByGame.get(state.id);
     const base = known && known.turns.length === state.turns.length ? known : state;
     const applied = applyStateChanges(resolveInput(base, input), response.stateChanges);
+    const arrivals = arrivalsOf(base, applied.state);
     const turn: Turn = {
       number: state.turns.length + 1,
       input,
       narration: response.narration,
       events: response.events,
+      ...(arrivals.length > 0 ? { arrivals } : {}),
     };
     // Nobody can answer a roll while unconscious or dead: death saves are asked by the system.
     const canRoll = applied.state.players.some((p) => p.condition === "ok");

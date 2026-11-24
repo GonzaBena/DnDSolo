@@ -300,6 +300,9 @@ export interface Turn {
   input: TurnInput;
   narration: string;
   events: string[];
+  /** Who walked into the scene this turn; absent when nobody did (and in
+      turns saved before arrivals were recorded). */
+  arrivals?: Arrival[];
 }
 
 export interface GameState {

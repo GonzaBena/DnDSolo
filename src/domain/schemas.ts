@@ -245,6 +245,15 @@ const turnInput = z.discriminatedUnion("type", [
 
 /** For game states that come from outside the engine (an imported file),
     where the TypeScript types guarantee nothing. */
+const arrivalSchema = z.object({
+  name: z.string(),
+  attitude,
+  portrait: z.string().nullable(),
+  blurb: z.string(),
+  returning: z.boolean(),
+  health: z.enum(["Herido", "Malherido", "Fuera de combate"]).nullable(),
+});
+
 export const gameStateSchema = z.object({
   id: z.string().min(1),
   version: z.number().int(),
@@ -324,6 +333,7 @@ export const gameStateSchema = z.object({
       input: turnInput,
       narration: z.string(),
       events: z.array(z.string()),
+      arrivals: z.array(arrivalSchema).optional(),
     }),
   ),
   pendingPlayerRoll: playerRollRequest.nullable(),

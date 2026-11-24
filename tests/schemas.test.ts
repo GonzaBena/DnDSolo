@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { MAX_SUGGESTION_LENGTH, dmResponseJsonSchema, parseDMResponse } from "../src/domain/schemas";
+import { MAX_SUGGESTION_LENGTH, dmResponseJsonSchema, gameStateSchema, parseDMResponse } from "../src/domain/schemas";
 import { TURN_EVENTS } from "../src/domain/types";
 import { extractPartialNarration } from "../src/engine/narrationStream";
-import { reply } from "./helpers";
+import { newGame, reply } from "./helpers";
 
 describe("parseDMResponse", () => {
   it("accepts a valid response", () => {
@@ -206,5 +206,30 @@ describe("thread titles", () => {
       stateChanges: [{ type: "thread", title: "   ", kind: "goal", description: "", status: "open", secret: false }],
     });
     expect(parseDMResponse(blank).ok).toBe(false);
+  });
+});
+
+describe("saved turns", () => {
+  const arrival = {
+    name: "Goblin 1",
+    attitude: "hostile",
+    portrait: null,
+    blurb: "Flaco.",
+    returning: false,
+    health: null,
+  } as const;
+  const withTurn = (extra: object) => {
+    const game = newGame();
+    return { ...game, turns: [{ number: 1, input: { type: "start" }, narration: "Hola.", events: [], ...extra }] };
+  };
+
+  it("keeps the arrivals of a turn", () => {
+    const parsed = gameStateSchema.parse(withTurn({ arrivals: [arrival] }));
+    expect(parsed.turns[0]!.arrivals).toEqual([arrival]);
+  });
+
+  it("loads turns saved without arrivals as they are", () => {
+    const parsed = gameStateSchema.parse(withTurn({}));
+    expect("arrivals" in parsed.turns[0]!).toBe(false);
   });
 });

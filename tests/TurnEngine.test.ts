@@ -96,6 +96,41 @@ describe("TurnEngine.playTurn", () => {
     expect(await ctx.repo.load(game.id)).toEqual(outcome.state);
   });
 
+  it("records who arrived in the turn", async () => {
+    const ctx = setup();
+    const game = await started(ctx);
+    ctx.llm.queueStructured(
+      reply({
+        stateChanges: [
+          {
+            type: "npc",
+            name: "Goblin 1",
+            description: "Flaco.",
+            attitude: "hostile",
+            present: true,
+            voice: "",
+            portrait: null,
+            maxHp: 7,
+          },
+        ],
+      }),
+    );
+    const outcome = await ctx.engine.playTurn(game, { type: "action", text: "Miro" });
+    if (!outcome.ok) throw new Error("turn failed");
+    expect(outcome.state.turns[1]!.arrivals).toEqual([
+      { name: "Goblin 1", attitude: "hostile", portrait: null, blurb: "Flaco.", returning: false, health: null },
+    ]);
+  });
+
+  it("leaves arrivals out when nobody arrived", async () => {
+    const ctx = setup();
+    const game = await started(ctx);
+    ctx.llm.queueStructured(reply());
+    const outcome = await ctx.engine.playTurn(game, { type: "action", text: "Miro" });
+    if (!outcome.ok) throw new Error("turn failed");
+    expect("arrivals" in outcome.state.turns[1]!).toBe(false);
+  });
+
   it("streams the narration as it arrives", async () => {
     const ctx = setup();
     ctx.llm.queueStructured(reply({ narration: "Una niebla espesa cubre el camino." }));
