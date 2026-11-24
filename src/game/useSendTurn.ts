@@ -4,6 +4,7 @@ import type { GameState, TurnInput } from "../domain/types";
 import type { TurnEngine, TurnOutcome } from "../engine/TurnEngine";
 import { describeLLMError } from "../llm/errorMessages";
 import { sendAfterRenewal, shouldDropSend } from "../sync/openGame";
+import { levelUpOf, type LevelUp } from "./levelUp";
 import { questBanners, turnBanners, type Banner } from "./bannerQueue";
 import type { ToastItem } from "./EventToasts";
 import { describeFailure } from "./failureNotice";
@@ -20,12 +21,14 @@ interface Ui {
   gameRef: RefObject<HTMLElement | null>;
   /** Queues the banners a live turn raises (new place, ambush). */
   showBanners: (banners: Banner[]) => void;
+  /** Shown once the turn's banners have left (see LevelUpScreen). */
+  showLevelUp: (levelUp: LevelUp) => void;
 }
 
 /** Plays turns: streams the DM's narration, then shows, saves and summarizes
     the result. `send` is for turns the app takes on its own; `sendFromPlayer`
     for the player's, which may first have to renew the Google session. */
-export function useSendTurn(session: GameSession, { setDraft, setToasts, scrollToBottom, gameRef, showBanners }: Ui) {
+export function useSendTurn(session: GameSession, { setDraft, setToasts, scrollToBottom, gameRef, showBanners, showLevelUp }: Ui) {
   const [busy, setBusy] = useState(false);
   const {
     setScreen,
@@ -152,6 +155,8 @@ export function useSendTurn(session: GameSession, { setDraft, setToasts, scrollT
         const raised = [...turnBanners(lastTurn, outcome.response.events), ...questBanners(state, outcome.state)];
         if (raised.length > 0) showBanners(raised);
       }
+      const levelUp = levelUpOf(state, outcome.state);
+      if (levelUp) showLevelUp(levelUp);
       if (tookDamage(outcome.response.events, state, outcome.state) && gameRef.current) {
         const el = gameRef.current;
         shakeScreen(el);
@@ -205,6 +210,7 @@ export function useSendTurn(session: GameSession, { setDraft, setToasts, scrollT
       setDraft,
       setToasts,
       showBanners,
+      showLevelUp,
       gameRef,
       setScreen,
       setInFlight,

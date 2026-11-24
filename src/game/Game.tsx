@@ -12,6 +12,8 @@ import { EventToasts, type ToastItem } from "./EventToasts";
 import { FailureBanner } from "./FailureBanner";
 import { GameOver } from "./GameOver";
 import { QuestBanner } from "./QuestBanner";
+import { LevelUpScreen, levelUpVisible } from "./LevelUpScreen";
+import type { LevelUp } from "./levelUp";
 import { InfoDrawer } from "./InfoDrawer";
 import { RollDialog } from "./RollDialog";
 import { RollRequest } from "./RollRequest";
@@ -48,12 +50,13 @@ export default function Game() {
     const queued = next.map((banner) => ({ ...banner, id: ++bannerIdRef.current }));
     setBanners((current) => enqueueBanners(current, queued));
   }, []);
+  const [levelUp, setLevelUp] = useState<LevelUp | null>(null);
   const [zenMode, setZenMode] = useState(false);
   const { atBottom, scrollToBottom, follow } = useStickToBottom();
   const startedRef = useRef(false);
   const draftRef = useRef<HTMLTextAreaElement>(null);
   const gameRef = useRef<HTMLElement>(null);
-  const { busy, send, sendFromPlayer } = useSendTurn(session, { setDraft, setToasts, scrollToBottom, gameRef, showBanners });
+  const { busy, send, sendFromPlayer } = useSendTurn(session, { setDraft, setToasts, scrollToBottom, gameRef, showBanners, showLevelUp: setLevelUp });
   const { hpPending, adjustHp } = useHpAdjust(session, setToasts);
 
   const dismissToast = useCallback((id: string) => {
@@ -183,6 +186,7 @@ export default function Game() {
               return <QuestBanner key={head.id} outcome={head.outcome} title={head.title} onDone={onDone} />;
           }
         })()}
+        {levelUpVisible(levelUp, banners) && <LevelUpScreen levelUp={levelUp!} onClose={() => setLevelUp(null)} />}
         <CharacterPanel
           state={state}
           zenMode={zenMode}

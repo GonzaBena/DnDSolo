@@ -1,0 +1,73 @@
+/* The level-up screen: covers the game until "Seguir". */
+.level-up {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: var(--space-5) var(--space-3);
+  border: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+}
+.level-up[open] {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-4);
+}
+.level-up::backdrop {
+  background: var(--color-bg);
+}
+.level-up__content {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  width: min(32rem, 100%);
+  text-align: center;
+}
+.level-up__star {
+  font-size: 3rem;
+  line-height: 1;
+}
+.level-up__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  color: var(--color-primary);
+}
+.level-up__name,
+.level-up__subclass,
+.level-up__bonus {
+  margin: 0;
+}
+.level-up__name {
+  font-size: var(--text-lg);
+  font-weight: 800;
+}
+.level-up__subclass,
+.level-up__bonus {
+  color: var(--color-ink-soft);
+}
+.level-up__features {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+.level-up__features li {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-flat);
+}
+.level-up__features span {
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}

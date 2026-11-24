@@ -58,10 +58,8 @@ describe("buildTurnToasts", () => {
     expect(buildTurnToasts(prev, next, ["item_gained"], 1)).toEqual([]);
   });
 
-  it("announces a level change, not a level_up event alone", () => {
-    expect(buildTurnToasts(withLevel(base, 3), withLevel(base, 4), [], 1)).toMatchObject([
-      { kind: "level", title: "¡Subiste de nivel!" },
-    ]);
+  it("no toast for a level up: it gets its own screen", () => {
+    expect(buildTurnToasts(withLevel(base, 3), withLevel(base, 4), [], 1)).toEqual([]);
     expect(buildTurnToasts(base, base, ["level_up"], 1)).toEqual([]);
   });
 

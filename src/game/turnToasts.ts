@@ -95,15 +95,7 @@ export function buildTurnToasts(
     });
   }
 
-  const prevLevel = prev.players[0]?.level ?? 0;
-  const nextLevel = next.players[0]?.level ?? 0;
-  if (nextLevel > prevLevel) {
-    drafts.push({
-      kind: "level",
-      title: "¡Subiste de nivel!",
-      detail: "Tu personaje se ha vuelto más poderoso.",
-    });
-  }
+  // A level up gets its own screen (see LevelUpScreen).
 
   const before = inventoryOf(prev);
   const after = inventoryOf(next);

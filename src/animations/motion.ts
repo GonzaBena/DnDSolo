@@ -144,6 +144,15 @@ export function leaveToast(element: Element, onDone: () => void): () => void {
   return () => animation.cancel();
 }
 
+/** The level-up screen: its content rises in and the star pops. */
+export function enterLevelUp(element: Element): void {
+  if (!motionAllowed()) return;
+  const items = element.querySelectorAll(".level-up__content > *, .level-up__features li, .level-up > .button");
+  animate(items, { opacity: [0, 1], translateY: [16, 0], duration: 420, delay: stagger(70), ease: "outCubic" });
+  const star = element.querySelector(".level-up__star");
+  if (star) animate(star, { scale: [0.2, 1.25, 1], rotate: [-30, 0], duration: 700, ease: "outBack" });
+}
+
 /** The ambush banner dropping in from above the screen. */
 export function enterBanner(element: Element): void {
   if (!motionAllowed()) return;
