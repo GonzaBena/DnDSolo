@@ -36,3 +36,27 @@
   font-size: var(--text-sm);
   color: var(--color-ink-soft);
 }
+
+/* The chapter banner: the place's name, like a film's chapter card. Long
+   names may wrap; the description stays short under it. */
+.chapter-banner {
+  --banner-edge: var(--color-accent);
+}
+.chapter-banner__inner {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  text-align: center;
+}
+.chapter-banner__title {
+  font-family: var(--font-display);
+  font-size: clamp(var(--text-lg), 6vw, var(--text-xl));
+  letter-spacing: 0.04em;
+  text-wrap: balance;
+}
+.chapter-banner__description {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--color-ink-soft);
+}

@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { groupArrivals } from "../src/domain/arrivals";
 import type { Arrival } from "../src/domain/types";
-import { AmbushStrip, bannerSlots, dismissAmbush } from "../src/game/AmbushBanner";
+import { AmbushStrip, bannerSlots } from "../src/game/AmbushBanner";
 
 const arrival = (name: string): Arrival => ({
   name,
@@ -41,13 +41,3 @@ describe("AmbushStrip", () => {
   });
 });
 
-describe("dismissAmbush", () => {
-  it("closes the banner that finished", () => {
-    expect(dismissAmbush({ key: 1 }, 1)).toBeNull();
-  });
-
-  it("leaves a newer banner open when an older one finishes late", () => {
-    const newer = { key: 2 };
-    expect(dismissAmbush(newer, 1)).toBe(newer);
-  });
-});
