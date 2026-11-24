@@ -1,12 +1,14 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { enterToast, leaveToast } from "../animations/motion";
+import { enterToast, flyToTarget, leaveToast } from "../animations/motion";
 
 export interface ToastItem {
   id: string;
-  kind: "item" | "quest" | "combat" | "level" | "info" | "damage" | "healing";
+  kind: "item" | "loot" | "quest" | "combat" | "level" | "info" | "damage" | "healing";
   title: string;
   detail?: string;
+  /** How long it stays before leaving on its own; 4800 ms if unset. */
+  holdMs?: number;
 }
 
 interface ToastCardProps {
@@ -34,14 +36,28 @@ function ToastCard({ toast, onDismiss }: ToastCardProps) {
     }
   };
 
+  // A loot card leaves on its own by flying to the inventory (the Info
+  // button); closing it by hand is a plain exit.
+  const leaveOnTime = () => {
+    if (toast.kind !== "loot") return handleDismiss();
+    if (leavingRef.current) return;
+    leavingRef.current = true;
+    if (ref.current) {
+      flyToTarget(ref.current, document.querySelector("[data-inventory-target]"), () => onDismiss(toast.id));
+    } else {
+      onDismiss(toast.id);
+    }
+  };
+
   useEffect(() => {
-    const timer = setTimeout(handleDismiss, 4800);
+    const timer = setTimeout(leaveOnTime, toast.holdMs ?? 4800);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toast.id]);
 
   const ICONS: Record<ToastItem["kind"], string> = {
     item: "🎒",
+    loot: "🎒",
     quest: "📜",
     combat: "⚔️",
     level: "⭐",

@@ -146,7 +146,13 @@ export function CharacterPanel({
             {inScene}
           </span>
         </button>
-        <button type="button" className="button scene-toggle" onClick={onOpenInfo} aria-haspopup="dialog">
+        <button
+          type="button"
+          className="button scene-toggle"
+          onClick={onOpenInfo}
+          aria-haspopup="dialog"
+          data-inventory-target
+        >
           Info
         </button>
       </div>

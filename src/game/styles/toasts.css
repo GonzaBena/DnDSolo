@@ -70,6 +70,12 @@
 .toast[data-kind="combat"] {
   border-color: var(--color-turn-combat);
 }
+/* A loot card: smaller, it only stops for a moment on its way to the bag. */
+.toast[data-kind="loot"] {
+  border-color: var(--color-sun);
+  padding-block: var(--space-1);
+  font-size: var(--text-sm);
+}
 .toast[data-kind="level"] {
   border-color: var(--color-sun);
 }

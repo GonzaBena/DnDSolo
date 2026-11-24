@@ -25,10 +25,14 @@ const npc = (name: string): Npc => ({
 describe("buildTurnToasts", () => {
   const base = newGame();
 
-  it("announces an item that appears in the inventory", () => {
-    const next = withInventory(base, [{ name: "Antorcha", quantity: 2 }]);
+  it("a gained item is a loot card; several leave one after another", () => {
+    const next = withInventory(base, [
+      { name: "Antorcha", quantity: 2 },
+      { name: "Soga", quantity: 1 },
+    ]);
     expect(buildTurnToasts(base, next, [], 1)).toMatchObject([
-      { kind: "item", title: "Objeto obtenido", detail: "Antorcha ×2" },
+      { kind: "loot", title: "Objeto obtenido", detail: "Antorcha ×2", holdMs: 1800 },
+      { kind: "loot", title: "Objeto obtenido", detail: "Soga", holdMs: 2100 },
     ]);
   });
 
@@ -46,10 +50,12 @@ describe("buildTurnToasts", () => {
       { name: "Soga", quantity: 1 },
     ]);
     const next = withInventory(base, [{ name: "Flecha", quantity: 3 }]);
-    expect(buildTurnToasts(prev, next, [], 1)).toMatchObject([
+    const toasts = buildTurnToasts(prev, next, [], 1);
+    expect(toasts).toMatchObject([
       { kind: "item", title: "Objeto usado o perdido", detail: "Flecha ×2" },
       { kind: "item", title: "Objeto usado o perdido", detail: "Soga" },
     ]);
+    expect(toasts.every((t) => t.holdMs === undefined)).toBe(true);
   });
 
   it("shows no item toast when a rejected removal left the inventory equal", () => {
@@ -138,8 +144,8 @@ describe("buildTurnToasts", () => {
     ]);
     const toasts = buildTurnToasts(base, next, [], 7);
     expect(toasts).toHaveLength(2);
-    expect(toasts.map((t) => t.kind)).toEqual(["item", "item"]);
-    expect(toasts.map((t) => t.id)).toEqual(["item-7-0", "item-7-1"]);
+    expect(toasts.map((t) => t.kind)).toEqual(["loot", "loot"]);
+    expect(toasts.map((t) => t.id)).toEqual(["loot-7-0", "loot-7-1"]);
     expect(new Set(toasts.map((t) => t.id)).size).toBe(toasts.length);
   });
 });

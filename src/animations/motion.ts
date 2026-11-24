@@ -144,6 +144,30 @@ export function leaveToast(element: Element, onDone: () => void): () => void {
   return () => animation.cancel();
 }
 
+/** A loot card flying into `target` (the inventory button), shrinking as
+    it goes; the target then gives a small pulse. Without motion or without
+    a visible target it leaves like any toast. Returns a cancel function. */
+export function flyToTarget(element: Element, target: Element | null, onDone: () => void): () => void {
+  const to = target?.getBoundingClientRect();
+  if (!motionAllowed() || !target || !to || to.width === 0 || to.height === 0) {
+    return leaveToast(element, onDone);
+  }
+  const from = element.getBoundingClientRect();
+  const animation = animate(element, {
+    translateX: to.left + to.width / 2 - (from.left + from.width / 2),
+    translateY: to.top + to.height / 2 - (from.top + from.height / 2),
+    scale: 0.2,
+    opacity: [1, 0.2],
+    duration: 550,
+    ease: "inQuad",
+    onComplete: () => {
+      animate(target, { scale: [1, 1.15, 1], duration: 300, ease: "outQuad" });
+      onDone();
+    },
+  });
+  return () => animation.cancel();
+}
+
 /** The level-up screen: its content rises in and the star pops. */
 export function enterLevelUp(element: Element): void {
   if (!motionAllowed()) return;

@@ -4,6 +4,10 @@ import type { ToastItem } from "./EventToasts";
 
 type Draft = Omit<ToastItem, "id">;
 
+/** How long a loot card stays before it flies, and the gap between cards. */
+const LOOT_HOLD_MS = 1800;
+const LOOT_STAGGER_MS = 300;
+
 const key = (name: string) => name.trim().toLowerCase();
 
 function inventoryOf(state: GameState): Map<string, { name: string; quantity: number }> {
@@ -99,13 +103,16 @@ export function buildTurnToasts(
 
   const before = inventoryOf(prev);
   const after = inventoryOf(next);
+  // Gained items fly to the inventory, one after another.
+  let looted = 0;
   for (const [k, item] of after) {
     const gained = item.quantity - (before.get(k)?.quantity ?? 0);
     if (gained > 0) {
       drafts.push({
-        kind: "item",
+        kind: "loot",
         title: "Objeto obtenido",
         detail: itemDetail(item.name, gained),
+        holdMs: LOOT_HOLD_MS + LOOT_STAGGER_MS * looted++,
       });
     }
   }
