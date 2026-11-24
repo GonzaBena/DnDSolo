@@ -11,7 +11,7 @@ to mono mp3, trimmed of leading silence and loudness-normalised (-16 LUFS).
 | hit.mp3 | https://opengameart.org/content/37-hitspunches | qubodup | hit.mp3, 3.4–4.0 s |
 | heartbeat.mp3 | https://opengameart.org/content/heartbeat-sounds | bart | heartbeat_fast |
 | loot.mp3 | https://opengameart.org/content/80-cc0-rpg-sfx | rubberduck | item_coins_04 |
-| questDone.mp3 | https://opengameart.org/content/win-jingle | Fupi | WinVibraphone |
+| questDone.mp3 | https://opengameart.org/content/bell-arpeggio-24 | cynicmusic | 24.wav |
 | questFailed.mp3 | https://opengameart.org/content/catching-fire | TheMightyGlider | flame |
 | levelUp.mp3 | https://opengameart.org/content/win-jingle | Fupi | WinBrass |
 | gameOver.mp3 | https://opengameart.org/content/game-over-trumpet-sfx | 0new4y | losetrumpet |
