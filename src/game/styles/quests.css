@@ -39,7 +39,9 @@
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--banner-edge);
+  /* Ink, not the edge colour: the red and teal fail contrast on parchment. */
+  color: var(--parchment-ink);
+  opacity: 0.8;
 }
 .quest-banner__title {
   font-family: var(--font-display);
@@ -92,8 +94,10 @@
     #2a1f1a 52%,
     #2a1f1a 100%
   );
+  /* Starts on the clear end; moving to the charred end sweeps the ember
+     edge from right to left. */
   background-size: 260% 100%;
-  background-position: 100% 0;
+  background-position: 0 0;
   mix-blend-mode: multiply;
   animation: quest-burn 1400ms 700ms ease-in forwards;
 }
@@ -111,7 +115,7 @@
   from { transform: scale(1) rotate(-4deg); }
   to { transform: scale(1.15) rotate(4deg); }
 }
-@keyframes quest-burn { to { background-position: 0 0; } }
+@keyframes quest-burn { to { background-position: 100% 0; } }
 @keyframes quest-char { to { opacity: 0.35; } }
 
 /* No motion: the seal sits stamped and the failed strip is already burnt. */

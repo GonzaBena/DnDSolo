@@ -5,11 +5,11 @@ type Outcome = "completed" | "failed";
 /** Failed stays up a little longer, so the burn ends before it leaves. */
 const SHOWN_MS: Record<Outcome, number> = { completed: 3000, failed: 3200 };
 
-/** The banner's content. Announced: the banner is the only place that says
-    a quest closed. The seal and the flame are decoration. */
+/** The banner's content. Hidden from screen readers: the turn's
+    announcement says which quest closed (see milestoneAnnouncement). */
 export function QuestStrip({ outcome, title }: { outcome: Outcome; title: string }) {
   return (
-    <div className="quest-banner__inner" role="status">
+    <div className="quest-banner__inner" aria-hidden="true">
       <span className="quest-banner__kicker">{outcome === "completed" ? "Misión cumplida" : "Misión fallida"}</span>
       <strong className="quest-banner__title">{title}</strong>
       {outcome === "completed" ? (

@@ -12,7 +12,9 @@
 }
 .level-up[open] {
   display: grid;
-  align-content: center;
+  /* safe: content taller than the screen starts at the top, not cut off. */
+  align-content: safe center;
+  overflow-y: auto;
   justify-items: center;
   gap: var(--space-4);
 }

@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { LevelUpContent, levelUpVisible } from "../src/game/LevelUpScreen";
+import { LevelUpContent, shouldOpenLevelUp } from "../src/game/LevelUpScreen";
 import type { LevelUp } from "../src/game/levelUp";
 
 const up: LevelUp = {
@@ -33,10 +33,17 @@ describe("LevelUpContent", () => {
   });
 });
 
-describe("levelUpVisible", () => {
-  it("waits for the banners to finish", () => {
-    expect(levelUpVisible(up, [{ id: 1, kind: "quest", outcome: "completed", title: "Ruta" }])).toBe(false);
-    expect(levelUpVisible(up, null)).toBe(true);
-    expect(levelUpVisible(null, null)).toBe(false);
+describe("shouldOpenLevelUp", () => {
+  const banner = [{ id: 1, kind: "quest" as const, outcome: "completed" as const, title: "Ruta" }];
+  it("waits for the banners and the toasts of the turn to leave", () => {
+    expect(shouldOpenLevelUp(1, banner, 0, false)).toBe(false);
+    expect(shouldOpenLevelUp(1, null, 2, false)).toBe(false);
+    expect(shouldOpenLevelUp(1, null, 0, false)).toBe(true);
+  });
+  it("nothing pending, nothing to open", () => {
+    expect(shouldOpenLevelUp(0, null, 0, false)).toBe(false);
+  });
+  it("an open screen is not opened again", () => {
+    expect(shouldOpenLevelUp(1, null, 0, true)).toBe(false);
   });
 });

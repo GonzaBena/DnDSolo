@@ -12,7 +12,7 @@ import { EventToasts, type ToastItem } from "./EventToasts";
 import { FailureBanner } from "./FailureBanner";
 import { GameOver } from "./GameOver";
 import { QuestBanner } from "./QuestBanner";
-import { LevelUpScreen, levelUpVisible } from "./LevelUpScreen";
+import { LevelUpScreen, shouldOpenLevelUp } from "./LevelUpScreen";
 import type { LevelUp } from "./levelUp";
 import { InfoDrawer } from "./InfoDrawer";
 import { RollDialog } from "./RollDialog";
@@ -50,13 +50,17 @@ export default function Game() {
     const queued = next.map((banner) => ({ ...banner, id: ++bannerIdRef.current }));
     setBanners((current) => enqueueBanners(current, queued));
   }, []);
-  const [levelUp, setLevelUp] = useState<LevelUp | null>(null);
+  // Level ups wait their turn: each opens once the turn's banners and
+  // toasts have left, and an open one stays until "Seguir".
+  const [levelUps, setLevelUps] = useState<LevelUp[]>([]);
+  const [levelUpOpen, setLevelUpOpen] = useState(false);
+  const showLevelUp = useCallback((levelUp: LevelUp) => setLevelUps((queue) => [...queue, levelUp]), []);
   const [zenMode, setZenMode] = useState(false);
   const { atBottom, scrollToBottom, follow } = useStickToBottom();
   const startedRef = useRef(false);
   const draftRef = useRef<HTMLTextAreaElement>(null);
   const gameRef = useRef<HTMLElement>(null);
-  const { busy, send, sendFromPlayer } = useSendTurn(session, { setDraft, setToasts, scrollToBottom, gameRef, showBanners, showLevelUp: setLevelUp });
+  const { busy, send, sendFromPlayer } = useSendTurn(session, { setDraft, setToasts, scrollToBottom, gameRef, showBanners, showLevelUp });
   const { hpPending, adjustHp } = useHpAdjust(session, setToasts);
 
   const dismissToast = useCallback((id: string) => {
@@ -70,7 +74,8 @@ export default function Game() {
   // `inFlight` being set also blocks this after a failure, so a failed
   // send waits for "Reintentar" instead of re-rolling in a loop.
   useEffect(() => {
-    if (screen.status !== "playing" || busy || inFlight || hpPending > 0 || paused) return;
+    // Not behind the level-up screen: the turn would play where it can't be seen.
+    if (screen.status !== "playing" || busy || inFlight || hpPending > 0 || paused || levelUpOpen) return;
     const { engine, state } = screen;
     if (state.turns.length === 0) {
       if (startedRef.current) return;
@@ -79,7 +84,11 @@ export default function Game() {
     } else if (state.pendingEnemyRolls.length > 0) {
       void send(engine, state, { type: "enemy_rolls", results: engine.rollEnemyDice(state) });
     }
-  }, [screen, busy, inFlight, hpPending, paused, send]);
+  }, [screen, busy, inFlight, hpPending, paused, levelUpOpen, send]);
+
+  useEffect(() => {
+    if (shouldOpenLevelUp(levelUps.length, banners, toasts.length, levelUpOpen)) setLevelUpOpen(true);
+  }, [levelUps, banners, toasts, levelUpOpen]);
 
   const turnCount = screen.status === "playing" ? screen.state.turns.length : 0;
   const streamed = inFlight?.narration ?? "";
@@ -186,7 +195,15 @@ export default function Game() {
               return <QuestBanner key={head.id} outcome={head.outcome} title={head.title} onDone={onDone} />;
           }
         })()}
-        {levelUpVisible(levelUp, banners) && <LevelUpScreen levelUp={levelUp!} onClose={() => setLevelUp(null)} />}
+        {levelUpOpen && levelUps[0] && (
+          <LevelUpScreen
+            levelUp={levelUps[0]}
+            onClose={() => {
+              setLevelUps((queue) => queue.slice(1));
+              setLevelUpOpen(false);
+            }}
+          />
+        )}
         <CharacterPanel
           state={state}
           zenMode={zenMode}

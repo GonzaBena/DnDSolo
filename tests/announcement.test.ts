@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { announcementOf, turnAnnouncement } from "../src/game/announcement";
+import { announcementOf, milestoneAnnouncement, turnAnnouncement } from "../src/game/announcement";
+import type { GameState, Quest } from "../src/domain/types";
+import { newGame } from "./helpers";
 import type { Arrival } from "../src/domain/types";
 import type { Cast } from "../src/domain/dialogue";
 
@@ -57,5 +59,25 @@ describe("announcementOf", () => {
         cast,
       ),
     ).toBe("Capítulo: La Cripta de Vel. Se abre la puerta. Aparece: Goblin 1, hostil.");
+  });
+});
+
+describe("milestoneAnnouncement", () => {
+  const quest = (title: string, status: Quest["status"]): Quest => ({ title, description: "", status });
+  const at = (level: number, quests: Quest[]): GameState => {
+    const state = newGame();
+    const [player, ...rest] = state.players;
+    return { ...state, quests, players: [{ ...player!, level }, ...rest] };
+  };
+
+  it("says which quests closed and the new level", () => {
+    const prev = at(1, [quest("Ruta", "active"), quest("Faro", "active")]);
+    const next = at(2, [quest("Ruta", "completed"), quest("Faro", "failed")]);
+    expect(milestoneAnnouncement(prev, next)).toBe("Misión cumplida: Ruta. Misión fallida: Faro. ¡Subiste al nivel 2!");
+  });
+
+  it("nothing closed and no new level: nothing to say", () => {
+    const state = at(1, [quest("Ruta", "active")]);
+    expect(milestoneAnnouncement(state, state)).toBe("");
   });
 });

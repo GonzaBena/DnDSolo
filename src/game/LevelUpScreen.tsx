@@ -3,9 +3,16 @@ import { enterLevelUp } from "../animations/motion";
 import type { BannerQueue } from "./bannerQueue";
 import type { LevelUp } from "./levelUp";
 
-/** The level-up screen waits for the turn's banners to leave first. */
-export function levelUpVisible(levelUp: LevelUp | null, banners: BannerQueue | null): boolean {
-  return levelUp !== null && banners === null;
+/** Whether to open the next pending level-up screen: only once the turn's
+    banners and toasts have left (the screen would hide them), and never
+    while one is already open. */
+export function shouldOpenLevelUp(
+  pending: number,
+  banners: BannerQueue | null,
+  toastCount: number,
+  open: boolean,
+): boolean {
+  return pending > 0 && !open && banners === null && toastCount === 0;
 }
 
 /** What the screen says: the new level, then what it brought. */
