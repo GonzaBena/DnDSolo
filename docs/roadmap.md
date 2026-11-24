@@ -55,6 +55,8 @@ sacudida de pantalla al recibir daño.
 ## Ideas sueltas (sin prioridad)
 - Reglas: al subir de nivel no se recalculan los PG máximos (ni otras
   estadísticas de la ficha); quedan los del nivel 1.
+- Reglas: los datos de clase llegan hasta nivel 4. Del 5 en adelante la
+  pantalla de nivel no muestra rasgos ni el aumento de competencia (+3 en 5).
 - Tiradas con suspenso: el dado gira un poco más; animación propia para 20 y 1
   naturales.
 - Mostrar la CD después de tirar: "Necesitabas 15, sacaste 17 ✓".

@@ -224,8 +224,9 @@ Also fix the kind/id expectations at `tests/turnToasts.test.ts:144-145` to the n
 
 ---
 
-### Task 5: Check it in the browser and close the roadmap item
+### Task 5: Lab stage, check in the browser and close the roadmap item
 
-- [ ] **Step 1:** Run `npm run dev` and, in the user's Chrome with a real campaign, play until an item is gained, a quest closes and a level is reached (or use the mock game if `tests/mockGame.test.ts` shows how to force those changes). Check: loot flies to Info; quest banner seals / burns after any chapter or ambush banner; level screen comes after the banners and closes with "Seguir"; with reduced motion on, nothing animates and everything still shows.
+- [ ] **Step 0:** Add a "Nivel, botín y misiones" stage to `src/lab/Lab.tsx` (local only, excluded from git via `.git/info/exclude`; never commit it), next to `ChaptersLab`: buttons "Misión cumplida", "Misión fallida", "Capítulo + misión + nivel" (enqueues chapter + quest banners and a `LevelUp`, showing the screen only via `levelUpVisible`), "Nivel 2", "Nivel 5 (sin datos)", "Botín ×1", "Botín ×3". The stage renders its own button with `data-inventory-target` so the loot cards have somewhere to fly, and its own `EventToasts`.
+- [ ] **Step 1 (cont.):** Run `npm run dev`; try every button on `/lab`, then, in the user's Chrome with a real campaign, play until an item is gained, a quest closes and a level is reached (or use the mock game if `tests/mockGame.test.ts` shows how to force those changes). Check: loot flies to Info; quest banner seals / burns after any chapter or ambush banner; level screen comes after the banners and closes with "Seguir"; with reduced motion on, nothing animates and everything still shows.
 - [ ] **Step 2:** In `docs/roadmap.md`, mark "3. Subida de nivel y botín como momentos propios ✓ (hecho YYYY-MM-DD)" and change "pergamino que se sella o se quema" to match what shipped.
 - [ ] **Step 3: Commit** `docs: nivel, botín y misiones hechos en el roadmap`
