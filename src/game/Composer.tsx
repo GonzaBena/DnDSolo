@@ -1,5 +1,5 @@
 import { useLayoutEffect, useState, type RefObject } from "react";
-import { nextExpanded } from "./composerLayout";
+import { fieldHeight, nextExpanded } from "./composerLayout";
 import { DieShape } from "./DieShape";
 import { Suggestions } from "./Suggestions";
 import { withSuggestion } from "./suggestions";
@@ -50,7 +50,8 @@ export function Composer({
     const overflows = !expanded && textHeight > parseFloat(style.lineHeight) * 1.5;
     // scrollHeight leaves out the border; add it back so a border-box
     // textarea fits its text without overflowing.
-    el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
+    const height = fieldHeight(draft, el.scrollHeight, el.offsetHeight - el.clientHeight);
+    el.style.height = height === null ? "" : `${height}px`;
     setExpanded((current) => nextExpanded(current, draft, overflows));
   }, [draft, expanded, inputRef]);
 
@@ -82,7 +83,9 @@ export function Composer({
           visible={suggestions.visible}
           onPick={(action) => {
             onDraftChange((current) => withSuggestion(current, action));
-            inputRef.current?.focus();
+            // On a phone, focusing would open the keyboard over the field:
+            // the player can send it as is, or tap the field to edit it.
+            if (matchMedia("(pointer: fine)").matches) inputRef.current?.focus();
           }}
         />
       )}
@@ -104,7 +107,7 @@ export function Composer({
               // Enter sends, Shift+Enter makes a new line.
               if (event.key === "Enter" && !event.shiftKey) onSubmit(event);
             }}
-            placeholder={rollRequested ? "Escribí el total de tu tirada…" : "Describí la acción de tu personaje…"}
+            placeholder={rollRequested ? "Total de tu tirada…" : "Describí tu acción…"}
           />
           <button
             type="button"

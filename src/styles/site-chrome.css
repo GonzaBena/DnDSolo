@@ -80,11 +80,9 @@
 .game-shell {
   --header-offset: var(--header-h, 0px);
 }
-/* The composer is pinned to the bottom, so the page needs no trailing gap,
-   except room for the on-screen keyboard on iOS (see keyboardInset.ts):
-   the end of the story can still scroll up above the composer. */
+/* The composer is pinned to the bottom, so the page needs no trailing gap. */
 .game-shell .page {
-  padding-bottom: var(--keyboard-inset, 0px);
+  padding-bottom: 0;
 }
 .game-shell[data-header="hidden"] {
   --header-offset: 0px;

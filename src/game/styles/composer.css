@@ -2,9 +2,7 @@
    write while scrolled up through the story. */
 .action-form {
   position: sticky;
-  /* Above the on-screen keyboard on iOS, which doesn't shrink the page
-     (see keyboardInset.ts). */
-  bottom: var(--keyboard-inset, 0px);
+  bottom: 0;
   z-index: 1;
   padding: var(--space-3) 0;
   border-top: var(--border);
@@ -73,6 +71,12 @@
   outline: none;
   border-color: var(--color-focus);
   box-shadow: 0 0 0 2px var(--color-ink);
+}
+/* The hint stays on the one line, cut short on a narrow phone. */
+.field .action-input:placeholder-shown {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .field .action-input::-webkit-scrollbar {
   display: none;

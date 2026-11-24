@@ -6,3 +6,10 @@ export function nextExpanded(expanded: boolean, draft: string, overflows: boolea
   if (draft.trim() === "") return false;
   return expanded || overflows || draft.includes("\n");
 }
+
+/** The field's height in px for its text (`scrollHeight` plus the border
+    it leaves out), or null to keep it one line: an empty field would
+    otherwise grow to show a hint that wraps on a narrow phone. */
+export function fieldHeight(draft: string, scrollHeight: number, border: number): number | null {
+  return draft === "" ? null : scrollHeight + border;
+}

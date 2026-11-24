@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextExpanded } from "../src/game/composerLayout";
+import { fieldHeight, nextExpanded } from "../src/game/composerLayout";
 
 describe("nextExpanded", () => {
   it("stays on one line while the text fits beside the buttons", () => {
@@ -21,5 +21,15 @@ describe("nextExpanded", () => {
   it("goes back to one line when emptied (sent or erased)", () => {
     expect(nextExpanded(true, "", false)).toBe(false);
     expect(nextExpanded(true, "   ", false)).toBe(false);
+  });
+});
+
+describe("fieldHeight", () => {
+  it("an empty field stays one line, even if the hint would wrap", () => {
+    expect(fieldHeight("", 80, 4)).toBeNull();
+  });
+
+  it("text sets the height, border included", () => {
+    expect(fieldHeight("Abro la puerta", 40, 4)).toBe(44);
   });
 });
