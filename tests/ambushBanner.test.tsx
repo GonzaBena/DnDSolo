@@ -35,4 +35,8 @@ describe("AmbushStrip", () => {
     expect(html).toContain("+3");
     expect(html.match(/class="ambush__member"/g)).toHaveLength(3);
   });
+
+  it("is hidden from screen readers, which hear the turn announcement instead", () => {
+    expect(renderToStaticMarkup(<AmbushStrip arrivals={[arrival("Goblin 1")]} />)).toMatch(/^<div[^>]*aria-hidden="true"/);
+  });
 });

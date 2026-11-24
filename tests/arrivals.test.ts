@@ -64,6 +64,18 @@ describe("arrivalsOf", () => {
     expect(arrivalsOf(prev, next)).toMatchObject([{ name: "Mateo", returning: true, health: "Malherido" }]);
   });
 
+  it("treats a fallen NPC coming back as someone new reusing the name", () => {
+    const prev = withNpcs(base, [npc("Goblin 1", { present: false, attitude: "hostile", hp: 0, maxHp: 7 })]);
+    const next = withNpcs(base, [npc("Goblin 1", { present: true, attitude: "hostile", hp: 0, maxHp: 7 })]);
+    expect(arrivalsOf(prev, next)).toMatchObject([{ name: "Goblin 1", returning: false, health: null }]);
+  });
+
+  it("does not count companions re-marked present after a location change", () => {
+    const prev = withNpcs(base, [npc("Tobi", { present: true })]);
+    const next = withNpcs(base, [npc("Tobi", { present: true })]);
+    expect(arrivalsOf(prev, next)).toEqual([]);
+  });
+
   it("ignores NPCs that were already present", () => {
     const state = withNpcs(base, [npc("Mateo")]);
     expect(arrivalsOf(state, state)).toEqual([]);

@@ -10,13 +10,17 @@ export function arrivalsOf(prev: GameState, next: GameState): Arrival[] {
     if (!npc.present) continue;
     const before = findNpc(prev.npcs, npc.name);
     if (before?.present) continue;
-    const health = healthLabel(npc);
+    // Someone known who fell (0 hp) and now "comes back" is, in practice,
+    // a new enemy the DM numbered like an old one: hp is kept from the
+    // first time (see applyChanges), so it would read "Fuera de combate".
+    const fallen = npc.hp !== null && npc.hp <= 0;
+    const health = fallen ? null : healthLabel(npc);
     arrivals.push({
       name: npc.name.trim(),
       attitude: npc.attitude,
       portrait: npc.portrait,
       blurb: firstSentence(npc.description),
-      returning: before !== undefined,
+      returning: before !== undefined && !fallen,
       health: health === "Ileso" ? null : health,
     });
   }

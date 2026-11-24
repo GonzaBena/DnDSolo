@@ -17,11 +17,12 @@ export function bannerSlots(
   return { shown: groups.slice(0, max - 1), hidden: groups.length - (max - 1) };
 }
 
-/** The banner's content: the title and a row of faces. */
+/** The banner's content: the title and a row of faces. Hidden from screen
+    readers: the turn's announcement already names who arrived. */
 export function AmbushStrip({ arrivals }: { arrivals: readonly Arrival[] }) {
   const { shown, hidden } = bannerSlots(groupArrivals(arrivals));
   return (
-    <>
+    <div className="ambush__inner" aria-hidden="true">
       <strong className="ambush__title">⚔ ¡Emboscada! ⚔</strong>
       <ul className="ambush__row">
         {shown.map((group, index) => (
@@ -52,7 +53,7 @@ export function AmbushStrip({ arrivals }: { arrivals: readonly Arrival[] }) {
           </li>
         )}
       </ul>
-    </>
+    </div>
   );
 }
 
@@ -80,7 +81,7 @@ export function AmbushBanner({ arrivals, onDone }: { arrivals: readonly Arrival[
   if (typeof document === "undefined") return null;
   // On <body>, like the toasts, so the sticky header can't cover it.
   return createPortal(
-    <div ref={ref} className="ambush" role="status" onClick={leave}>
+    <div ref={ref} className="ambush" onClick={leave}>
       <AmbushStrip arrivals={arrivals} />
     </div>,
     document.body,
