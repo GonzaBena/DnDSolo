@@ -19,15 +19,7 @@ salvo que se indique.
 ### 2. Título de capítulo al cambiar de ubicación ✓ (hecho 2026-11-24)
 - "— La Cripta de Vel —" con la descripción en cursiva, estilo película.
 
-### 3. Combate: iniciativa y feedback de daño
-- Barra de iniciativa con retratos (`scene.order`, `turnOf`) y el activo
-  resaltado.
-- Daño: sacudida del retrato y número flotante; destello en crítico; retrato
-  gris o tachado al llegar a 0 PV.
-- Pantalla de victoria al terminar el combate (`inCombat → false`) con un
-  resumen.
-
-### 4. Subida de nivel y botín como momentos propios
+### 3. Subida de nivel y botín como momentos propios
 - Subida de nivel a pantalla completa con lo que se ganó.
 - Objeto obtenido como tarjeta de botín que vuela al inventario.
 - Misión cumplida o fallida: pergamino que se sella o se quema.
@@ -46,6 +38,19 @@ salvo que se indique.
   hilos y misiones abiertas.
 - Diario de la campaña legible: crónica automática de los momentos clave.
 - Epílogo al morir o terminar, con estadísticas de la partida.
+
+## En suspenso
+
+### Combate: iniciativa y feedback de daño
+Motivo: cargaría mucho el chat con animaciones y pantallas extra en cada
+turno de pelea. Ya existe el orden de iniciativa en el panel de escena y la
+sacudida de pantalla al recibir daño.
+- Barra de iniciativa con retratos (`scene.order`, `turnOf`) y el activo
+  resaltado.
+- Daño: sacudida del retrato y número flotante; destello en crítico; retrato
+  gris o tachado al llegar a 0 PV.
+- Pantalla de victoria al terminar el combate (`inCombat → false`) con un
+  resumen.
 
 ## Ideas sueltas (sin prioridad)
 - Tiradas con suspenso: el dado gira un poco más; animación propia para 20 y 1
