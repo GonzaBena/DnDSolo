@@ -29,6 +29,14 @@ export function enterNarration(element: Element): void {
   animate(element, { opacity: [0, 1], translateY: [8, 0], duration: 380, ease: "outQuad" });
 }
 
+/** Someone walking into the scene: the card rises in and the face pops. */
+export function enterArrival(element: Element): void {
+  if (!motionAllowed()) return;
+  animate(element, { opacity: [0, 1], translateY: [12, 0], duration: 420, ease: "outCubic" });
+  const face = element.querySelector(".avatar__face");
+  if (face) animate(face, { scale: [0.6, 1], duration: 520, delay: 120, ease: "outBack" });
+}
+
 /** The player's own message. */
 export function enterFromRight(element: Element): void {
   if (!motionAllowed()) return;

@@ -1,0 +1,67 @@
+/* Arrival cards in the log (someone walked into the scene) and the ambush
+   banner. The ring and edge take the attitude colour, like .avatar. */
+.arrivals {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.arrival-card {
+  --arrival-edge: var(--color-npc-neutral);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 62ch;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border);
+  border-left: 0.375rem solid var(--arrival-edge);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+.arrival-card[data-kind="hostile"] {
+  --arrival-edge: var(--color-hostile);
+}
+.arrival-card[data-kind="friendly"] {
+  --arrival-edge: var(--color-friendly);
+}
+.arrival-card__body {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.arrival-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-2);
+}
+.arrival-card__name {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.arrival-card__count {
+  color: var(--color-ink-soft);
+}
+.arrival-card__attitude {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+.arrival-card__text {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--color-ink-soft);
+}
+.arrival-card__return {
+  font-style: normal;
+  font-weight: 700;
+}
+.arrival-card .health-tag {
+  font-style: normal;
+}
