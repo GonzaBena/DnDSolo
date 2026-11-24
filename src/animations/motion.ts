@@ -122,6 +122,29 @@ export function leaveToast(element: Element, onDone: () => void): () => void {
   return () => animation.cancel();
 }
 
+/** The ambush banner dropping in from above the screen. */
+export function enterBanner(element: Element): void {
+  if (!motionAllowed()) return;
+  animate(element, { translateY: ["-120%", "0%"], duration: 360, ease: "outBack" });
+}
+
+/** The ambush banner going back up; `onDone` runs once it has left.
+    Returns a function that stops the animation. */
+export function leaveBanner(element: Element, onDone: () => void): () => void {
+  if (!motionAllowed()) {
+    onDone();
+    return () => {};
+  }
+  const animation = animate(element, {
+    translateY: ["0%", "-120%"],
+    opacity: [1, 0],
+    duration: 260,
+    ease: "inQuad",
+    onComplete: onDone,
+  });
+  return () => animation.cancel();
+}
+
 const TUMBLE_MS = 750;
 const LEAVE_MS = 160;
 

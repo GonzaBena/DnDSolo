@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { castOf, speakingNow } from "../domain/dialogue";
-import type { PlayerRoll } from "../domain/types";
+import type { Arrival, PlayerRoll } from "../domain/types";
 import { CharacterPanel } from "./CharacterPanel";
 import { Composer } from "./Composer";
 import DiceLoader from "./DiceLoader";
 import { DyingNotice } from "./DyingNotice";
+import { AmbushBanner } from "./AmbushBanner";
 import { EventToasts, type ToastItem } from "./EventToasts";
 import { FailureBanner } from "./FailureBanner";
 import { GameOver } from "./GameOver";
@@ -36,12 +37,18 @@ export default function Game() {
   const [rollOpen, setRollOpen] = useState(false);
   const [deathSaveOpen, setDeathSaveOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  // Keyed by a counter so a second ambush mounts a fresh banner.
+  const [ambush, setAmbushState] = useState<{ key: number; hostiles: Arrival[] } | null>(null);
+  const setAmbush = useCallback(
+    (hostiles: Arrival[]) => setAmbushState((prev) => ({ key: (prev?.key ?? 0) + 1, hostiles })),
+    [],
+  );
   const [zenMode, setZenMode] = useState(false);
   const { atBottom, scrollToBottom, follow } = useStickToBottom();
   const startedRef = useRef(false);
   const draftRef = useRef<HTMLTextAreaElement>(null);
   const gameRef = useRef<HTMLElement>(null);
-  const { busy, send, sendFromPlayer } = useSendTurn(session, { setDraft, setToasts, scrollToBottom, gameRef });
+  const { busy, send, sendFromPlayer } = useSendTurn(session, { setDraft, setToasts, scrollToBottom, gameRef, setAmbush });
   const { hpPending, adjustHp } = useHpAdjust(session, setToasts);
 
   const dismissToast = useCallback((id: string) => {
@@ -159,6 +166,9 @@ export default function Game() {
     <section ref={gameRef} className={`game${zenMode ? " game--zen" : ""}`}>
       <div className="game__main">
         <EventToasts toasts={toasts} onDismiss={dismissToast} />
+        {ambush && (
+          <AmbushBanner key={ambush.key} arrivals={ambush.hostiles} onDone={() => setAmbushState(null)} />
+        )}
         <CharacterPanel
           state={state}
           zenMode={zenMode}

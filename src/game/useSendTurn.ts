@@ -1,6 +1,7 @@
 import { useCallback, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { shakeScreen } from "../animations/motion";
-import type { GameState, TurnInput } from "../domain/types";
+import { isAmbush } from "../domain/arrivals";
+import type { Arrival, GameState, TurnInput } from "../domain/types";
 import type { TurnEngine, TurnOutcome } from "../engine/TurnEngine";
 import { describeLLMError } from "../llm/errorMessages";
 import { sendAfterRenewal, shouldDropSend } from "../sync/openGame";
@@ -17,12 +18,14 @@ interface Ui {
   scrollToBottom: () => void;
   /** The game section, shaken and flashed red when the hero takes damage. */
   gameRef: RefObject<HTMLElement | null>;
+  /** Raises the ambush banner with the hostiles who just burst in. */
+  setAmbush: (hostiles: Arrival[]) => void;
 }
 
 /** Plays turns: streams the DM's narration, then shows, saves and summarizes
     the result. `send` is for turns the app takes on its own; `sendFromPlayer`
     for the player's, which may first have to renew the Google session. */
-export function useSendTurn(session: GameSession, { setDraft, setToasts, scrollToBottom, gameRef }: Ui) {
+export function useSendTurn(session: GameSession, { setDraft, setToasts, scrollToBottom, gameRef, setAmbush }: Ui) {
   const [busy, setBusy] = useState(false);
   const {
     setScreen,
@@ -144,6 +147,10 @@ export function useSendTurn(session: GameSession, { setDraft, setToasts, scrollT
       setInFlight(null);
       const turnToasts = buildTurnToasts(state, outcome.state, outcome.response.events, Date.now());
       if (turnToasts.length > 0) setToasts((prev) => [...prev, ...turnToasts]);
+      const arrivals = outcome.state.turns.at(-1)?.arrivals ?? [];
+      if (isAmbush(outcome.response.events, arrivals)) {
+        setAmbush(arrivals.filter((a) => a.attitude === "hostile"));
+      }
       if (tookDamage(outcome.response.events, state, outcome.state) && gameRef.current) {
         const el = gameRef.current;
         shakeScreen(el);
@@ -196,6 +203,7 @@ export function useSendTurn(session: GameSession, { setDraft, setToasts, scrollT
       track,
       setDraft,
       setToasts,
+      setAmbush,
       gameRef,
       setScreen,
       setInFlight,
