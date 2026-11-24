@@ -162,6 +162,12 @@ describe("applyStateChanges", () => {
       expect(moved.npcs[0]!.seen).toBe(true);
     });
 
+    it("the same place spelled differently is not a move", () => {
+      const before = applyStateChanges(newGame(), [{ type: "location", name: "Ciénaga", description: "" }, goblin()]).state;
+      const after = applyStateChanges(before, [{ type: "location", name: "cienaga ", description: "" }]).state;
+      expect(after.npcs[0]!.present).toBe(true);
+    });
+
     it("clears the scene on a new location, whatever order the changes come in", () => {
       const before = applyStateChanges(newGame(), [
         { type: "location", name: "Posada", description: "" },

@@ -1,5 +1,6 @@
 import { npcNameFromArchetype } from "./portraits";
 import type { GameState, Npc } from "./types";
+import { sameName } from "./names";
 
 // The DM marks each line an NPC says with "[[Name]]" at the start of its
 // paragraph, inside the same narration string. Keeping it in the text means
@@ -27,7 +28,6 @@ const MARKER = /^\s*\[\[([^\]]+)\]\]\s*/;
 // of a sentence ("Dice [[Brena]] algo.") stays text.
 const INLINE_MARKER = /([.!?…:;»"”)—-])[ \t]+(?=\[\[)/g;
 
-const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 export function findNpc(npcs: Npc[], name: string): Npc | undefined {
   return npcs.find((n) => sameName(n.name, name));

@@ -52,4 +52,14 @@ describe("chapterOf", () => {
     ]);
     expect(chapterOf(before, at("TABERNA", before.turns))).toMatchObject({ name: "TABERNA", firstVisit: false });
   });
+
+  it("a different spelling of the same place opens no chapter", () => {
+    const before = at("La Posada", [turn({ name: "La Posada", description: "", firstVisit: true })]);
+    expect(chapterOf(before, at("la  posada", before.turns))).toBeNull();
+  });
+
+  it("a turn where the DM left the place blank doesn't open a chapter when it comes back", () => {
+    const before = at("  ", [turn({ name: "Taberna", description: "", firstVisit: true }), turn()]);
+    expect(chapterOf(before, at("Taberna", before.turns))).toBeNull();
+  });
 });

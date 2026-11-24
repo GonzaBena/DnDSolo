@@ -2,6 +2,7 @@ import { findClass } from "../rules";
 import { addFailures } from "./deathSaves";
 import { npcNameFromArchetype } from "./portraits";
 import { MILESTONES_PER_LEVEL, type Character, type GameState, type StateChange, type StoryItem } from "./types";
+import { sameName, samePlace } from "./names";
 
 export interface RejectedChange {
   change: StateChange;
@@ -13,7 +14,6 @@ export interface ApplyResult {
   rejected: RejectedChange[];
 }
 
-const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 function findPlayerIndex(players: Character[], playerId: string): number {
   const index = players.findIndex((p) => p.id === playerId);
@@ -54,7 +54,7 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
   // the DM marks them present again. Done before the loop so an "npc"
   // change listed ahead of the "location" one in the same turn still counts.
   const moves = changes.some(
-    (c) => c.type === "location" && !sameName(c.name, state.location.name),
+    (c) => c.type === "location" && !samePlace(c.name, state.location.name),
   );
   // Where the party ends up this turn: objects mentioned in it are seen
   // there, whatever order the changes came in.
