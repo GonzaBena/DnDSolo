@@ -40,7 +40,23 @@ export function enterArrival(element: Element): void {
 /** A chapter separator: the title settles in, a touch larger at first. */
 export function enterChapter(element: Element): void {
   if (!motionAllowed()) return;
-  animate(element, { opacity: [0, 1], scale: [1.06, 1], duration: 600, ease: "outCubic" });
+  // It lands mid-log when the turn commits: open its space gradually so
+  // the text being read is eased down instead of jumping, and slide (not
+  // scale) so it never grows wider than the column on a phone.
+  const el = element as HTMLElement;
+  const { height, marginTop, marginBottom } = getComputedStyle(el);
+  el.style.overflow = "hidden";
+  animate(el, {
+    height: ["0px", height],
+    marginTop: ["0px", marginTop],
+    marginBottom: ["0px", marginBottom],
+    duration: 320,
+    ease: "outCubic",
+    onComplete: () => {
+      for (const property of ["height", "margin-top", "margin-bottom", "overflow"]) el.style.removeProperty(property);
+    },
+  });
+  animate(el, { opacity: [0, 1], translateY: [-8, 0], duration: 600, delay: 120, ease: "outCubic" });
 }
 
 /** The player's own message. */
