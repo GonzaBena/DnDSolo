@@ -68,8 +68,21 @@ function stopListening(): void {
   for (const type of UNLOCK_EVENTS) document.removeEventListener(type, unlock, true);
 }
 
-/** Wakes audio up after a gesture. The browser may refuse, so the
-    listeners stay until it actually runs. */
+/** Whether the current audio has played before: if it stops waking up
+    after that, it is stuck (iOS after a call or an app switch). */
+let hadRun = false;
+
+/** Fresh audio in place of one that won't wake; the decoded sounds work
+    with any context, so nothing is loaded again. */
+function replace(stuck: AudioContext): void {
+  if (stuck !== context) return;
+  void stuck.close().catch(() => {});
+  context = new AudioContext();
+  hadRun = false;
+}
+
+/** Wakes audio up on every tap or key: browsers only let it start (and
+    iOS only lets it come back after a call or an app switch) during one. */
 function unlock(): void {
   try {
     if (!context) {
@@ -77,10 +90,20 @@ function unlock(): void {
       context = new AudioContext();
       for (const id of SOUND_IDS) void load(context, id);
     }
-    if (context.state === "running") return stopListening();
-    void context.resume().catch(() => {});
+    const audio = context;
+    if (audio.state === "running") {
+      hadRun = true;
+      return;
+    }
+    void audio
+      .resume()
+      .then(() => {
+        if (audio.state === "running") hadRun = true;
+        else if (hadRun) replace(audio);
+      })
+      .catch(() => {});
   } catch {
-    stopListening();
+    // Silence rather than an error on a tap.
   }
 }
 
@@ -114,6 +137,7 @@ export function play(id: SoundId, volume = 1): void {
 export function resetSoundsForTests(): void {
   stopListening();
   context = null;
+  hadRun = false;
   primed = false;
   buffers.clear();
 }

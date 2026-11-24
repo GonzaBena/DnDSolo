@@ -17,6 +17,7 @@ function fakeAudio(initialState = "running") {
       this.resumes += 1;
       return Promise.resolve();
     };
+    close = () => Promise.resolve();
     decodeAudioData = () => Promise.resolve({});
     createGain() {
       const node = { gain: { value: 1 }, connect: () => node };
@@ -112,12 +113,39 @@ describe("play", () => {
     expect(contexts[0]!.resumes).toBe(2);
   });
 
-  it("stops listening once audio runs", async () => {
+  it("a tap while audio runs leaves it alone", async () => {
     const { contexts } = fakeAudio("running");
     await unlock();
     document.dispatchEvent(new Event("pointerdown"));
     expect(contexts).toHaveLength(1);
     expect(contexts[0]!.resumes).toBe(0);
+  });
+
+  it("a tap after switching apps wakes the audio iOS paused", async () => {
+    const { contexts } = fakeAudio("running");
+    await unlock();
+    contexts[0]!.state = "interrupted";
+    contexts[0]!.resume = () => {
+      contexts[0]!.resumes += 1;
+      contexts[0]!.state = "running";
+      return Promise.resolve();
+    };
+    document.dispatchEvent(new Event("touchend"));
+    await settle();
+    expect(contexts[0]!.resumes).toBe(1);
+    expect(contexts).toHaveLength(1);
+  });
+
+  it("starts over with fresh audio when the paused one won't wake", async () => {
+    const started = fakeAudio("running");
+    await unlock();
+    started.contexts[0]!.state = "interrupted";
+    document.dispatchEvent(new Event("touchend"));
+    await settle();
+    await settle();
+    expect(started.contexts).toHaveLength(2);
+    play("dice");
+    expect(started).toHaveLength(1);
   });
 
   it("wakes audio that was suspended after unlocking (iOS calls, app switch)", async () => {
