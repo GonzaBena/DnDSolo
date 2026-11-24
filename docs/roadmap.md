@@ -7,7 +7,7 @@ salvo que se indique.
 
 ## Orden de trabajo
 
-### 1. Entradas de personajes
+### 1. Entradas de personajes ✓ (hecho 2026-11-24)
 - Tarjeta de entrada en lugar del toast: retrato animado, nombre grande, una
   línea de `description` y borde según actitud (aliado / neutral / hostil).
 - Enemigos agrupados: tres goblins → una tarjeta "×3".
