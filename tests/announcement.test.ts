@@ -42,4 +42,20 @@ describe("announcementOf", () => {
       ),
     ).toBe("Se abre la puerta. Aparece: Goblin ×2, hostil.");
   });
+
+  it("starts with the chapter when the turn reached a new place", () => {
+    expect(
+      turnAnnouncement(
+        {
+          number: 2,
+          input: { type: "start" },
+          narration: "Se abre la puerta.",
+          events: [],
+          chapter: { name: "La Cripta de Vel", description: "Piedra húmeda.", firstVisit: true },
+          arrivals: [{ name: "Goblin 1", attitude: "hostile", portrait: null, blurb: "", returning: false, health: null }],
+        },
+        cast,
+      ),
+    ).toBe("Capítulo: La Cripta de Vel. Se abre la puerta. Aparece: Goblin 1, hostil.");
+  });
 });

@@ -37,6 +37,12 @@ export function enterArrival(element: Element): void {
   if (face) animate(face, { scale: [0.6, 1], duration: 520, delay: 120, ease: "outBack" });
 }
 
+/** A chapter separator: the title settles in, a touch larger at first. */
+export function enterChapter(element: Element): void {
+  if (!motionAllowed()) return;
+  animate(element, { opacity: [0, 1], scale: [1.06, 1], duration: 600, ease: "outCubic" });
+}
+
 /** The player's own message. */
 export function enterFromRight(element: Element): void {
   if (!motionAllowed()) return;

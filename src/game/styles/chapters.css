@@ -1,0 +1,38 @@
+/* Chapter separators in the log (the party reached another place). */
+.chapter {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  margin: var(--space-4) auto var(--space-3);
+  max-width: 62ch;
+  text-align: center;
+}
+.chapter__title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  letter-spacing: 0.04em;
+}
+.chapter__description {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--color-ink-soft);
+}
+/* A revisit: the name between two rules, small. */
+.chapter[data-visit="again"] {
+  grid-template-columns: minmax(1rem, 1fr) auto minmax(1rem, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+  max-width: none;
+  margin: var(--space-3) 0 var(--space-2);
+}
+.chapter[data-visit="again"]::before,
+.chapter[data-visit="again"]::after {
+  content: "";
+  border-top: 1px solid var(--color-ink-soft);
+  opacity: 0.5;
+}
+.chapter[data-visit="again"] .chapter__title {
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}

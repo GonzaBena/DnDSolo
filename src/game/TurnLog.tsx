@@ -16,6 +16,7 @@ import type {
   TurnInput,
 } from "../domain/types";
 import { ArrivalCards } from "./ArrivalCards";
+import { ChapterSeparator } from "./ChapterSeparator";
 import { DieShape } from "./DieShape";
 import { initials, NpcAvatar } from "./NpcAvatar";
 import { useEnter } from "./useEnter";
@@ -359,6 +360,7 @@ export function TurnLog({
             }}
           >
             <InputEntry input={turn.input} players={players} />
+            {turn.chapter && <ChapterSeparator chapter={turn.chapter} animated={index >= enterCount} />}
             <Narration text={turn.narration} cast={cast} />
             {/* Turns played since the save was opened join the log once, so
                 their cards animate once; reopened ones stay still. */}

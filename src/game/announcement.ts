@@ -1,6 +1,6 @@
 import { arrivalsAnnouncement } from "../domain/arrivals";
 import { splitDialogue, type Cast } from "../domain/dialogue";
-import type { Turn } from "../domain/types";
+import type { Chapter, Turn } from "../domain/types";
 
 /** A finished turn's narration as one plain sentence run for screen readers:
     the visible log streams in letter by letter, so it is not a live region;
@@ -16,10 +16,19 @@ export function announcementOf(narration: string, cast: Cast): string {
     .join(" ");
 }
 
-/** A finished turn for screen readers: its narration, then who arrived
-    (the arrival cards themselves are hidden from assistive tech). */
+export function chapterAnnouncement(chapter: Chapter): string {
+  return `Capítulo: ${chapter.name}.`;
+}
+
+/** A finished turn for screen readers: the place it reached, its narration,
+    then who arrived (the chapter and the arrival cards themselves are
+    hidden from assistive tech). */
 export function turnAnnouncement(turn: Turn, cast: Cast): string {
-  return [announcementOf(turn.narration, cast), arrivalsAnnouncement(turn.arrivals ?? [])]
+  return [
+    turn.chapter ? chapterAnnouncement(turn.chapter) : "",
+    announcementOf(turn.narration, cast),
+    arrivalsAnnouncement(turn.arrivals ?? []),
+  ]
     .filter(Boolean)
     .join(" ");
 }
