@@ -188,6 +188,13 @@ function fromV14(raw: Raw): Raw {
   return { ...raw, version: 15 };
 }
 
+/** v15 -> v16: turns gained an optional `chapter`; old saves carry over as
+    they are. The bump keeps older app versions from rewriting a save and
+    dropping the chapters. */
+function fromV15(raw: Raw): Raw {
+  return { ...raw, version: 16 };
+}
+
 /** Turns whatever was stored into a GameState of the current version, or
     null if it can't be trusted (unknown version or wrong shape). Loading
     code must go through here so the screens never see a malformed save. */
@@ -208,6 +215,7 @@ export function migrateSave(raw: unknown): GameState | null {
   if (current.version === 12) current = fromV12(current);
   if (current.version === 13) current = fromV13(current);
   if (current.version === 14) current = fromV14(current);
+  if (current.version === 15) current = fromV15(current);
   if (current.version !== GAME_STATE_VERSION) return null;
   const parsed = gameStateSchema.safeParse(current);
   return parsed.success ? normalizeHp(parsed.data) : null;

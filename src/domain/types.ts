@@ -298,6 +298,15 @@ export interface Arrival {
   health: Exclude<HealthLabel, "Ileso"> | null;
 }
 
+/** A new place reached in a turn, as it was then: the log marks where each
+    chapter of the story began. */
+export interface Chapter {
+  name: string;
+  description: string;
+  /** No earlier turn opened a chapter with this name. */
+  firstVisit: boolean;
+}
+
 export interface Turn {
   number: number;
   input: TurnInput;
@@ -306,6 +315,9 @@ export interface Turn {
   /** Who walked into the scene this turn; absent when nobody did (and in
       turns saved before arrivals were recorded). */
   arrivals?: Arrival[];
+  /** The place this turn moved to; absent when it stayed put (and in turns
+      saved before chapters were recorded). */
+  chapter?: Chapter;
 }
 
 export interface GameState {
@@ -343,4 +355,4 @@ export interface GameState {
 /** Milestones needed since the last level to gain a new one. */
 export const MILESTONES_PER_LEVEL = 2;
 
-export const GAME_STATE_VERSION = 15;
+export const GAME_STATE_VERSION = 16;

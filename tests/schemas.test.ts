@@ -228,6 +228,17 @@ describe("saved turns", () => {
     expect(parsed.turns[0]!.arrivals).toEqual([arrival]);
   });
 
+  it("keeps the chapter of a turn", () => {
+    const chapter = { name: "La Cripta de Vel", description: "Piedra húmeda.", firstVisit: true };
+    expect(gameStateSchema.parse(withTurn({ chapter })).turns[0]!.chapter).toEqual(chapter);
+  });
+
+  it("rejects a malformed chapter", () => {
+    expect(
+      gameStateSchema.safeParse(withTurn({ chapter: { name: "X", description: "", firstVisit: "yes" } })).success,
+    ).toBe(false);
+  });
+
   it("loads turns saved without arrivals as they are", () => {
     const parsed = gameStateSchema.parse(withTurn({}));
     expect("arrivals" in parsed.turns[0]!).toBe(false);

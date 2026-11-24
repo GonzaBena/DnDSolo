@@ -335,6 +335,7 @@ export const gameStateSchema = z.object({
       narration: z.string(),
       events: z.array(z.string()),
       arrivals: z.array(arrivalSchema).optional(),
+      chapter: z.object({ name: z.string(), description: z.string(), firstVisit: z.boolean() }).optional(),
     }),
   ),
   pendingPlayerRoll: playerRollRequest.nullable(),

@@ -131,6 +131,31 @@ describe("TurnEngine.playTurn", () => {
     expect("arrivals" in outcome.state.turns[1]!).toBe(false);
   });
 
+  it("records the chapter when the location changes", async () => {
+    const ctx = setup();
+    const game = await started(ctx);
+    expect(game.turns[0]!.chapter).toEqual({ name: "Ciervo Blanco", description: "Posada", firstVisit: true });
+    ctx.llm.queueStructured(
+      reply({ stateChanges: [{ type: "location", name: "La Cripta de Vel", description: "Piedra húmeda." }] }),
+    );
+    const outcome = await ctx.engine.playTurn(game, { type: "action", text: "Bajo" });
+    if (!outcome.ok) throw new Error("turn failed");
+    expect(outcome.state.turns[1]!.chapter).toEqual({
+      name: "La Cripta de Vel",
+      description: "Piedra húmeda.",
+      firstVisit: true,
+    });
+  });
+
+  it("leaves chapter out when the place stays", async () => {
+    const ctx = setup();
+    const game = await started(ctx);
+    ctx.llm.queueStructured(reply());
+    const outcome = await ctx.engine.playTurn(game, { type: "action", text: "Miro" });
+    if (!outcome.ok) throw new Error("turn failed");
+    expect("chapter" in outcome.state.turns[1]!).toBe(false);
+  });
+
   it("streams the narration as it arrives", async () => {
     const ctx = setup();
     ctx.llm.queueStructured(reply({ narration: "Una niebla espesa cubre el camino." }));
