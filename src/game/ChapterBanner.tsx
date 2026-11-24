@@ -1,4 +1,5 @@
 import type { Chapter } from "../domain/types";
+import { chapterTitle } from "./ChapterSeparator";
 import { TopBanner } from "./TopBanner";
 
 const SHOWN_MS = 3000;
@@ -9,9 +10,8 @@ export function ChapterStrip({ chapter }: { chapter: Chapter }) {
   const description = chapter.description.trim();
   return (
     <div className="chapter-banner__inner" aria-hidden="true">
-      {/* Non-breaking spaces: a dash never wraps alone onto its own line. */}
-      <strong className="chapter-banner__title">{`—\u00a0${chapter.name}\u00a0—`}</strong>
-      {description !== "" && <p className="chapter-banner__description">{description}</p>}
+      <strong className="chapter__title">{chapterTitle(chapter.name)}</strong>
+      {description !== "" && <p className="chapter__description">{description}</p>}
     </div>
   );
 }
