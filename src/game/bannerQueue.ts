@@ -1,8 +1,11 @@
 import { isAmbush } from "../domain/arrivals";
-import type { Arrival, Chapter, Turn } from "../domain/types";
+import type { Arrival, Chapter, GameState, Turn } from "../domain/types";
 
 /** A strip that drops from the top for a moment (see TopBanner). */
-export type Banner = { kind: "chapter"; chapter: Chapter } | { kind: "ambush"; hostiles: Arrival[] };
+export type Banner =
+  | { kind: "chapter"; chapter: Chapter }
+  | { kind: "ambush"; hostiles: Arrival[] }
+  | { kind: "quest"; outcome: "completed" | "failed"; title: string };
 
 /** What a live turn raises, in order: getting to a new place, then whoever
     jumps out there. A revisit raises nothing (its separator is enough). */
@@ -12,6 +15,20 @@ export function turnBanners(turn: Turn, events: readonly string[]): Banner[] {
   if (turn.chapter?.firstVisit) banners.push({ kind: "chapter", chapter: turn.chapter });
   if (isAmbush(events, arrivals)) {
     banners.push({ kind: "ambush", hostiles: arrivals.filter((a) => a.attitude === "hostile") });
+  }
+  return banners;
+}
+
+const questKey = (title: string) => title.trim().toLowerCase();
+
+/** A banner for each quest that closed this turn, completed or failed, in
+    the order the quests are kept. A new quest raises none (it has a toast). */
+export function questBanners(prev: GameState, next: GameState): Banner[] {
+  const before = new Map(prev.quests.map((q) => [questKey(q.title), q.status]));
+  const banners: Banner[] = [];
+  for (const quest of next.quests) {
+    if (quest.status === "active" || before.get(questKey(quest.title)) === quest.status) continue;
+    banners.push({ kind: "quest", outcome: quest.status, title: quest.title });
   }
   return banners;
 }

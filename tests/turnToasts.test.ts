@@ -65,12 +65,11 @@ describe("buildTurnToasts", () => {
     expect(buildTurnToasts(base, base, ["level_up"], 1)).toEqual([]);
   });
 
-  it("announces completed and new quests", () => {
+  it("announces new quests; closed ones get a banner instead", () => {
     const prev = { ...base, quests: [quest("Ruta", "active")] };
     const next = { ...base, quests: [quest("Ruta", "completed"), quest("Nueva", "active")] };
-    expect(buildTurnToasts(prev, next, [], 1)).toMatchObject([
-      { kind: "quest", title: "¡Misión completada!", detail: "Ruta" },
-      { kind: "quest", title: "Nueva misión", detail: "Nueva" },
+    expect(buildTurnToasts(prev, next, [], 1)).toEqual([
+      expect.objectContaining({ kind: "quest", title: "Nueva misión", detail: "Nueva" }),
     ]);
   });
 

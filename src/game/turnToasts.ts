@@ -131,9 +131,8 @@ export function buildTurnToasts(
   const prevQuests = new Map(prev.quests.map((q) => [key(q.title), q]));
   for (const quest of next.quests) {
     const old = prevQuests.get(key(quest.title));
-    if (quest.status === "completed" && old?.status !== "completed") {
-      drafts.push({ kind: "quest", title: "¡Misión completada!", detail: quest.title });
-    } else if (quest.status === "active" && !old) {
+    // A quest that closes gets a banner instead (see questBanners).
+    if (quest.status === "active" && !old) {
       drafts.push({ kind: "quest", title: "Nueva misión", detail: quest.title });
     }
   }

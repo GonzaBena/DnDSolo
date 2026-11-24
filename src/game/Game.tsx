@@ -11,6 +11,7 @@ import { ChapterBanner } from "./ChapterBanner";
 import { EventToasts, type ToastItem } from "./EventToasts";
 import { FailureBanner } from "./FailureBanner";
 import { GameOver } from "./GameOver";
+import { QuestBanner } from "./QuestBanner";
 import { InfoDrawer } from "./InfoDrawer";
 import { RollDialog } from "./RollDialog";
 import { RollRequest } from "./RollRequest";
@@ -173,11 +174,14 @@ export default function Game() {
         {banners && (() => {
           const head = banners[0]!;
           const onDone = () => setBanners((current) => advanceBanners(current, head.id));
-          return head.kind === "chapter" ? (
-            <ChapterBanner key={head.id} chapter={head.chapter} onDone={onDone} />
-          ) : (
-            <AmbushBanner key={head.id} arrivals={head.hostiles} onDone={onDone} />
-          );
+          switch (head.kind) {
+            case "chapter":
+              return <ChapterBanner key={head.id} chapter={head.chapter} onDone={onDone} />;
+            case "ambush":
+              return <AmbushBanner key={head.id} arrivals={head.hostiles} onDone={onDone} />;
+            case "quest":
+              return <QuestBanner key={head.id} outcome={head.outcome} title={head.title} onDone={onDone} />;
+          }
         })()}
         <CharacterPanel
           state={state}

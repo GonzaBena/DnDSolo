@@ -4,7 +4,7 @@ import type { GameState, TurnInput } from "../domain/types";
 import type { TurnEngine, TurnOutcome } from "../engine/TurnEngine";
 import { describeLLMError } from "../llm/errorMessages";
 import { sendAfterRenewal, shouldDropSend } from "../sync/openGame";
-import { turnBanners, type Banner } from "./bannerQueue";
+import { questBanners, turnBanners, type Banner } from "./bannerQueue";
 import type { ToastItem } from "./EventToasts";
 import { describeFailure } from "./failureNotice";
 import { freshest } from "./freshest";
@@ -149,7 +149,7 @@ export function useSendTurn(session: GameSession, { setDraft, setToasts, scrollT
       if (turnToasts.length > 0) setToasts((prev) => [...prev, ...turnToasts]);
       const lastTurn = outcome.state.turns.at(-1);
       if (lastTurn) {
-        const raised = turnBanners(lastTurn, outcome.response.events);
+        const raised = [...turnBanners(lastTurn, outcome.response.events), ...questBanners(state, outcome.state)];
         if (raised.length > 0) showBanners(raised);
       }
       if (tookDamage(outcome.response.events, state, outcome.state) && gameRef.current) {
