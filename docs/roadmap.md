@@ -19,10 +19,10 @@ salvo que se indique.
 ### 2. Título de capítulo al cambiar de ubicación ✓ (hecho 2026-11-24)
 - "— La Cripta de Vel —" con la descripción en cursiva, estilo película.
 
-### 3. Subida de nivel y botín como momentos propios
+### 3. Subida de nivel y botín como momentos propios ✓ (hecho 2026-11-24)
 - Subida de nivel a pantalla completa con lo que se ganó.
-- Objeto obtenido como tarjeta de botín que vuela al inventario.
-- Misión cumplida o fallida: pergamino que se sella o se quema.
+- Objeto obtenido como tarjeta de botín que vuela al inventario (botón Info).
+- Misión cumplida o fallida: franja de pergamino que se sella o se quema.
 
 ## Pendiente de diseñar (darle una vuelta)
 
