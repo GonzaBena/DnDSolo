@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { announcementOf } from "../src/game/announcement";
+import { announcementOf, turnAnnouncement } from "../src/game/announcement";
+import type { Arrival } from "../src/domain/types";
 import type { Cast } from "../src/domain/dialogue";
 
 const cast: Cast = { npcs: [], playerNames: ["Aria"] };
@@ -17,5 +18,28 @@ describe("announcementOf", () => {
 
   it("is empty when there is nothing to read", () => {
     expect(announcementOf("  \n ", cast)).toBe("");
+  });
+
+  it("adds who arrived after the narration", () => {
+    const goblin = (name: string): Arrival => ({
+      name,
+      attitude: "hostile",
+      portrait: null,
+      blurb: "",
+      returning: false,
+      health: null,
+    });
+    expect(
+      turnAnnouncement(
+        {
+          number: 2,
+          input: { type: "start" },
+          narration: "Se abre la puerta.",
+          events: [],
+          arrivals: [goblin("Goblin 1"), goblin("Goblin 2")],
+        },
+        cast,
+      ),
+    ).toBe("Se abre la puerta. Aparece: Goblin ×2, hostil.");
   });
 });

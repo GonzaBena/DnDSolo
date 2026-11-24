@@ -74,12 +74,24 @@ describe("buildTurnToasts", () => {
     ]);
   });
 
-  it("announces an npc that was not known before", () => {
+  it("no longer announces new NPCs with a toast", () => {
     const prev = { ...base, npcs: [npc("Bran")] };
     const next = { ...base, npcs: [npc("Bran"), npc("Mara")] };
-    expect(buildTurnToasts(prev, next, [], 1)).toMatchObject([
-      { kind: "npc", title: "Nuevo personaje", detail: "Mara está presente en la historia." },
-    ]);
+    expect(buildTurnToasts(prev, next, [], 1)).toEqual([]);
+  });
+
+  it("skips the initiative toast when hostiles arrive as combat starts", () => {
+    const next = { ...base, npcs: [{ ...npc("Goblin 1"), attitude: "hostile" as const }] };
+    expect(buildTurnToasts(base, next, ["combat_start"], 1).map((t) => t.title)).not.toContain("¡Iniciativa!");
+  });
+
+  it("keeps the initiative toast when combat starts with no one new", () => {
+    expect(buildTurnToasts(base, base, ["combat_start"], 1)).toMatchObject([{ title: "¡Iniciativa!" }]);
+  });
+
+  it("an hp correction with present NPCs adds nothing about them", () => {
+    const withMara = { ...base, npcs: [npc("Mara")] };
+    expect(buildTurnToasts(withMara, withMara, [], 1)).toEqual([]);
   });
 
   it("toasts damage taken but not damage dealt", () => {

@@ -4,7 +4,7 @@ import { enterToast, leaveToast } from "../animations/motion";
 
 export interface ToastItem {
   id: string;
-  kind: "item" | "quest" | "combat" | "level" | "npc" | "info" | "damage" | "healing";
+  kind: "item" | "quest" | "combat" | "level" | "info" | "damage" | "healing";
   title: string;
   detail?: string;
 }
@@ -45,7 +45,6 @@ function ToastCard({ toast, onDismiss }: ToastCardProps) {
     quest: "📜",
     combat: "⚔️",
     level: "⭐",
-    npc: "👤",
     damage: "💥",
     healing: "🌿",
     info: "💡",

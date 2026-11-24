@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { castOf } from "../domain/dialogue";
-import { announcementOf } from "./announcement";
+import { turnAnnouncement } from "./announcement";
 import type { Screen } from "./useGameSession";
 
 /** Screen readers hear each finished turn once, as plain text (see
@@ -17,7 +17,7 @@ export function useTurnAnnouncement(screen: Screen): string {
     const { turns } = screen.state;
     const last = turns.at(-1);
     if (announcedCount.current !== null && turns.length > announcedCount.current && last) {
-      setAnnouncement(announcementOf(last.narration, castOf(screen.state)));
+      setAnnouncement(turnAnnouncement(last, castOf(screen.state)));
     }
     announcedCount.current = turns.length;
   }, [screen]);

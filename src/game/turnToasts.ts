@@ -1,3 +1,4 @@
+import { arrivalsOf, isAmbush } from "../domain/arrivals";
 import type { GameState } from "../domain/types";
 import type { ToastItem } from "./EventToasts";
 
@@ -75,7 +76,8 @@ export function buildTurnToasts(
       detail: "Te recuperaste o recibiste curación.",
     });
   }
-  if (events.includes("combat_start")) {
+  // An ambush gets its own banner (see AmbushBanner), not this toast.
+  if (events.includes("combat_start") && !isAmbush(events, arrivalsOf(prev, next))) {
     drafts.push({
       kind: "combat",
       title: "¡Iniciativa!",
@@ -129,17 +131,6 @@ export function buildTurnToasts(
       drafts.push({ kind: "quest", title: "¡Misión completada!", detail: quest.title });
     } else if (quest.status === "active" && !old) {
       drafts.push({ kind: "quest", title: "Nueva misión", detail: quest.title });
-    }
-  }
-
-  const knownNpcs = new Set(prev.npcs.map((n) => key(n.name)));
-  for (const npc of next.npcs) {
-    if (!knownNpcs.has(key(npc.name))) {
-      drafts.push({
-        kind: "npc",
-        title: "Nuevo personaje",
-        detail: `${npc.name} está presente en la historia.`,
-      });
     }
   }
 
