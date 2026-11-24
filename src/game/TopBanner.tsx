@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { enterBanner, leaveBanner } from "../animations/motion";
+import { play, type SoundId } from "../audio/sound";
 
 /** A strip that drops from the top for a moment, then leaves on its own
     (or on a tap). Only for live turns; each one mounts fresh (keyed by the
@@ -8,11 +9,14 @@ import { enterBanner, leaveBanner } from "../animations/motion";
 export function TopBanner({
   className,
   shownMs,
+  sound,
   onDone,
   children,
 }: {
   className: string;
   shownMs: number;
+  /** Played once as it drops in. */
+  sound: SoundId;
   onDone: () => void;
   children: ReactNode;
 }) {
@@ -28,6 +32,7 @@ export function TopBanner({
   };
 
   useEffect(() => {
+    play(sound);
     if (ref.current) {
       enterBanner(ref.current);
       // The toasts move below the banner while it is up (arrivals.css).

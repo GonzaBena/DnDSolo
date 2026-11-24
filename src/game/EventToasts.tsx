@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { enterToast, flyToTarget, leaveToast } from "../animations/motion";
+import { play } from "../audio/sound";
 
 export interface ToastItem {
   id: string;
@@ -21,6 +22,7 @@ function ToastCard({ toast, onDismiss }: ToastCardProps) {
   const leavingRef = useRef(false);
 
   useEffect(() => {
+    if (toast.kind === "loot") play("loot");
     if (ref.current) {
       enterToast(ref.current);
     }

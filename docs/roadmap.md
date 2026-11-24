@@ -27,8 +27,8 @@ salvo que se indique.
 ## Pendiente de diseñar (darle una vuelta)
 
 ### Ambiente
-- Efectos de sonido en los momentos clave, apagados por defecto: en diseño
-  (`docs/superpowers/specs/2026-11-24-efectos-sonido-design.md`).
+- Efectos de sonido en los momentos clave ✓ (hecho 2026-11-24): activados
+  por defecto, switch en el menú del engranaje.
 - Después: música de fondo y sonido de cada lugar (murmullo de taberna,
   goteo de mazmorra). Debe salir de datos que la app ya tiene, sin sumarle
   trabajo al LLM.

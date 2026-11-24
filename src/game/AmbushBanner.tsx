@@ -58,7 +58,7 @@ export function AmbushStrip({ arrivals }: { arrivals: readonly Arrival[] }) {
 /** Hostiles burst in as combat starts: their faces drop from the top. */
 export function AmbushBanner({ arrivals, onDone }: { arrivals: readonly Arrival[]; onDone: () => void }) {
   return (
-    <TopBanner className="ambush" shownMs={SHOWN_MS} onDone={onDone}>
+    <TopBanner className="ambush" shownMs={SHOWN_MS} sound="ambush" onDone={onDone}>
       <AmbushStrip arrivals={arrivals} />
     </TopBanner>
   );

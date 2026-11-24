@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { primeSounds } from "../audio/sound";
 import { castOf, speakingNow } from "../domain/dialogue";
 import type { PlayerRoll } from "../domain/types";
 import { CharacterPanel } from "./CharacterPanel";
@@ -35,6 +36,8 @@ import "./game.css";
 // plain Astro. Loading and Drive live in useGameSession, turns in useSendTurn.
 export default function Game() {
   const session = useGameSession();
+  // Sound unlocks and loads on the first tap or key in the game.
+  useEffect(() => primeSounds(), []);
   const { screen, inFlight, error, warning, showSuggestions, abortRef, paused, isPaused } = session;
   const [draft, setDraft] = useState("");
   const [sceneOpen, setSceneOpen] = useState(false);

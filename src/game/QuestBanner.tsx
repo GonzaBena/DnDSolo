@@ -29,7 +29,12 @@ export function QuestStrip({ outcome, title }: { outcome: Outcome; title: string
     or burns. */
 export function QuestBanner({ outcome, title, onDone }: { outcome: Outcome; title: string; onDone: () => void }) {
   return (
-    <TopBanner className={`quest-banner quest-banner--${outcome}`} shownMs={SHOWN_MS[outcome]} onDone={onDone}>
+    <TopBanner
+      className={`quest-banner quest-banner--${outcome}`}
+      shownMs={SHOWN_MS[outcome]}
+      sound={outcome === "completed" ? "questDone" : "questFailed"}
+      onDone={onDone}
+    >
       <QuestStrip outcome={outcome} title={title} />
     </TopBanner>
   );
