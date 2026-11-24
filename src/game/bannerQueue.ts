@@ -16,23 +16,24 @@ export function turnBanners(turn: Turn, events: readonly string[]): Banner[] {
   return banners;
 }
 
-/** Banners waiting their turn; only the head is on screen, mounted under
-    `key` so each one is a fresh element. */
-export interface BannerQueue {
-  key: number;
-  queue: Banner[];
-}
+/** A banner with the id it was given when queued: it keys the element, so
+    each banner mounts fresh exactly once. Ids are handed out outside React
+    updaters, which must stay pure (React may run them again). */
+export type QueuedBanner = Banner & { id: number };
 
-/** Adds banners behind the one showing, or starts showing them under `key`. */
-export function enqueueBanners(current: BannerQueue | null, banners: Banner[], key: number): BannerQueue | null {
+/** Banners waiting their turn; only the first is on screen. */
+export type BannerQueue = QueuedBanner[];
+
+/** Adds banners behind the one showing, or starts showing them. */
+export function enqueueBanners(current: BannerQueue | null, banners: QueuedBanner[]): BannerQueue | null {
   if (banners.length === 0) return current;
-  return current ? { ...current, queue: [...current.queue, ...banners] } : { key, queue: banners };
+  return [...(current ?? []), ...banners];
 }
 
-/** The banner under `leftKey` has left: show the next one under `nextKey`,
-    or clear. A late exit of an older banner changes nothing. */
-export function advanceBanners(current: BannerQueue | null, leftKey: number, nextKey: number): BannerQueue | null {
-  if (current?.key !== leftKey) return current;
-  const rest = current.queue.slice(1);
-  return rest.length > 0 ? { key: nextKey, queue: rest } : null;
+/** The banner with `leftId` has left: show the next one, or clear. A late
+    exit of an older banner changes nothing. */
+export function advanceBanners(current: BannerQueue | null, leftId: number): BannerQueue | null {
+  if (current?.[0]?.id !== leftId) return current;
+  const rest = current.slice(1);
+  return rest.length > 0 ? rest : null;
 }

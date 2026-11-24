@@ -39,15 +39,14 @@ export default function Game() {
   const [rollOpen, setRollOpen] = useState(false);
   const [deathSaveOpen, setDeathSaveOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
-  // Banners from the top play one after another; every one gets a new key
-  // from the counter so it mounts fresh.
+  // Banners from the top play one after another, each keyed by the id it
+  // gets here (outside the state updater, which must stay pure).
   const [banners, setBanners] = useState<BannerQueue | null>(null);
-  const bannerKeyRef = useRef(0);
-  const nextBannerKey = () => ++bannerKeyRef.current;
-  const showBanners = useCallback(
-    (next: Banner[]) => setBanners((current) => enqueueBanners(current, next, nextBannerKey())),
-    [],
-  );
+  const bannerIdRef = useRef(0);
+  const showBanners = useCallback((next: Banner[]) => {
+    const queued = next.map((banner) => ({ ...banner, id: ++bannerIdRef.current }));
+    setBanners((current) => enqueueBanners(current, queued));
+  }, []);
   const [zenMode, setZenMode] = useState(false);
   const { atBottom, scrollToBottom, follow } = useStickToBottom();
   const startedRef = useRef(false);
@@ -172,13 +171,12 @@ export default function Game() {
       <div className="game__main">
         <EventToasts toasts={toasts} onDismiss={dismissToast} />
         {banners && (() => {
-          const { key } = banners;
-          const head = banners.queue[0]!;
-          const onDone = () => setBanners((current) => advanceBanners(current, key, nextBannerKey()));
+          const head = banners[0]!;
+          const onDone = () => setBanners((current) => advanceBanners(current, head.id));
           return head.kind === "chapter" ? (
-            <ChapterBanner key={key} chapter={head.chapter} onDone={onDone} />
+            <ChapterBanner key={head.id} chapter={head.chapter} onDone={onDone} />
           ) : (
-            <AmbushBanner key={key} arrivals={head.hostiles} onDone={onDone} />
+            <AmbushBanner key={head.id} arrivals={head.hostiles} onDone={onDone} />
           );
         })()}
         <CharacterPanel

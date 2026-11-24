@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Arrival, Chapter, Turn } from "../src/domain/types";
-import { advanceBanners, enqueueBanners, turnBanners, type Banner } from "../src/game/bannerQueue";
+import { advanceBanners, enqueueBanners, turnBanners, type QueuedBanner } from "../src/game/bannerQueue";
 
 const goblin: Arrival = { name: "Goblin 1", attitude: "hostile", portrait: null, blurb: "", returning: false, health: null };
 const crypt: Chapter = { name: "La Cripta de Vel", description: "Piedra húmeda.", firstVisit: true };
@@ -25,22 +25,29 @@ describe("turnBanners", () => {
 });
 
 describe("banner queue", () => {
-  const chapter: Banner = { kind: "chapter", chapter: crypt };
-  const ambush: Banner = { kind: "ambush", hostiles: [goblin] };
+  const chapter: QueuedBanner = { id: 1, kind: "chapter", chapter: crypt };
+  const ambush: QueuedBanner = { id: 2, kind: "ambush", hostiles: [goblin] };
 
-  it("starts a queue with the given key, or appends to the one showing", () => {
-    expect(enqueueBanners(null, [chapter], 1)).toEqual({ key: 1, queue: [chapter] });
-    expect(enqueueBanners({ key: 1, queue: [chapter] }, [ambush], 2)).toEqual({ key: 1, queue: [chapter, ambush] });
+  it("starts a queue, or appends behind the banner showing", () => {
+    expect(enqueueBanners(null, [chapter])).toEqual([chapter]);
+    expect(enqueueBanners([chapter], [ambush])).toEqual([chapter, ambush]);
+    expect(enqueueBanners(null, [])).toBeNull();
   });
 
-  it("the head leaving shows the next under a new key, then clears", () => {
-    const next = advanceBanners({ key: 1, queue: [chapter, ambush] }, 1, 2);
-    expect(next).toEqual({ key: 2, queue: [ambush] });
-    expect(advanceBanners(next, 2, 3)).toBeNull();
+  it("the head leaving shows the next, then clears", () => {
+    const next = advanceBanners([chapter, ambush], 1);
+    expect(next).toEqual([ambush]);
+    expect(advanceBanners(next, 2)).toBeNull();
   });
 
   it("a late exit of an older banner changes nothing", () => {
-    const current = { key: 2, queue: [ambush] };
-    expect(advanceBanners(current, 1, 3)).toBe(current);
+    const current = [ambush];
+    expect(advanceBanners(current, 1)).toBe(current);
+  });
+
+  it("running the same update twice gives the same queue (React may replay it)", () => {
+    const current = [chapter, ambush];
+    expect(advanceBanners(current, 1)).toEqual(advanceBanners(current, 1));
+    expect(enqueueBanners(current, [ambush])).toEqual(enqueueBanners(current, [ambush]));
   });
 });
