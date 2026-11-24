@@ -7,6 +7,9 @@ import { SITE_DESCRIPTION } from "../site";
 import displayFont from "@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2?url";
 import bodyFont from "@fontsource-variable/nunito/files/nunito-latin-wght-normal.woff2?url";
 
+// The HTML `switch` attribute (Safari draws a native switch) is newer than the typings.
+const switchAttr: Record<string, string> = { switch: "" };
+
 interface Props {
   title: string;
   /** Search and link-preview summary; the site's pitch when omitted. */
@@ -106,12 +109,19 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
             <path d="M12 17.6h.01" />
           </svg>
         </a>
-        <a class="icon-button" href="/settings" aria-label="Configuración" title="Configuración">
+        <button class="icon-button" type="button" popovertarget="settings-menu" aria-label="Configuración" title="Configuración">
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
             <circle cx="12" cy="12" r="3" />
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
           </svg>
-        </a>
+        </button>
+        <div id="settings-menu" class="settings-menu" popover>
+          <label class="settings-menu__row">
+            <span>Sonido</span>
+            <input id="sound-switch" type="checkbox" class="switch" {...switchAttr} role="switch" checked />
+          </label>
+          <a class="settings-menu__link" href="/settings">Configuración</a>
+        </div>
         <button class="theme-toggle" type="button" aria-label="Modo oscuro" aria-pressed="false">
           <svg class="theme-toggle__moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
             <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" />
@@ -139,6 +149,7 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     )}
     <script>
       import { syncStatus } from "../sync/status";
+      import { setSoundEnabled, soundEnabled } from "../audio/sound";
 
       // Sync button: only in builds that have sync, and only once a page
       // starts it (home, play, settings...). Its module pulls the whole sync
@@ -152,6 +163,13 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
         };
         const stop = syncStatus.subscribe(mountWhenOn);
         mountWhenOn();
+      }
+
+      // Sound switch in the settings gear's menu: on unless turned off here.
+      const soundSwitch = document.querySelector<HTMLInputElement>("#sound-switch");
+      if (soundSwitch) {
+        soundSwitch.checked = soundEnabled();
+        soundSwitch.addEventListener("change", () => setSoundEnabled(soundSwitch.checked));
       }
 
       const root = document.documentElement;
