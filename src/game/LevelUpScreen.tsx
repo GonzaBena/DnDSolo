@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { play } from "../audio/sound";
 import { enterLevelUp } from "../animations/motion";
 import type { BannerQueue } from "./bannerQueue";
 import type { LevelUp } from "./levelUp";
@@ -52,6 +53,7 @@ export function LevelUpScreen({ levelUp, onClose }: { levelUp: LevelUp; onClose:
     const dialog = dialogRef.current;
     if (!dialog || dialog.open) return;
     dialog.showModal();
+    play("levelUp");
     enterLevelUp(dialog);
   }, []);
 

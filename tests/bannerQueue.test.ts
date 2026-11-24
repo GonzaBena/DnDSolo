@@ -75,3 +75,4 @@ describe("questBanners", () => {
     expect(questBanners(withQuests([]), withQuests([quest("Nueva", "active")]))).toEqual([]);
   });
 });
+

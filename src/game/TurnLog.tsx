@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { play } from "../audio/sound";
 import {
   enterFromRight,
   enterNarration,
@@ -46,6 +47,11 @@ function RollCard({
   animated?: boolean | undefined;
 }) {
   const ref = useEnter<HTMLDivElement>(animated ? rollIn : null);
+  // Only a roll arriving now: the history stays quiet. The player rolled
+  // their own dice at the table, so theirs sounds softer.
+  useEffect(() => {
+    if (animated) play("dice", variant === "player" ? 0.5 : 1);
+  }, []);
   return (
     <div
       ref={ref}
@@ -342,7 +348,6 @@ export function TurnLog({
   useLayoutEffect(() => {
     enterPage(entering.current);
     // Mount-only on purpose: this is the entrance of the save as it opens.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
     <>

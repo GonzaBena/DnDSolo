@@ -1,5 +1,6 @@
 import { useCallback, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { shakeScreen } from "../animations/motion";
+import { play } from "../audio/sound";
 import type { GameState, TurnInput } from "../domain/types";
 import type { TurnEngine, TurnOutcome } from "../engine/TurnEngine";
 import { describeLLMError } from "../llm/errorMessages";
@@ -10,6 +11,7 @@ import type { ToastItem } from "./EventToasts";
 import { describeFailure } from "./failureNotice";
 import { freshest } from "./freshest";
 import { buildTurnToasts, tookDamage } from "./turnToasts";
+import { turnSounds } from "./turnSounds";
 import { createTypewriter } from "./typewriter";
 import { SAVE_WARNING, type GameSession } from "./useGameSession";
 
@@ -155,6 +157,7 @@ export function useSendTurn(session: GameSession, { setDraft, setToasts, scrollT
         const raised = [...turnBanners(lastTurn, outcome.response.events), ...questBanners(state, outcome.state)];
         if (raised.length > 0) showBanners(raised);
       }
+      for (const sound of turnSounds(state, outcome.state, outcome.response.events)) play(sound);
       const levelUp = levelUpOf(state, outcome.state);
       if (levelUp) showLevelUp(levelUp);
       if (tookDamage(outcome.response.events, state, outcome.state) && gameRef.current) {

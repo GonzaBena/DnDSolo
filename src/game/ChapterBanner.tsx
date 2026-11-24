@@ -20,7 +20,7 @@ export function ChapterStrip({ chapter }: { chapter: Chapter }) {
     top like a film's chapter card. */
 export function ChapterBanner({ chapter, onDone }: { chapter: Chapter; onDone: () => void }) {
   return (
-    <TopBanner className="chapter-banner" shownMs={SHOWN_MS} onDone={onDone}>
+    <TopBanner className="chapter-banner" shownMs={SHOWN_MS} sound="chapter" onDone={onDone}>
       <ChapterStrip chapter={chapter} />
     </TopBanner>
   );
