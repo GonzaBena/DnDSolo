@@ -1,4 +1,5 @@
-import { useLayoutEffect, type RefObject } from "react";
+import { useLayoutEffect, useState, type RefObject } from "react";
+import { nextExpanded } from "./composerLayout";
 import { DieShape } from "./DieShape";
 import { Suggestions } from "./Suggestions";
 import { withSuggestion } from "./suggestions";
@@ -35,15 +36,23 @@ export function Composer({
   onOpenRoll,
   onStop,
 }: Props) {
-  // Grow the textarea with its content: one line when empty, capped by CSS max-height.
+  const [expanded, setExpanded] = useState(false);
+
+  // Grow the textarea with its content: one line when empty, capped by CSS
+  // max-height. Text that no longer fits on the line beside the buttons
+  // moves up to a row of its own (see composerLayout).
   useLayoutEffect(() => {
     const el = inputRef.current;
     if (!el) return;
     el.style.height = "auto";
+    const style = getComputedStyle(el);
+    const textHeight = el.scrollHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+    const overflows = !expanded && textHeight > parseFloat(style.lineHeight) * 1.5;
     // scrollHeight leaves out the border; add it back so a border-box
     // textarea fits its text without overflowing.
     el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
-  }, [draft, inputRef]);
+    setExpanded((current) => nextExpanded(current, draft, overflows));
+  }, [draft, expanded, inputRef]);
 
   return (
     <form className="action-form" onSubmit={onSubmit}>
@@ -79,7 +88,7 @@ export function Composer({
       )}
       <div className="field">
         <label htmlFor="action-input">¿Qué hacés?</label>
-        <div className="action-row">
+        <div className={`action-row${expanded ? " action-row--expanded" : ""}`}>
           <textarea
             id="action-input"
             ref={inputRef}
