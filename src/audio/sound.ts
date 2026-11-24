@@ -50,7 +50,9 @@ export function setSoundEnabled(on: boolean): void {
 let context: AudioContext | null = null;
 let primed = false;
 const buffers = new Map<SoundId, AudioBuffer>();
-const UNLOCK_EVENTS = ["pointerdown", "keydown"] as const;
+// iOS counts touchend (not touchstart's pointerdown) as the gesture that
+// lets audio start, so every kind of tap is tried.
+const UNLOCK_EVENTS = ["pointerdown", "touchend", "click", "keydown"] as const;
 
 async function load(audio: AudioContext, id: SoundId): Promise<void> {
   try {
@@ -62,16 +64,23 @@ async function load(audio: AudioContext, id: SoundId): Promise<void> {
   }
 }
 
-function unlock(): void {
+function stopListening(): void {
   for (const type of UNLOCK_EVENTS) document.removeEventListener(type, unlock, true);
+}
+
+/** Wakes audio up after a gesture. The browser may refuse, so the
+    listeners stay until it actually runs. */
+function unlock(): void {
   try {
-    if (typeof AudioContext === "undefined") return;
-    context = new AudioContext();
-    const audio = context;
-    void audio.resume().catch(() => {});
-    for (const id of SOUND_IDS) void load(audio, id);
+    if (!context) {
+      if (typeof AudioContext === "undefined") return stopListening();
+      context = new AudioContext();
+      for (const id of SOUND_IDS) void load(context, id);
+    }
+    if (context.state === "running") return stopListening();
+    void context.resume().catch(() => {});
   } catch {
-    context = null;
+    stopListening();
   }
 }
 
@@ -85,6 +94,9 @@ export function primeSounds(): void {
 /** Plays a sound at `volume` (0 to 1), if sound is on and it is ready. */
 export function play(id: SoundId, volume = 1): void {
   if (!context || !soundEnabled()) return;
+  // iOS suspends audio on calls or when switching apps; a play comes
+  // right after a tap, so asking again usually brings it back.
+  if (context.state !== "running") void context.resume().catch(() => {});
   const buffer = buffers.get(id);
   if (!buffer) return;
   try {
@@ -100,7 +112,7 @@ export function play(id: SoundId, volume = 1): void {
 }
 
 export function resetSoundsForTests(): void {
-  for (const type of UNLOCK_EVENTS) document.removeEventListener(type, unlock, true);
+  stopListening();
   context = null;
   primed = false;
   buffers.clear();

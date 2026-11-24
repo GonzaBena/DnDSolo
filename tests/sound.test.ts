@@ -3,12 +3,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { play, primeSounds, resetSoundsForTests, setSoundEnabled, soundEnabled } from "../src/audio/sound";
 
 /** A stand-in AudioContext that records each sound started and its volume. */
-function fakeAudio() {
+function fakeAudio(initialState = "running") {
   const started: { gain: number }[] = [];
+  const contexts: FakeContext[] = [];
   class FakeContext {
-    state = "running";
+    state = initialState;
+    resumes = 0;
     destination = {};
-    resume = () => Promise.resolve();
+    constructor() {
+      contexts.push(this);
+    }
+    resume = () => {
+      this.resumes += 1;
+      return Promise.resolve();
+    };
     decodeAudioData = () => Promise.resolve({});
     createGain() {
       const node = { gain: { value: 1 }, connect: () => node };
@@ -30,7 +38,9 @@ function fakeAudio() {
   }
   vi.stubGlobal("AudioContext", FakeContext);
   vi.stubGlobal("fetch", () => Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) }));
-  return started;
+  // Not enumerable, so `started` still compares as a plain list.
+  Object.defineProperty(started, "contexts", { value: contexts });
+  return started as typeof started & { contexts: FakeContext[] };
 }
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -92,6 +102,32 @@ describe("play", () => {
     setSoundEnabled(false);
     play("dice");
     expect(started).toEqual([]);
+  });
+
+  it("keeps trying to unlock while the browser holds audio back", async () => {
+    const { contexts } = fakeAudio("suspended");
+    await unlock();
+    document.dispatchEvent(new Event("touchend"));
+    expect(contexts).toHaveLength(1);
+    expect(contexts[0]!.resumes).toBe(2);
+  });
+
+  it("stops listening once audio runs", async () => {
+    const { contexts } = fakeAudio("running");
+    await unlock();
+    document.dispatchEvent(new Event("pointerdown"));
+    expect(contexts).toHaveLength(1);
+    expect(contexts[0]!.resumes).toBe(0);
+  });
+
+  it("wakes audio that was suspended after unlocking (iOS calls, app switch)", async () => {
+    const started = fakeAudio("running");
+    await unlock();
+    const audio = started.contexts[0]!;
+    audio.state = "interrupted";
+    const before = audio.resumes;
+    play("dice");
+    expect(audio.resumes).toBe(before + 1);
   });
 
   it("never throws without Web Audio or files", async () => {
