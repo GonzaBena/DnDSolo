@@ -16,7 +16,7 @@ salvo que se indique.
 - Reencuentro: NPC conocido que vuelve (`present: false → true`) → "Vuelve a
   aparecer…".
 
-### 2. Título de capítulo al cambiar de ubicación
+### 2. Título de capítulo al cambiar de ubicación ✓ (hecho 2026-11-24)
 - "— La Cripta de Vel —" con la descripción en cursiva, estilo película.
 
 ### 3. Combate: iniciativa y feedback de daño
