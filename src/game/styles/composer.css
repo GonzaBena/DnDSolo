@@ -2,11 +2,20 @@
    write while scrolled up through the story. */
 .action-form {
   position: sticky;
-  bottom: 0;
+  /* Above the on-screen keyboard on iOS, which doesn't shrink the page
+     (see keyboardInset.ts). */
+  bottom: var(--keyboard-inset, 0px);
   z-index: 1;
   padding: var(--space-3) 0;
   border-top: var(--border);
   background: var(--color-bg);
+}
+/* Phones: room below the field, clear of the home bar and the screen's
+   rounded corners, except while typing (the keyboard is there). */
+@media (pointer: coarse) {
+  .action-form:not(:focus-within) {
+    padding-bottom: calc(var(--space-3) + max(env(safe-area-inset-bottom, 0px), var(--space-3)));
+  }
 }
 /* Input and send button side by side; the button stays at the bottom
    edge as the textarea grows. */
@@ -40,6 +49,8 @@
 }
 
 .field .action-input {
+  /* One line as tall as the buttons beside it. */
+  line-height: 1.4;
   min-height: 2.75rem;
   resize: none;
   max-height: 12rem;

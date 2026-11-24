@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { primeSounds } from "../audio/sound";
+import { useKeyboardInset } from "./keyboardInset";
 import { castOf, speakingNow } from "../domain/dialogue";
 import type { PlayerRoll } from "../domain/types";
 import { CharacterPanel } from "./CharacterPanel";
@@ -38,6 +39,7 @@ export default function Game() {
   const session = useGameSession();
   // Sound unlocks and loads on the first tap or key in the game.
   useEffect(() => primeSounds(), []);
+  useKeyboardInset();
   const { screen, inFlight, error, warning, showSuggestions, abortRef, paused, isPaused } = session;
   const [draft, setDraft] = useState("");
   const [sceneOpen, setSceneOpen] = useState(false);
