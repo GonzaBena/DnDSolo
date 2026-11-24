@@ -26,8 +26,12 @@ más, gasta más tokens y es más fácil que alucine con el tiempo.
   | Subida de nivel | acorde o fanfarria corta | `LevelUpScreen` |
   | Fin de la partida | campana grave | `GameOver` |
 
-- Apagado por defecto. Un botón de parlante en la barra del juego lo prende o
-  lo apaga, y la elección se recuerda en cada dispositivo.
+- Activado por defecto, para que el jugador descubra que hay sonido. La
+  elección se recuerda en cada dispositivo.
+- Sin botón nuevo en la barra: el engranaje de configuración (hoy un link a
+  `/settings` en `src/layouts/Base.astro`) pasa a abrir un menú chico con un
+  switch "Sonido" y un link "Configuración" a `/settings`. Está en todas las
+  páginas, porque la barra es común.
 - Sección "Sonidos" en el lab, con un botón por momento, para escucharlos y
   elegirlos antes de conectarlos al juego.
 
@@ -41,7 +45,7 @@ más, gasta más tokens y es más fácil que alucine con el tiempo.
 
 ## Anti-objetivos
 
-- Que suene sin que el jugador lo haya pedido.
+- Que no se pueda apagar en un toque desde la partida.
 - Que el sonido llegue tarde respecto de la animación (sobre todo en iOS).
 - Que los sonidos cansen: deben ser cortos, sin loops, y que los que se
   repiten seguido (dados) sean discretos.
@@ -51,7 +55,7 @@ más, gasta más tokens y es más fácil que alucine con el tiempo.
 
 1. **Web Audio con un módulo propio (elegido).** Carga y decodifica cada
    sonido una vez. Reproduce sin retraso, permite superponer sonidos y tiene
-   volumen general. Lo destraba el toque en el botón de parlante. No suma
+   volumen general. No suma
    dependencias, y sirve de base para la música y el ambiente más adelante.
 2. Elementos `<audio>`: es lo más simple de escribir, pero en iOS tienen
    retraso y hay que destrabar cada sonido. Descartado.
@@ -67,6 +71,9 @@ más, gasta más tokens y es más fácil que alucine con el tiempo.
   juego.
 - Los dados del jugador y los del enemigo pueden usar el mismo archivo, con
   el del jugador a menor volumen.
+- Los navegadores (y sobre todo iOS) no dejan sonar nada hasta que el
+  usuario toca la página: el audio se destraba con el primer toque o tecla en
+  cualquier lugar. Lo que pase antes de eso no suena, y está bien.
 - Si el audio no se puede destrabar o un archivo falla, el juego sigue en
   silencio, sin errores visibles.
 
@@ -76,6 +83,6 @@ más, gasta más tokens y es más fácil que alucine con el tiempo.
   licencia anotadas).
 - El nombre y la forma exacta del módulo de audio, y cómo se engancha cada
   momento (hook, llamada en el componente, etc.).
-- El ícono y la posición exacta del botón de parlante dentro de la barra.
+- Si el menú del engranaje es un popover o un diálogo, y su estilo.
 - Si varias tiradas de enemigo en el mismo turno suenan una vez o
   escalonadas.
