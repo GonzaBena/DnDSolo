@@ -106,8 +106,16 @@
   cursor: pointer;
   box-shadow: var(--shadow-pressed);
 }
-.suggestion:hover,
-.suggestion:focus-visible {
+/* Hover only where there is a real pointer: on a phone :hover sticks to
+   the chip after a tap until the next tap elsewhere. */
+@media (hover: hover) {
+  .suggestion:hover {
+    background: var(--color-sun);
+    color: var(--color-sun-ink);
+  }
+}
+.suggestion:focus-visible,
+.suggestion:active {
   background: var(--color-sun);
   color: var(--color-sun-ink);
 }
