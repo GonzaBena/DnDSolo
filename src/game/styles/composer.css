@@ -11,9 +11,9 @@
   background: var(--color-bg);
 }
 /* Phones: room below the field, clear of the home bar and the screen's
-   rounded corners, except while typing (the keyboard is there). */
+   rounded corners; also kept while typing, as a gap above the keyboard. */
 @media (pointer: coarse) {
-  .action-form:not(:focus-within) {
+  .action-form {
     padding-bottom: calc(var(--space-3) + max(env(safe-area-inset-bottom, 0px), var(--space-3)));
   }
 }
