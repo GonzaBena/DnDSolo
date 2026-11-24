@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { ChapterSeparator } from "../src/game/ChapterSeparator";
+import { ChapterSeparator, chapterTitle } from "../src/game/ChapterSeparator";
 
 describe("ChapterSeparator", () => {
   it("a first visit shows the title and the description, hidden from screen readers", () => {
@@ -27,5 +27,11 @@ describe("ChapterSeparator", () => {
       <ChapterSeparator chapter={{ name: "Calle", description: " ", firstVisit: true }} />,
     );
     expect(html).not.toContain("chapter__description");
+  });
+});
+
+describe("chapterTitle", () => {
+  it("the dashes stay glued to the name even if it comes with spaces or line breaks around it", () => {
+    expect(chapterTitle("  La Cripta de Vel \n")).toBe("—\u00a0La Cripta de Vel\u00a0—");
   });
 });

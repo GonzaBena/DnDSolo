@@ -3,8 +3,9 @@ import type { Chapter } from "../domain/types";
 import { useEnter } from "./useEnter";
 
 /** "— Name —", with non-breaking spaces so a dash never wraps alone onto
-    its own line. Shared with the chapter banner. */
-export const chapterTitle = (name: string): string => `—\u00a0${name}\u00a0—`;
+    its own line; the name is trimmed so a stray space can't undo that.
+    Shared with the chapter banner. */
+export const chapterTitle = (name: string): string => `—\u00a0${name.trim()}\u00a0—`;
 
 /** Where a chapter of the story began, inside the turn that got there:
     large with its description the first time, a small line on a revisit.
