@@ -4,7 +4,10 @@
   position: sticky;
   bottom: 0;
   z-index: 1;
-  padding: var(--space-3) 0;
+  /* The background reaches a little past the column on both sides, so the
+     cards' offset shadow (up to 6px) is hidden as they scroll under it. */
+  margin-inline: calc(-1 * var(--space-2));
+  padding: var(--space-3) var(--space-2);
   border-top: var(--border);
   background: var(--color-bg);
 }
