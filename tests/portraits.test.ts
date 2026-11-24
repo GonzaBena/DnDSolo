@@ -51,7 +51,7 @@ describe("portraitUrl", () => {
   });
 
   it("is null when there is no image for the archetype", () => {
-    expect(portraitUrl("cleric-male", "Tobías")).toBeNull();
+    expect(portraitUrl("troll-male", "Tobías")).toBeNull();
     expect(portraitUrl("dragon-turtle", "Tobías")).toBeNull();
   });
 });
