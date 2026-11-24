@@ -9,7 +9,7 @@ describe("ChapterSeparator", () => {
     );
     expect(html).toContain('data-visit="first"');
     expect(html).toContain('aria-hidden="true"');
-    expect(html).toContain("— La Cripta de Vel —");
+    expect(html).toContain("—\u00a0La Cripta de Vel\u00a0—");
     expect(html).toMatch(/class="chapter__description"[^>]*>Piedra húmeda\./);
   });
 

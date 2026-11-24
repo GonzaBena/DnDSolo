@@ -9,8 +9,9 @@
 }
 .chapter__title {
   font-family: var(--font-display);
-  font-size: var(--text-xl);
+  font-size: clamp(var(--text-lg), 6vw, var(--text-xl));
   letter-spacing: 0.04em;
+  text-wrap: balance;
 }
 .chapter__description {
   margin: 0;

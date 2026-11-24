@@ -11,7 +11,7 @@ export function ChapterSeparator({ chapter, animated }: { chapter: Chapter; anim
   return (
     <div ref={ref} className="chapter" data-visit={chapter.firstVisit ? "first" : "again"} aria-hidden="true">
       <strong className="chapter__title">
-        {chapter.firstVisit ? `— ${chapter.name} —` : chapter.name}
+        {chapter.firstVisit ? `—\u00a0${chapter.name}\u00a0—` : chapter.name}
       </strong>
       {chapter.firstVisit && description !== "" && <p className="chapter__description">{description}</p>}
     </div>
