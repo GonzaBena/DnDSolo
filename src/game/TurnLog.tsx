@@ -7,6 +7,7 @@ import {
 } from "../animations/motion";
 import { findNpc, splitDialogue, type Cast } from "../domain/dialogue";
 import { formatDice, naturalResult, rollModeLabel } from "../domain/dice";
+import { parseInline, type InlineNode } from "../domain/inlineMarkdown";
 import type {
   Character,
   EnemyRollResult,
@@ -218,9 +219,31 @@ export function InputEntry({
   }
 }
 
+function Inline({ nodes }: { nodes: InlineNode[] }) {
+  return nodes.map((node, index) =>
+    typeof node === "string" ? (
+      node
+    ) : node.kind === "strong" ? (
+      <strong key={index}>
+        <Inline nodes={node.children} />
+      </strong>
+    ) : (
+      <em key={index}>
+        <Inline nodes={node.children} />
+      </em>
+    ),
+  );
+}
+
+/** A paragraph of narration, with the model's Markdown emphasis rendered.
+    `animated` is only set while the text is still arriving. */
 function Paragraph({ text, animated }: { text: string; animated?: boolean }) {
   const ref = useEnter<HTMLParagraphElement>(animated ? enterNarration : null);
-  return <p ref={ref}>{text}</p>;
+  return (
+    <p ref={ref}>
+      <Inline nodes={parseInline(text, animated)} />
+    </p>
+  );
 }
 
 /** One NPC's line: a bubble on the DM's side, tinted by their attitude
