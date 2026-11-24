@@ -45,8 +45,13 @@ Peso de cada momento (opción A, elegida por el usuario): grande solo lo raro.
 - Detectado del cambio de nivel entre el estado previo y el aplicado, como hoy.
 
 ### Misión cumplida o fallida
-- Dos tipos nuevos en la cola de franjas: `quest-completed` (pergamino que se
-  sella) y `quest-failed` (pergamino que se quema), con el título de la misión.
+- Dos tipos nuevos en la cola de franjas: `quest-completed` y `quest-failed`,
+  con el título de la misión.
+- Aspecto (elegido sobre bocetos): la misma franja de arriba que el capítulo y
+  la emboscada, con fondo de pergamino y el borde inferior en verde (cumplida)
+  o rojo (fallida). Cumplida: cae un sello de lacre rojo con ✓ a la derecha,
+  con rebote. Fallida: aparece una llama a la derecha, una quemadura la
+  recorre de derecha a izquierda y la franja se oscurece y se va.
 - Van detrás del capítulo y la emboscada del mismo turno.
 - Reemplaza el toast "¡Misión completada!"; la fallida hoy no muestra nada.
 
@@ -58,8 +63,7 @@ Peso de cada momento (opción A, elegida por el usuario): grande solo lo raro.
 - Con `prefers-reduced-motion` no vuela: aparece y se desvanece.
 
 ## Queda a criterio de quien lo construya
-- La estética exacta del pergamino, el sello y la quema, dentro del estilo de
-  las franjas existentes.
+- Los detalles finos del sello y la quema (colores exactos, textura).
 - Duraciones y curvas de las animaciones.
 - Si la pantalla de nivel se encola o se muestra al vaciarse la cola de
   franjas, siempre que salga después de ellas.
