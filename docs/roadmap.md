@@ -27,11 +27,14 @@ salvo que se indique.
 ## Pendiente de diseñar (darle una vuelta)
 
 ### Ambiente
-- Tinte de fondo según la escena (combate, taberna, mazmorra), indicado por el
-  DM o derivado de la ubicación.
-- Sonido opcional, apagado por defecto: dados, espadas, acorde al subir de
-  nivel.
-- Diálogo con la voz del NPC: usar `voice` para la tipografía o el color.
+- Efectos de sonido en los momentos clave, apagados por defecto: en diseño
+  (`docs/superpowers/specs/2026-11-24-efectos-sonido-design.md`).
+- Después: música de fondo y sonido de cada lugar (murmullo de taberna,
+  goteo de mazmorra). Debe salir de datos que la app ya tiene, sin sumarle
+  trabajo al LLM.
+- Tinte de fondo según la escena: postergado (mucho trabajo para lo que
+  aporta).
+- Descartado: tipografía según la voz del NPC (la burbuja ya alcanza).
 
 ### Continuidad
 - "Anteriormente en…" al retomar una partida: resumen del LLM a partir de los
@@ -53,6 +56,7 @@ sacudida de pantalla al recibir daño.
   resumen.
 
 ## Ideas sueltas (sin prioridad)
+- El DM repite algunas frases a lo largo de la partida.
 - Reglas: al subir de nivel no se recalculan los PG máximos (ni otras
   estadísticas de la ficha); quedan los del nivel 1.
 - Reglas: los datos de clase llegan hasta nivel 4. Del 5 en adelante la
