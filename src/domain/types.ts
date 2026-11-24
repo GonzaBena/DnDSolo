@@ -1,6 +1,7 @@
 // Core domain types. Everything here is plain data: it is what gets saved,
 // what the engine transforms and (in part) what the model sees.
 
+import type { HealthLabel } from "./health";
 import type { PortraitId } from "./portraits";
 
 export const DICE = ["d4", "d6", "d8", "d10", "d12", "d20", "d100"] as const;
@@ -278,6 +279,21 @@ export type TurnInput =
   | { type: "enemy_rolls"; results: EnemyRollResult[] }
   /** The d20 the player rolled for a death save, resolved by applyDeathSave. */
   | { type: "death_save"; playerId: string; natural: number };
+
+/** Someone who walked into the scene in a turn, as they were then: the
+    log keeps showing them that way even if they change later. */
+export interface Arrival {
+  name: string;
+  attitude: Attitude;
+  /** Same loose type as Npc.portrait. */
+  portrait: string | null;
+  /** First sentence of their description; "" when there is none. */
+  blurb: string;
+  /** Known from before, back in the scene after being away. */
+  returning: boolean;
+  /** How they look; null when untracked or unhurt ("Ileso"). */
+  health: Exclude<HealthLabel, "Ileso"> | null;
+}
 
 export interface Turn {
   number: number;
