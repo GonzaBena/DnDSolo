@@ -17,7 +17,7 @@ import { RecapScreen } from "./RecapScreen";
 import { recapOf, shouldShowRecap } from "../domain/recap";
 import { LevelUpScreen, shouldOpenLevelUp } from "./LevelUpScreen";
 import { levelUpFromPlayer, type LevelUp } from "./levelUp";
-import { applyLevelUp, pendingLevelUp } from "../domain/sheetProgress";
+import { confirmLevelUp, pendingLevelUp } from "../domain/sheetProgress";
 import { usePlayerUpdate } from "./usePlayerUpdate";
 import { canUpgradeSheet, upgradeSheet } from "../domain/sheetProgress";
 import { SheetUpgradeDialog, UpgradeNotice } from "./SheetUpgrade";
@@ -236,11 +236,8 @@ export default function Game() {
           <LevelUpScreen
             levelUp={levelUps[0]}
             player={state.players.find((p) => p.id === levelUps[0]!.playerId) ?? null}
-            onConfirm={(picks) =>
-              updatePlayer(engine, state, levelUps[0]!.playerId, (p) => {
-                const result = applyLevelUp(p, picks);
-                return result.ok ? result.player : p;
-              })
+            onConfirm={(picks, subclass, note) =>
+              updatePlayer(engine, state, levelUps[0]!.playerId, (p) => confirmLevelUp(p, picks, subclass, note))
             }
             onClose={() => {
               setLevelUps((queue) => queue.slice(1));

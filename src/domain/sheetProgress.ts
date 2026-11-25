@@ -4,6 +4,7 @@ import {
 } from "../rules/buildSheet";
 import { activeChoices, requiredChoices } from "../rules/choices";
 import type { CharacterSheet, ChoiceSpec } from "../rules/types";
+import { applySubclassPick, setOutsideSrd, type SubclassPick } from "./outsideSrd";
 import { statsFromSheet } from "./stats";
 import type { Character } from "./types";
 
@@ -118,4 +119,12 @@ export function upgradeSheet(player: Character, choices: CharacterChoices, sheet
         ? 0
         : Math.min(stats.maxHp, Math.max(1, Math.round((current / oldMax) * stats.maxHp)));
   return { ...player, stats, currentHp, choices };
+}
+
+/** "Seguir" on the level-up screen: the subclass (when asked), then the level's picks, then the note. A level up
+    whose picks don't build leaves the sheet as it was (the screen doesn't let that happen). */
+export function confirmLevelUp(player: Character, picks: Picks, subclass: SubclassPick | null, note: string): Character {
+  const withSubclass = subclass ? applySubclassPick(player, subclass) : player;
+  const leveled = pendingLevelUp(withSubclass) ? applyLevelUp(withSubclass, picks) : null;
+  return setOutsideSrd(leveled?.ok ? leveled.player : withSubclass, { note, subclass: null });
 }

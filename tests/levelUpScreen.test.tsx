@@ -14,6 +14,11 @@ const up: LevelUp = {
 };
 
 describe("LevelUpContent", () => {
+  it("points to the manual for a subclass outside the SRD", () =>
+    expect(renderToStaticMarkup(<LevelUpContent levelUp={{ ...up, subclass: null, customSubclass: "Maestro de las bestias" }} />)).toContain(
+      "Tu subclase está fuera del SRD: revisá tu manual para este nivel.",
+    ));
+
   it("shows the new maximum HP when it is known", () => {
     expect(renderToStaticMarkup(<LevelUpContent levelUp={up} maxHp={{ before: 28, after: 36 }} />)).toContain(
       "PG máx: 28 → 36",
