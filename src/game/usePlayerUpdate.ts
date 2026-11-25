@@ -2,6 +2,12 @@ import type { Character, GameState } from "../domain/types";
 import type { TurnEngine } from "../engine/TurnEngine";
 import { SAVE_WARNING, type GameSession } from "./useGameSession";
 
+/** The shown state with the saved players: what only lives on screen (an
+    old save's suggestions) stays. */
+export function withPlayersFrom(shown: GameState, saved: GameState): GameState {
+  return { ...shown, players: saved.players, updatedAt: saved.updatedAt };
+}
+
 /** Replaces one player outside a turn (a level up's choices, an upgraded
     sheet), saves, and shows the result, as the HP buttons do. */
 export function usePlayerUpdate(session: GameSession) {
@@ -19,7 +25,7 @@ export function usePlayerUpdate(session: GameSession) {
       previous.status === "playing" &&
       previous.state.id === applied.state.id &&
       previous.state.turns.length <= applied.state.turns.length
-        ? { ...previous, state: applied.state }
+        ? { ...previous, state: withPlayersFrom(previous.state, applied.state) }
         : previous,
     );
     if (applied.saveError) setWarning(SAVE_WARNING);
