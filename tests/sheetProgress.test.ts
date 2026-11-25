@@ -3,6 +3,8 @@ import type { Character } from "../src/domain/types";
 import { statsFromSheet } from "../src/domain/stats";
 import { confirmLevelUp } from "../src/domain/outsideSrd";
 import {
+  CHOICES_STORED_SINCE,
+  offersSheetUpgradeNotice,
   hiddenErrors,
   levelSpecs,
   applyLevelUp, canUpgradeSheet, lockedPicks, pendingLevelUp, pendingSpecs, previewLevelUp, upgradeSheet,
@@ -221,5 +223,19 @@ describe("confirmLevelUp", () => {
     const after = confirmLevelUp(player, {}, { kind: "custom", name: "Maestro de armas" }, "x");
     expect(after.outsideSrd).toEqual({ note: "x", subclass: "Maestro de armas" });
     expect(after.stats).toEqual(player.stats);
+  });
+});
+
+describe("offersSheetUpgradeNotice", () => {
+  const game = (createdAt: string) => {
+    const g = newGame();
+    return { ...g, createdAt, players: [{ ...g.players[0]!, srdBackgroundId: "criminal" }] };
+  };
+  it("a game from before choices were stored", () => expect(offersSheetUpgradeNotice(game("2026-11-20T10:00:00.000Z"))).toBe(true));
+  it("not a new game (a manual character keeps their own sheet)", () =>
+    expect(offersSheetUpgradeNotice(game(CHOICES_STORED_SINCE))).toBe(false));
+  it("not when the character can't be upgraded", () => {
+    const g = game("2026-11-20T10:00:00.000Z");
+    expect(offersSheetUpgradeNotice({ ...g, players: [{ ...g.players[0]!, srdBackgroundId: null }] })).toBe(false);
   });
 });

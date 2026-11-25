@@ -1,4 +1,5 @@
 import { campaignHref } from "../campaign/links";
+import { canUpgradeSheet } from "../domain/sheetProgress";
 import { OutsideSrdSection, type OutsideSrdEdit } from "./OutsideSrdSection";
 import { findCampaign } from "../campaigns";
 import type { Attitude, GameState, QuestStatus, StoryItem, ThreadKind } from "../domain/types";
@@ -66,11 +67,13 @@ interface Props {
   turnRunning?: boolean;
   /** Saves the first player's "Fuera del SRD" note and subclass; without it the section is not shown. */
   onSaveOutsideSrd?: (edit: OutsideSrdEdit) => Promise<void>;
+  /** Opens the screen that completes the first player's rules choices (shown only when they can be completed). */
+  onUpgradeSheet?: () => void;
 }
 
 /** Everything the campaign knows: characters, place, quests, story items
     and the NPCs met so far. */
-export function InfoDrawer({ state, open, onClose, onOpenRecap, turnRunning = false, onSaveOutsideSrd }: Props) {
+export function InfoDrawer({ state, open, onClose, onOpenRecap, turnRunning = false, onSaveOutsideSrd, onUpgradeSheet }: Props) {
   const { dialogProps, panelRef } = useDrawer(open, onClose);
   const campaign = findCampaign(state.campaignId);
   const players = state.players ?? [];
@@ -157,7 +160,13 @@ export function InfoDrawer({ state, open, onClose, onOpenRecap, turnRunning = fa
           </ul>
         </section>
 
-        {onSaveOutsideSrd && players[0] && <OutsideSrdSection player={players[0]} onSave={onSaveOutsideSrd} />}
+        {onSaveOutsideSrd && players[0] && (
+          <OutsideSrdSection
+            player={players[0]}
+            onSave={onSaveOutsideSrd}
+            onUpgradeSheet={onUpgradeSheet && canUpgradeSheet(players[0]) ? onUpgradeSheet : undefined}
+          />
+        )}
 
         <section className="info-section">
           <h3>Misiones</h3>

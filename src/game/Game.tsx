@@ -19,7 +19,7 @@ import { LevelUpScreen, shouldOpenLevelUp } from "./LevelUpScreen";
 import { enqueueLevelUp, levelUpFromPlayer, type LevelUp } from "./levelUp";
 import { pendingLevelUp } from "../domain/sheetProgress";
 import { usePlayerUpdate } from "./usePlayerUpdate";
-import { canUpgradeSheet, upgradeSheet } from "../domain/sheetProgress";
+import { offersSheetUpgradeNotice, upgradeSheet } from "../domain/sheetProgress";
 import { confirmLevelUp, setOutsideSrd } from "../domain/outsideSrd";
 import { SheetUpgradeDialog, UpgradeNotice } from "./SheetUpgrade";
 import { InfoDrawer } from "./InfoDrawer";
@@ -264,6 +264,10 @@ export default function Game() {
           open={infoOpen}
           onClose={() => setInfoOpen(false)}
           turnRunning={busy || inFlight !== null}
+          onUpgradeSheet={() => {
+            setInfoOpen(false);
+            setUpgradeOpen(true);
+          }}
           onSaveOutsideSrd={async (edit) => {
             // Checked first on the shown player, so Info can say why a change can't be made.
             const check = setOutsideSrd(state.players[0]!, edit);
@@ -305,7 +309,7 @@ export default function Game() {
           />
         )}
         {warning && <p className="notice">{warning}</p>}
-        {!upgradeDismissed && !upgradeOpen && state.players[0] && canUpgradeSheet(state.players[0]) && (
+        {!upgradeDismissed && !upgradeOpen && offersSheetUpgradeNotice(state) && (
           <UpgradeNotice onUpgrade={() => setUpgradeOpen(true)} onCancel={() => setUpgradeDismissed(true)} />
         )}
         {upgradeOpen && state.players[0] && (
