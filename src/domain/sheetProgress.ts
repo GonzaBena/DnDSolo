@@ -5,7 +5,7 @@ import {
 import { activeChoices, requiredChoices } from "../rules/choices";
 import type { CharacterSheet, ChoiceSpec } from "../rules/types";
 import { statsFromSheet } from "./stats";
-import type { Character } from "./types";
+import type { Character, GameState } from "./types";
 
 type Picks = Record<string, string[]>;
 
@@ -112,4 +112,14 @@ export function upgradeSheet(player: Character, choices: CharacterChoices, sheet
         ? 0
         : Math.min(stats.maxHp, Math.max(1, Math.round((current / oldMax) * stats.maxHp)));
   return { ...player, stats, currentHp, choices };
+}
+
+/** When the app started storing the character's rules choices. Games created before can be upgraded from a notice;
+    a newer game without choices is a manual sheet the player keeps on their own (Info still offers the upgrade). */
+export const CHOICES_STORED_SINCE = "2026-11-25T13:30:00.000Z";
+
+/** Whether opening this game shows the notice offering to complete the rules choices. */
+export function offersSheetUpgradeNotice(state: GameState): boolean {
+  const player = state.players[0];
+  return player !== undefined && state.createdAt < CHOICES_STORED_SINCE && canUpgradeSheet(player);
 }

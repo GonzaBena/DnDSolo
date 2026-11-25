@@ -10,7 +10,16 @@ export interface OutsideSrdEdit {
 }
 
 /** Info: what the character has outside the SRD (a note for the DM) and, past the subclass level, which subclass. */
-export function OutsideSrdSection({ player, onSave }: { player: Character; onSave: (edit: OutsideSrdEdit) => Promise<void> }) {
+export function OutsideSrdSection({
+  player,
+  onSave,
+  onUpgradeSheet,
+}: {
+  player: Character;
+  onSave: (edit: OutsideSrdEdit) => Promise<void>;
+  /** Present when the sheet's rules choices can be completed (a sheet without them). */
+  onUpgradeSheet?: () => void;
+}) {
   const srd = findClass(player.classId ?? player.characterClass)?.subclass;
   const reached = srd !== undefined && player.level >= srd.level;
   const initialKind = player.outsideSrd.subclass !== null ? "custom" : player.subclassId !== null ? "srd" : null;
@@ -92,6 +101,14 @@ export function OutsideSrdSection({ player, onSave }: { player: Character; onSav
             />
           )}
         </fieldset>
+      )}
+      {onUpgradeSheet && (
+        <p className="outside-srd__upgrade">
+          Tu ficha no tiene guardadas sus elecciones de reglas: sin ellas, al subir de nivel no se recalculan los PG.{" "}
+          <button type="button" className="button button--small" onClick={onUpgradeSheet}>
+            Completar elecciones
+          </button>
+        </p>
       )}
       <div className="outside-srd__actions">
         <button

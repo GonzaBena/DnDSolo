@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { InfoDrawer } from "../src/game/InfoDrawer";
-import { newGame } from "./helpers";
+import { greedyChoices, newGame } from "./helpers";
 
 describe("InfoDrawer", () => {
   it("the chronicle offers the recap and the campaign's page", () => {
@@ -37,6 +37,22 @@ describe("InfoDrawer", () => {
       expect(html).toContain("Trasfondo Ermitaño.");
       expect(html).toContain("Ladrón (SRD)");
       expect(html).toContain("Otra de tu manual");
+    });
+
+    it("offers completing the rules choices when they can be", () => {
+      const state = withPlayer({ srdBackgroundId: "criminal" });
+      const html = renderToStaticMarkup(
+        <InfoDrawer state={state} open onClose={() => {}} onOpenRecap={() => {}} onSaveOutsideSrd={async () => {}} onUpgradeSheet={() => {}} />,
+      );
+      expect(html).toContain("Completar elecciones");
+    });
+
+    it("not when the character already has them", () => {
+      const state = withPlayer({ srdBackgroundId: "criminal", choices: greedyChoices("elf", "rogue", "criminal", 3) });
+      const html = renderToStaticMarkup(
+        <InfoDrawer state={state} open onClose={() => {}} onOpenRecap={() => {}} onSaveOutsideSrd={async () => {}} onUpgradeSheet={() => {}} />,
+      );
+      expect(html).not.toContain("Completar elecciones");
     });
 
     it("no subclass options before the subclass level", () =>
