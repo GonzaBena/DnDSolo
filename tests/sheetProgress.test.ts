@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Character } from "../src/domain/types";
 import { statsFromSheet } from "../src/domain/stats";
 import {
+  hiddenErrors,
   levelSpecs,
   applyLevelUp, canUpgradeSheet, lockedPicks, pendingLevelUp, pendingSpecs, previewLevelUp, upgradeSheet,
 } from "../src/domain/sheetProgress";
@@ -153,5 +154,44 @@ describe("upgradeSheet", () => {
     expect(after.inventory).toEqual(before.inventory);
     expect(after.name).toBe(before.name);
     expect(after.level).toBe(before.level);
+  });
+});
+
+describe("a locked pick the new level makes illegal", () => {
+  it("a cleric reaching 3 with Cure Wounds prepared: it unlocks and the picker asks for another", () => {
+    const player = hero(greedyChoices("human", "cleric", "acolyte", 2), 3);
+    expect(player.choices!.picks["class.cleric.prepared"]).toContain("cure_wounds");
+    expect(lockedPicks(player)["class.cleric.prepared"]).not.toContain("cure_wounds");
+    expect(pendingSpecs(player, lockedPicks(player)).map((s) => s.id)).toContain("class.cleric.prepared");
+  });
+
+  it("once replaced, the level up applies", () => {
+    const player = hero(greedyChoices("human", "cleric", "acolyte", 2), 3);
+    const picks = { ...lockedPicks(player) };
+    const spec = pendingSpecs(player, picks).find((s) => s.id === "class.cleric.prepared")!;
+    const taken = new Set([...picks[spec.id]!, ...player.choices!.picks[spec.id]!, "aid", "bless", "lesser_restoration"]);
+    while (picks[spec.id]!.length < spec.count) {
+      const next = spec.options.find((o) => !taken.has(o.id))!;
+      taken.add(next.id);
+      picks[spec.id] = [...picks[spec.id]!, next.id];
+    }
+    const remaining = pendingSpecs(player, picks).filter((s) => s.id !== spec.id);
+    for (const other of remaining) picks[other.id] = greedyChoices("human", "cleric", "acolyte", 3).picks[other.id] ?? [];
+    const result = applyLevelUp(player, picks);
+    expect(result.ok ? [] : result.errors).toEqual([]);
+  });
+});
+
+describe("hiddenErrors", () => {
+  it("errors on choices the picker doesn't show, so the screen offers a way out", () => {
+    // Soldier already gives Athletics: a class skill repeating it is illegal and lives in a finished choice.
+    const choices = fighterChoices({ picks: { ...fighterChoices().picks, "class.fighter.skills": ["athletics", "survival"] } });
+    const player: Character = { ...hero(fighterChoices(), 2), choices };
+    expect(hiddenErrors(player, lockedPicks(player)).map((e) => e.field)).toEqual(["picks.class.fighter.skills"]);
+  });
+
+  it("none for a level up that just needs its picks", () => {
+    const player = hero(fighterChoices(), 2);
+    expect(hiddenErrors(player, lockedPicks(player))).toEqual([]);
   });
 });

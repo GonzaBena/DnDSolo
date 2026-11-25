@@ -233,6 +233,13 @@ export function replaceRepeatedSpells(c: CharacterChoices): CharacterChoices {
 /** The same fix for skills: a skill the background, the species or an earlier choice already gives, picked
     again (whether or not this choice offers it), becomes the first free option, in the order validateSkills
     reads them. Expertise is left alone: it must point at a skill the character already has. */
+/** The same choices for another species: the old species' picks go (the new one may ask for its own). */
+export function withSpecies(c: CharacterChoices, speciesId: string): CharacterChoices {
+  if (speciesId === c.speciesId) return c;
+  const prefix = `species.${c.speciesId}.`;
+  return { ...c, speciesId, picks: Object.fromEntries(Object.entries(c.picks).filter(([id]) => !id.startsWith(prefix))) };
+}
+
 export function replaceRepeatedSkills(c: CharacterChoices): CharacterChoices {
   const specs = activeChoices(requiredChoices(c), c.picks);
   const background = findBackground(c.backgroundId)!;

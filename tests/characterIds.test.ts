@@ -270,8 +270,15 @@ describe("createCharacter keeps the generator's choices", () => {
   it("stores choices that match the character", () =>
     expect(createCharacter({ ...base, choices: fighterChoices() }, id).choices).toEqual(fighterChoices()));
 
-  it("drops choices whose species no longer matches", () =>
+  it("drops choices whose species no longer matches and can't be rebuilt", () =>
     expect(createCharacter({ ...base, speciesId: "elf", choices: fighterChoices() }, id).choices).toBeNull());
+
+  it("a species changed on the form after generating: the choices follow it when they still build", () => {
+    // Dwarves need no species picks, so the human fighter's other choices still build.
+    const choices = createCharacter({ ...base, speciesId: "dwarf", choices: fighterChoices() }, id).choices;
+    expect(choices?.speciesId).toBe("dwarf");
+    expect(Object.keys(choices!.picks).some((k) => k.startsWith("species.human."))).toBe(false);
+  });
 
   it("drops choices without an SRD background or with another level", () => {
     expect(createCharacter({ ...base, srdBackgroundId: null, choices: fighterChoices() }, id).choices).toBeNull();

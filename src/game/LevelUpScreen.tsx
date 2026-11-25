@@ -4,7 +4,7 @@ import { enterLevelUp } from "../animations/motion";
 import type { BannerQueue } from "./bannerQueue";
 import type { LevelUp } from "./levelUp";
 import { ChoicePicker } from "./ChoicePicker";
-import { levelSpecs, lockedPicks, pendingLevelUp, pendingSpecs, previewLevelUp } from "../domain/sheetProgress";
+import { hiddenErrors, levelSpecs, lockedPicks, pendingLevelUp, pendingSpecs, previewLevelUp } from "../domain/sheetProgress";
 import type { Character } from "../domain/types";
 
 /** Whether to open the next pending level-up screen: only once the turn's
@@ -79,6 +79,8 @@ export function LevelUpScreen({
     preview?.ok && player?.stats ? { before: player.stats.maxHp, after: preview.sheet.hitPoints } : undefined;
   // Errors only once every pick is made: before that, "falta elegir" says nothing new.
   const errors = preview && !preview.ok && missing === 0 ? preview.errors : [];
+  // Errors the picker can't fix: listed, and "Más tarde" lets the player out instead of trapping them.
+  const stuck = asks ? hiddenErrors(player, picks) : [];
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -108,12 +110,25 @@ export function LevelUpScreen({
       onClose={onClose}
       // Esc would skip the level's choices.
       onCancel={(event) => {
-        if (asks) event.preventDefault();
+        if (asks && stuck.length === 0) event.preventDefault();
       }}
     >
       <LevelUpContent levelUp={levelUp} maxHp={maxHp} />
       {asks && (
         <ChoicePicker specs={specs} picks={picks} locked={lockedPicks(player)} errors={errors} onChange={setPicks} />
+      )}
+      {stuck.length > 0 && (
+        <div className="notice notice--error level-up__stuck">
+          <p>No se puede recalcular la ficha con estas elecciones anteriores:</p>
+          <ul>
+            {stuck.map((e) => (
+              <li key={e.field + e.message}>{e.message}</li>
+            ))}
+          </ul>
+          <button type="button" className="button" onClick={() => dialogRef.current?.close()}>
+            Más tarde
+          </button>
+        </div>
       )}
       <button
         type="button"

@@ -1,7 +1,7 @@
 import { MAX_LEVEL, MIN_LEVEL, type CharacterInput } from "../domain/character";
 import type { CharacterStats } from "../domain/types";
 import { baseSpeed, inventoryFromSheet, statsFromSheet } from "../domain/stats";
-import { buildSheet } from "../rules/buildSheet";
+import { buildSheet, withSpecies } from "../rules/buildSheet";
 
 export interface BuildChangeResult {
   values: CharacterInput;
@@ -27,12 +27,7 @@ export function applyBuildChange(values: CharacterInput, patch: Partial<Characte
 
   const original = values.choices;
   if (original) {
-    const prefix = `species.${original.speciesId}.`;
-    const picks =
-      next.speciesId === original.speciesId
-        ? original.picks
-        : Object.fromEntries(Object.entries(original.picks).filter(([id]) => !id.startsWith(prefix)));
-    const built = buildSheet({ ...original, speciesId: next.speciesId, picks });
+    const built = buildSheet(withSpecies(original, next.speciesId));
     if (built.ok) {
       return {
         values: { ...next, stats: statsFromSheet(built.sheet), startingInventory: inventoryFromSheet(built.sheet) },

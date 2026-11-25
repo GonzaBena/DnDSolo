@@ -1,5 +1,5 @@
 import { findCampaign } from "../campaigns";
-import { buildSheet, type CharacterChoices } from "../rules/buildSheet";
+import { buildSheet, withSpecies, type CharacterChoices } from "../rules/buildSheet";
 import { BACKGROUNDS, CLASSES_DATA, SPECIES, findBackground, findClass, findSpecies } from "../rules";
 import { GAME_STATE_VERSION, type Character, type CharacterStats, type GameState, type InventoryItem, type StoryItem } from "./types";
 
@@ -39,13 +39,12 @@ interface CreateOptions {
   now?: () => Date;
 }
 
-/** The generator's choices, only while they still describe this character
-    (the form can change species or level after generating) and build a sheet. */
+/** The generator's choices, only while they still describe this character and build a sheet. A species changed
+    on the form after generating keeps the other picks when they still build (as the form's stats do). */
 function matchingChoices(input: CharacterInput, level: number): CharacterChoices | null {
-  const c = input.choices;
-  if (!c) return null;
-  const matches =
-    c.speciesId === input.speciesId && c.classId === input.classId && c.backgroundId === input.srdBackgroundId && c.level === level;
+  if (!input.choices) return null;
+  const c = withSpecies(input.choices, input.speciesId);
+  const matches = c.classId === input.classId && c.backgroundId === input.srdBackgroundId && c.level === level;
   return matches && buildSheet(c).ok ? c : null;
 }
 

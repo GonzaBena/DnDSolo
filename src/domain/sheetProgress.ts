@@ -1,5 +1,7 @@
 import { LOADED_MAX_LEVEL, findBackground, findClass, findSpecies } from "../rules";
-import { buildSheet, type BuildResult, type CharacterChoices, type ChoiceError } from "../rules/buildSheet";
+import {
+  buildSheet, replaceRepeatedSpells, type BuildResult, type CharacterChoices, type ChoiceError,
+} from "../rules/buildSheet";
 import { activeChoices, requiredChoices } from "../rules/choices";
 import type { CharacterSheet, ChoiceSpec } from "../rules/types";
 import { statsFromSheet } from "./stats";
@@ -13,9 +15,16 @@ export function pendingLevelUp(player: Character): boolean {
   return player.choices !== null && player.level > player.choices.level && player.level <= LOADED_MAX_LEVEL;
 }
 
-/** The choices already made, shown fixed in the picker. */
+/** The choices already made, shown fixed in the picker. A pick the new level makes illegal (a spell a class or
+    species feature now always grants, like a cleric's Cure Wounds at 3) is left out, so the picker asks again. */
 export function lockedPicks(player: Character): Picks {
-  return player.choices?.picks ?? {};
+  const c = player.choices;
+  if (!c) return {};
+  if (player.level <= c.level || player.level > LOADED_MAX_LEVEL) return c.picks;
+  const repaired = replaceRepeatedSpells({ ...c, level: player.level }).picks;
+  return Object.fromEntries(
+    Object.entries(c.picks).map(([id, ids]) => [id, ids.filter((pick) => repaired[id]?.includes(pick) ?? true)]),
+  );
 }
 
 /** Active choices at the player's level that `picks` doesn't fill yet: new ones, and the ones that keep their id
@@ -47,6 +56,16 @@ function activePicks(player: Character, picks: Picks): Picks {
 export function previewLevelUp(player: Character, picks: Picks): BuildResult {
   if (!player.choices) return { ok: false, errors: [{ field: "choices", message: "Sin elecciones guardadas." }] };
   return buildSheet({ ...player.choices, level: player.level, picks: activePicks(player, picks) });
+}
+
+/** Once every pick is made, the sheet's errors on choices the picker doesn't show: the player can't fix them there,
+    so the screen lists them and lets the player leave (the level up waits for the next time the game opens). */
+export function hiddenErrors(player: Character, picks: Picks): ChoiceError[] {
+  if (!pendingLevelUp(player) || pendingSpecs(player, picks).length > 0) return [];
+  const built = previewLevelUp(player, picks);
+  if (built.ok) return [];
+  const shown = new Set(levelSpecs(player, picks).map((s) => `picks.${s.id}`));
+  return built.errors.filter((e) => !shown.has(e.field));
 }
 
 /** Rebuilds the sheet at the new level. Current HP rises as much as the maximum (it stays at 0 while down). */
