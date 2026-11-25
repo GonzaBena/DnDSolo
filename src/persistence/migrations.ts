@@ -195,6 +195,15 @@ function fromV15(raw: Raw): Raw {
   return { ...raw, version: 16 };
 }
 
+/** v16 -> v17: players keep the rules choices their sheet is built from.
+    Older saves don't have them. */
+function fromV16(raw: Raw): Raw {
+  const players = Array.isArray(raw.players)
+    ? raw.players.map((p: unknown) => (isObject(p) ? { ...p, choices: null } : p))
+    : raw.players;
+  return { ...raw, version: 17, players };
+}
+
 /** Turns whatever was stored into a GameState of the current version, or
     null if it can't be trusted (unknown version or wrong shape). Loading
     code must go through here so the screens never see a malformed save. */
@@ -216,6 +225,7 @@ export function migrateSave(raw: unknown): GameState | null {
   if (current.version === 13) current = fromV13(current);
   if (current.version === 14) current = fromV14(current);
   if (current.version === 15) current = fromV15(current);
+  if (current.version === 16) current = fromV16(current);
   if (current.version !== GAME_STATE_VERSION) return null;
   const parsed = gameStateSchema.safeParse(current);
   return parsed.success ? normalizeHp(parsed.data) : null;

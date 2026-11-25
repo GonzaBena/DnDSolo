@@ -60,10 +60,12 @@ sacudida de pantalla al recibir daño.
 
 ## Ideas sueltas (sin prioridad)
 - El DM repite algunas frases a lo largo de la partida.
-- Reglas: al subir de nivel no se recalculan los PG máximos (ni otras
-  estadísticas de la ficha); quedan los del nivel 1.
-- Reglas: los datos de clase llegan hasta nivel 4. Del 5 en adelante la
-  pantalla de nivel no muestra rasgos ni el aumento de competencia (+3 en 5).
+- Reglas: subida de nivel con elecciones y ficha recalculada ✓ (hecho
+  2026-11-25, etapa 1): la partida guarda las elecciones, la pantalla de
+  nivel pide las del nivel nuevo y las partidas viejas se actualizan desde
+  un aviso.
+- Reglas, etapa 2: los datos de clase llegan hasta nivel 4. Del 5 en
+  adelante faltan rasgos, competencia (+3 en 5) y hechizos de nivel 3+.
 - Tiradas con suspenso: el dado gira un poco más; animación propia para 20 y 1
   naturales.
 - Mostrar la CD después de tirar: "Necesitabas 15, sacaste 17 ✓".

@@ -9,7 +9,7 @@ function hero(overrides: Partial<Character>): Character {
     id: "p1", name: "Hero", race: "Humano", characterClass: "Guerrero",
     speciesId: "human", classId: "fighter", subclassId: null, srdBackgroundId: null,
     level: 2, background: null, inventory: [], stats: null, currentHp: null,
-    condition: "ok", deathSaves: { successes: 0, failures: 0 }, milestonesSinceLevel: 0, ...overrides,
+    condition: "ok", deathSaves: { successes: 0, failures: 0 }, milestonesSinceLevel: 0, choices: null, ...overrides,
   };
 }
 

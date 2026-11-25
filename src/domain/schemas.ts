@@ -254,6 +254,23 @@ const arrivalSchema = z.object({
   health: z.enum(["Herido", "Malherido", "Fuera de combate"]).nullable(),
 });
 
+const abilityScores = z.object({
+  str: z.number(), dex: z.number(), con: z.number(), int: z.number(), wis: z.number(), cha: z.number(),
+});
+
+/** The shape of `CharacterChoices` (rules are checked by `validateChoices`, not here). */
+export const characterChoicesSchema = z.object({
+  speciesId: z.string(),
+  classId: z.string(),
+  backgroundId: z.string(),
+  level: z.number().int(),
+  baseScores: abilityScores,
+  backgroundBonus: abilityScores.partial(),
+  classEquipment: z.enum(["A", "B", "C"]),
+  backgroundEquipment: z.enum(["A", "B"]),
+  picks: z.record(z.string(), z.array(z.string())),
+});
+
 export const gameStateSchema = z.object({
   id: z.string().min(1),
   version: z.number().int(),
@@ -295,6 +312,7 @@ export const gameStateSchema = z.object({
           failures: z.number().int().min(0).max(3),
         }),
         milestonesSinceLevel: z.number().int().min(0),
+        choices: characterChoicesSchema.nullable(),
       }),
     )
     .min(1),

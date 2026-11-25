@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GameState } from "../src/domain/types";
-import { levelUpOf } from "../src/game/levelUp";
+import { levelUpFromPlayer, levelUpOf } from "../src/game/levelUp";
 import { newGame } from "./helpers";
 
 function withClass(classId: string | null, characterClass: string, level: number): GameState {
@@ -30,6 +30,7 @@ describe("levelUpOf", () => {
 
   it("a level with no data: just the level and the name", () =>
     expect(levelUpOf(fighter(4), fighter(5))).toEqual({
+      playerId: fighter(5).players[0]!.id,
       name: "Lira",
       level: 5,
       features: [],
@@ -42,4 +43,12 @@ describe("levelUpOf", () => {
       level: 2,
       features: [],
     }));
+});
+
+describe("levelUpFromPlayer", () => {
+  it("is what levelUpOf shows, from the player alone", () => {
+    const player = fighter(4).players[0]!;
+    expect(levelUpFromPlayer(player)).toEqual(levelUpOf(fighter(3), fighter(4)));
+    expect(levelUpFromPlayer(player).playerId).toBe(player.id);
+  });
 });
