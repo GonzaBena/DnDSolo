@@ -96,7 +96,9 @@ export function LevelUpScreen({
   const errors = preview && !preview.ok && missing === 0 ? preview.errors : [];
   // Errors the picker can't fix: listed, and "Más tarde" lets the player out instead of trapping them.
   const stuck = asks ? hiddenErrors(staged, picks) : [];
-  const shown = staged ? levelUpFromPlayer(staged) : levelUp;
+  const fromPlayer = staged ? levelUpFromPlayer(staged) : levelUp;
+  // Until the player picks, "Subclase: <SRD>" would announce a choice not made yet.
+  const shown = asksSubclass && subclassKind !== "srd" ? { ...fromPlayer, subclass: null } : fromPlayer;
   const srdSubclass = player ? findClass(player.classId ?? player.characterClass)?.subclass : undefined;
 
   useEffect(() => {

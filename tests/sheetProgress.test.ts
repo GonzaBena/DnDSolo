@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Character } from "../src/domain/types";
 import { statsFromSheet } from "../src/domain/stats";
+import { confirmLevelUp } from "../src/domain/outsideSrd";
 import {
-  confirmLevelUp,
   hiddenErrors,
   levelSpecs,
   applyLevelUp, canUpgradeSheet, lockedPicks, pendingLevelUp, pendingSpecs, previewLevelUp, upgradeSheet,

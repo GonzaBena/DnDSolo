@@ -1,7 +1,7 @@
 import { findClass } from "../rules";
 import { OUTSIDE_SRD_PHRASE } from "../rules/generatorPrompt";
 import { OUTSIDE_SRD_NOTE_MAX } from "./character";
-import { rebuildSheet } from "./sheetProgress";
+import { applyLevelUp, pendingLevelUp, rebuildSheet } from "./sheetProgress";
 import type { Character } from "./types";
 
 export type SubclassPick = { kind: "srd" } | { kind: "custom"; name: string };
@@ -43,4 +43,12 @@ export function stripOutsideSrdPhrase(note: string | null): string {
   if (!note) return "";
   const text = note.trim();
   return text.startsWith(OUTSIDE_SRD_PHRASE) ? text.slice(OUTSIDE_SRD_PHRASE.length).trim() : text;
+}
+
+/** "Seguir" on the level-up screen: the subclass (when asked), then the level's picks, then the note. A level up
+    whose picks don't build leaves the sheet as it was (the screen doesn't let that happen). */
+export function confirmLevelUp(player: Character, picks: Record<string, string[]>, subclass: SubclassPick | null, note: string): Character {
+  const withSubclass = subclass ? applySubclassPick(player, subclass) : player;
+  const leveled = pendingLevelUp(withSubclass) ? applyLevelUp(withSubclass, picks) : null;
+  return setOutsideSrd(leveled?.ok ? leveled.player : withSubclass, { note, subclass: null });
 }
