@@ -34,6 +34,8 @@ export function levelUpFromPlayer(player: Character): LevelUp {
   const previousRow = data?.levels.find((r) => r.level === level - 1);
   const customSubclass = player.outsideSrd.subclass;
   const subclass = customSubclass === null ? data?.subclass : undefined;
+  // With a subclass from the manual, the class's "pick a subclass (SRD: X)" feature would point at the SRD one.
+  const classFeatures = (row?.features ?? []).filter((f) => customSubclass === null || !f.name.startsWith("Subclase de "));
   const subclassFeatures =
     subclass && level >= subclass.level
       ? subclass.features.filter((f) => f.level === level).map((f) => f.feature)
@@ -42,7 +44,7 @@ export function levelUpFromPlayer(player: Character): LevelUp {
     playerId: player.id,
     name: player.name,
     level,
-    features: [...(row?.features ?? []), ...subclassFeatures].map(({ name, summary }) => ({ name, summary })),
+    features: [...classFeatures, ...subclassFeatures].map(({ name, summary }) => ({ name, summary })),
     proficiencyBonus:
       row && previousRow && row.proficiencyBonus > previousRow.proficiencyBonus ? row.proficiencyBonus : null,
     subclass: subclass && subclass.level === level ? subclass.name : null,

@@ -61,5 +61,6 @@ describe("levelUpFromPlayer with a subclass from the manual", () => {
     expect(up.subclass).toBeNull();
     expect(up.customSubclass).toBe("Maestro de armas");
     expect(up.features.some((f) => f.name === "Crítico mejorado")).toBe(false);
+    expect(up.features.some((f) => f.name.startsWith("Subclase de "))).toBe(false);
   });
 });
