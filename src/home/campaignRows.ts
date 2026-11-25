@@ -21,6 +21,15 @@ function button(text: string, onClick: () => void): HTMLButtonElement {
   return node;
 }
 
+/** A compact ✕ that still announces itself as "Borrar <name>". */
+function deleteButton(name: string, onClick: () => void): HTMLButtonElement {
+  const node = button("✕", onClick);
+  node.classList.add("button--icon");
+  node.setAttribute("aria-label", `Borrar ${name}`);
+  node.title = "Borrar";
+  return node;
+}
+
 /** A row of "Tus campañas" on the returning home: initials, name and a play link. */
 export function campaignRow(game: GameState): HTMLLIElement {
   const summary = summarizeCampaign(game);
@@ -57,7 +66,7 @@ export function saveRow(game: GameState, actions: SaveRowActions): HTMLLIElement
     play,
     page,
     button("Exportar", () => actions.onExport(game)),
-    button("Borrar", () => actions.onDelete(game)),
+    deleteButton(name, () => actions.onDelete(game)),
   );
   return item;
 }
