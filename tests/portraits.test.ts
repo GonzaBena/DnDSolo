@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { DM_PORTRAIT_URL, PORTRAIT_FOLDERS, PORTRAIT_IDS, portraitUrl, npcNameFromArchetype, describeArchetypes } from "../src/domain/portraits";
+import { DM_PORTRAIT_URL, PORTRAIT_FOLDERS, PORTRAIT_IDS, portraitUrl, npcNameFromArchetype, describeArchetypes, isMonsterPortrait } from "../src/domain/portraits";
 
 const ROOT = join(__dirname, "..", "public", "portraits");
 
@@ -86,5 +86,16 @@ describe("describeArchetypes", () => {
     const line = describeArchetypes().split("\n").find((l) => l.includes("vendedores"));
     expect(line).toContain('"innkeeper-female"');
     expect(line).not.toContain("guard");
+  });
+});
+
+describe("isMonsterPortrait", () => {
+  it("creatures are monsters; people and missing portraits are not", () => {
+    for (const id of ["goblin", "kobold", "wolf", "skeleton", "zombie", "drowned", "dragon"]) {
+      expect(isMonsterPortrait(id)).toBe(true);
+    }
+    expect(isMonsterPortrait("orc-male")).toBe(false);
+    expect(isMonsterPortrait("hooded")).toBe(false);
+    expect(isMonsterPortrait(null)).toBe(false);
   });
 });

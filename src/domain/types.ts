@@ -307,6 +307,12 @@ export interface Chapter {
   firstVisit: boolean;
 }
 
+/** Something a turn changed that the campaign's timeline keeps. */
+export type Moment =
+  | { kind: "quest"; title: string; status: QuestStatus }
+  | { kind: "level"; level: number }
+  | { kind: "death" };
+
 export interface Turn {
   number: number;
   input: TurnInput;
@@ -318,6 +324,9 @@ export interface Turn {
   /** The place this turn moved to; absent when it stayed put (and in turns
       saved before chapters were recorded). */
   chapter?: Chapter;
+  /** Quests, levels and death this turn brought; absent when none (and in
+      turns saved before they were recorded). */
+  moments?: Moment[];
 }
 
 export interface GameState {

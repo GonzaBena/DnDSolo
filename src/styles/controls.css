@@ -73,7 +73,7 @@
 }
 .save {
   display: grid;
-  grid-template-columns: 1fr auto auto auto;
+  grid-template-columns: 1fr auto auto auto auto;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3);
@@ -100,7 +100,7 @@
 }
 @media (max-width: 30rem) {
   .save {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
   .save > div {
     grid-column: 1 / -1;

@@ -156,6 +156,18 @@ describe("TurnEngine.playTurn", () => {
     expect("chapter" in outcome.state.turns[1]!).toBe(false);
   });
 
+  it("a turn records its moments, and none when nothing changed", async () => {
+    const ctx = setup();
+    const game = await started(ctx);
+    expect("moments" in game.turns[0]!).toBe(false);
+    ctx.llm.queueStructured(
+      reply({ stateChanges: [{ type: "quest", title: "Ruta", description: "Llegar al paso", status: "active" }] }),
+    );
+    const outcome = await ctx.engine.playTurn(game, { type: "action", text: "Acepto" });
+    if (!outcome.ok) throw new Error("turn failed");
+    expect(outcome.state.turns[1]!.moments).toEqual([{ kind: "quest", title: "Ruta", status: "active" }]);
+  });
+
   it("streams the narration as it arrives", async () => {
     const ctx = setup();
     ctx.llm.queueStructured(reply({ narration: "Una niebla espesa cubre el camino." }));

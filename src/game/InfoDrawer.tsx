@@ -1,3 +1,4 @@
+import { campaignHref } from "../campaign/links";
 import { findCampaign } from "../campaigns";
 import type { Attitude, GameState, QuestStatus, StoryItem, ThreadKind } from "../domain/types";
 import { useDrawer } from "./useDrawer";
@@ -58,11 +59,15 @@ interface Props {
   state: GameState;
   open: boolean;
   onClose: () => void;
+  /** Opens "Anteriormente en…" over the game. */
+  onOpenRecap: () => void;
+  /** A turn is being played: leaving the page now would lose it. */
+  turnRunning?: boolean;
 }
 
 /** Everything the campaign knows: characters, place, quests, story items
     and the NPCs met so far. */
-export function InfoDrawer({ state, open, onClose }: Props) {
+export function InfoDrawer({ state, open, onClose, onOpenRecap, turnRunning = false }: Props) {
   const { dialogProps, panelRef } = useDrawer(open, onClose);
   const campaign = findCampaign(state.campaignId);
   const players = state.players ?? [];
@@ -120,6 +125,18 @@ export function InfoDrawer({ state, open, onClose }: Props) {
               Tu historia recién comienza. A medida que avances, el diario de campaña registrará los hechos más importantes.
             </p>
           )}
+          <div className="chronicle-actions">
+            {(state.turns ?? []).length > 0 && (
+              <button type="button" className="button button--small" onClick={onOpenRecap}>
+                Anteriormente en…
+              </button>
+            )}
+            {!turnRunning && (
+              <a className="button button--small" href={campaignHref(state.id)}>
+                Ver tu campaña
+              </a>
+            )}
+          </div>
         </section>
 
         <section className="info-section">

@@ -44,7 +44,7 @@ export interface ArrivalGroup {
   lead: Arrival;
 }
 
-const NUMBERED = /^(.*\S)\s+\d+$/;
+export const NUMBERED = /^(.*\S)\s+\d+$/;
 
 /** "Goblin 1", "Goblin 2" and "Goblin 3" with the same attitude (and the
     same return and health) become one "Goblin ×3". A name without a trailing number is never grouped. Groups
