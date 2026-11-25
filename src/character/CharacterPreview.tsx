@@ -3,6 +3,7 @@ import type { CharacterInput } from "../domain/character";
 import { BACKGROUND_OPTIONS, CLASSES, SPECIES_OPTIONS } from "../domain/character";
 import { enterDrawer, leaveDrawer } from "../animations/motion";
 import { findClass } from "../rules";
+import { heroPortraitUrl } from "../domain/heroPortraits";
 
 interface Props {
   values: CharacterInput;
@@ -28,11 +29,17 @@ function CharacterCard({ values, hp, ac }: Omit<Props, "saving">) {
   const background = labelOf(BACKGROUND_OPTIONS, values.srdBackgroundId);
   const story = values.background.trim();
   const name = values.name.trim();
+  const portraitUrl = heroPortraitUrl(values.portrait ?? null);
 
   return (
-    <div className="character-card">
+    <div className={`character-card${portraitUrl ? " character-card--portrait" : ""}`}>
       <div className="character-card__crest" aria-hidden="true">
         <span className="character-card__die">{values.level}</span>
+        {portraitUrl && (
+          <span className="character-card__portrait">
+            <img src={portraitUrl} alt="" decoding="async" />
+          </span>
+        )}
       </div>
       <div className="character-card__body">
         <p className="character-card__eyebrow">Así te verá el DM</p>

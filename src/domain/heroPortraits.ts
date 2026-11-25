@@ -36,6 +36,21 @@ export function heroPortraitUrl(id: string | null): string | null {
   return id !== null && HERO_PORTRAIT_IDS.includes(id) ? `/heroes/${id}.webp` : null;
 }
 
+export type PortraitGender = "male" | "female";
+
+/** Whose bust a portrait is; null for none. */
+export function genderOf(portrait: string | null | undefined): PortraitGender | null {
+  const match = portrait ? /-(male|female)$/.exec(portrait) : null;
+  return match ? (match[1] as PortraitGender) : null;
+}
+
+/** The class's portrait of that gender; null when there is none (or no gender). */
+export function portraitFor(classId: string | null, gender: PortraitGender | null): string | null {
+  if (!classId || !gender) return null;
+  const id = `${classId}-${gender}`;
+  return HERO_PORTRAIT_IDS.includes(id) ? id : null;
+}
+
 /** The portrait kept for a character of this class: the same one when it belongs to the class, none otherwise. */
 export function portraitForClass(portrait: string | null | undefined, classId: string | null): string | null {
   return portrait != null && heroPortraitsFor(classId).includes(portrait) ? portrait : null;

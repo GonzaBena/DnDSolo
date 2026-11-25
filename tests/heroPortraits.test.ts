@@ -1,7 +1,7 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { HERO_PORTRAIT_IDS, heroPortraitUrl, heroPortraitsFor, portraitForClass } from "../src/domain/heroPortraits";
+import { HERO_PORTRAIT_IDS, genderOf, heroPortraitUrl, heroPortraitsFor, portraitFor, portraitForClass } from "../src/domain/heroPortraits";
 import { CLASSES } from "../src/domain/character";
 
 const ROOT = join(__dirname, "..", "public", "heroes");
@@ -53,5 +53,22 @@ describe("portraitForClass", () => {
     expect(portraitForClass("monk-female", "bard")).toBeNull();
     expect(portraitForClass(undefined, "bard")).toBeNull();
     expect(portraitForClass(null, "bard")).toBeNull();
+  });
+});
+
+describe("genderOf and portraitFor", () => {
+  it("reads the gender off a portrait", () => {
+    expect(genderOf("bard-female")).toBe("female");
+    expect(genderOf("bard-male")).toBe("male");
+    expect(genderOf(null)).toBeNull();
+  });
+
+  it("finds the other class's bust of the same gender", () => {
+    expect(portraitFor("bard", "female")).toBe("bard-female");
+  });
+
+  it("is null for a class without that bust, or without a gender", () => {
+    expect(portraitFor("warlock", "female")).toBeNull();
+    expect(portraitFor("bard", null)).toBeNull();
   });
 });
