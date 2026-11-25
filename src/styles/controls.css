@@ -96,8 +96,32 @@
   box-shadow: none;
 }
 .save .button--icon {
-  min-inline-size: 2rem;
-  padding-inline: 0;
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 2.5rem;
+  min-block-size: 2.5rem;
+  padding: 0;
+}
+
+/* Icon-only controls: a mask in currentColor, so the glyph follows the
+   button's text color (primary, hover, dark mode, forced colors). */
+.icon::before {
+  content: "";
+  inline-size: 1.15em;
+  block-size: 1.15em;
+  background-color: currentColor;
+  mask: var(--icon) no-repeat center / contain;
+  pointer-events: none;
+  forced-color-adjust: none;
+}
+.icon--play {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5Z'/%3E%3C/svg%3E");
+}
+.icon--info {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9.5'/%3E%3Cpath d='M12 11v6'/%3E%3Ccircle cx='12' cy='7.5' r='.6' fill='black'/%3E%3C/svg%3E");
+}
+.icon--share {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12M7.5 7.5 12 3l4.5 4.5M8 10.5H6a1 1 0 0 0-1 1V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8.5a1 1 0 0 0-1-1h-2'/%3E%3C/svg%3E");
 }
 #home-first[hidden],
 #home-returning[hidden],
@@ -106,7 +130,7 @@
 }
 @media (max-width: 36rem) {
   .save {
-    grid-template-columns: repeat(3, 1fr) auto;
+    grid-template-columns: repeat(4, 2.5rem) 1fr;
   }
   .save > div {
     grid-column: 1 / -1;
