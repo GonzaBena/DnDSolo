@@ -90,17 +90,23 @@
   color: var(--color-ink-soft);
 }
 .save .button {
-  padding: var(--space-1) var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-sm);
+  text-align: center;
   box-shadow: none;
+}
+.save .button--icon {
+  min-inline-size: 2rem;
+  padding-inline: 0;
 }
 #home-first[hidden],
 #home-returning[hidden],
 #menu-load[hidden] {
   display: none;
 }
-@media (max-width: 30rem) {
+@media (max-width: 36rem) {
   .save {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr) auto;
   }
   .save > div {
     grid-column: 1 / -1;
