@@ -1,6 +1,6 @@
 import type { ClassData, LevelRow } from "../../types";
 import {
-  ASI_TRAIT, SOURCE, expertiseChoice, languageChoice, level4FeatChoice, masteryWeapons, subclassTrait, weaponMasteryChoice,
+  ASI_TRAIT, SOURCE, asiFeatChoice, expertiseChoice, languageChoice, level4FeatChoice, masteryWeapons, subclassTrait, weaponMasteryChoice,
   weaponMasteryTrait,
 } from "./common";
 
@@ -57,6 +57,50 @@ const levels: LevelRow[] = [
     features: [ASI_TRAIT],
     choices: [level4FeatChoice("rogue")],
   },
+  {
+    level: 5, proficiencyBonus: 3, resources: sneak(3),
+    features: [
+      {
+        name: "Golpe astuto",
+        summary: "Al infligir daño de Ataque furtivo podés renunciar a dados para sumar un efecto (CD 8 + Destreza + competencia): Retirada (1d6, te movés hasta la mitad de tu velocidad sin provocar ataques de oportunidad), Tropiezo (1d6, salvación de Destreza o derribado si es Grande o menor) o Veneno (1d6, con útiles de envenenador: salvación de Constitución o envenenado 1 minuto).",
+      },
+      {
+        name: "Esquiva asombrosa",
+        summary: "Cuando un atacante que ves te acierta, podés usar tu reacción para reducir a la mitad el daño de ese ataque.",
+      },
+    ],
+    choices: [],
+  },
+  {
+    level: 6, proficiencyBonus: 3, resources: sneak(3),
+    features: [{ name: "Pericia", summary: "Ganás pericia en dos habilidades más en las que seas competente." }],
+    choices: [expertiseChoice("rogue", 2, 6)],
+  },
+  {
+    level: 7, proficiencyBonus: 3, resources: sneak(4),
+    features: [
+      {
+        name: "Evasión",
+        summary: "Ante un efecto con salvación de Destreza para recibir la mitad del daño, no recibís daño si la superás y la mitad si la fallás (salvo que estés incapacitado).",
+      },
+      {
+        name: "Talentos fiables",
+        summary: "En una prueba de característica con una habilidad o herramienta en la que seas competente, un 9 o menos en el d20 cuenta como 10.",
+      },
+    ],
+    choices: [],
+  },
+  {
+    level: 8, proficiencyBonus: 3, resources: sneak(4),
+    features: [ASI_TRAIT],
+    choices: [asiFeatChoice("rogue", 8)],
+  },
+  { level: 9, proficiencyBonus: 4, resources: sneak(5), features: [], choices: [] },
+  {
+    level: 10, proficiencyBonus: 4, resources: sneak(5),
+    features: [ASI_TRAIT],
+    choices: [asiFeatChoice("rogue", 10)],
+  },
 ];
 
 export const ROGUE: ClassData = {
@@ -102,6 +146,13 @@ export const ROGUE: ClassData = {
         feature: {
           name: "Balconero",
           summary: "Tenés una velocidad trepando igual a tu velocidad y podés calcular tu distancia de salto con Destreza en lugar de Fuerza.",
+        },
+      },
+      {
+        level: 9,
+        feature: {
+          name: "Sigilo supremo",
+          summary: "Ganás la opción de Golpe astuto Ataque sigiloso (1d6): si sos invisible por esconderte, el ataque no termina ese estado si acabás el turno tras cobertura de tres cuartos o completa.",
         },
       },
     ],

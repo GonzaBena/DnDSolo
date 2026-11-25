@@ -152,7 +152,7 @@ describe("validateChoices: valid characters", () => {
 describe("validateChoices: concept", () => {
   it("rejects levels outside 1..LOADED_MAX_LEVEL", () => {
     expect(fields(validateChoices(fighterChoices({ level: 0 })))).toContain("level");
-    expect(fields(validateChoices(fighterChoices({ level: 5 })))).toContain("level");
+    expect(fields(validateChoices(fighterChoices({ level: 11 })))).toContain("level");
     expect(fields(validateChoices(fighterChoices({ level: 1.5 })))).toContain("level");
   });
 
@@ -1121,5 +1121,81 @@ describe("srdSubclass: false (a subclass from the player's manual)", () => {
     const ids = requiredChoices({ ...concept, srdSubclass: false }).map((s) => s.id);
     for (const id of subclassIds) expect(ids).not.toContain(id);
     expect(requiredChoices(concept).map((s) => s.id)).toContain(subclassIds[0]);
+  });
+});
+
+describe("levels 5 to 10", () => {
+  it("raises the proficiency bonus to 3 at level 5 and 4 at level 9", () => {
+    expect(sheetOf(greedyChoices("human", "fighter", "soldier", 5)).proficiencyBonus).toBe(3);
+    expect(sheetOf(greedyChoices("human", "fighter", "soldier", 9)).proficiencyBonus).toBe(4);
+  });
+
+  it("adds the paladin's Aura of Protection to every save from level 6", () => {
+    const five = sheetOf(greedyChoices("human", "paladin", "acolyte", 5));
+    const six = sheetOf(greedyChoices("human", "paladin", "acolyte", 6));
+    const aura = Math.max(1, six.abilities.cha.modifier);
+    for (const a of ["str", "dex", "con", "int", "wis", "cha"] as const) {
+      expect(six.abilities[a].save - five.abilities[a].save, a).toBe(aura);
+    }
+  });
+
+  it("gives the barbarian (5) and the ranger (6) 10 more feet of speed without heavy armor", () => {
+    expect(sheetOf(greedyChoices("human", "barbarian", "soldier", 4)).speed).toBe(30);
+    expect(sheetOf(greedyChoices("human", "barbarian", "soldier", 5)).speed).toBe(40);
+    expect(sheetOf(greedyChoices("human", "ranger", "soldier", 5)).speed).toBe(30);
+    expect(sheetOf(greedyChoices("human", "ranger", "soldier", 6)).speed).toBe(40);
+  });
+
+  it("not with heavy armor: the fighter's chain mail and no Fast Movement anyway", () => {
+    expect(sheetOf(greedyChoices("human", "fighter", "soldier", 5)).speed).toBe(30);
+  });
+
+  it("lets the bard prepare cleric, druid and wizard spells from level 10 (Magical Secrets)", () => {
+    const prepared = (level: number) =>
+      requiredChoices({ speciesId: "human", classId: "bard", backgroundId: "sage", level })
+        .find((s) => s.id === "class.bard.prepared")!.options.map((o) => o.id);
+    expect(prepared(9)).not.toContain("fireball");
+    expect(prepared(10)).toEqual(expect.arrayContaining(["fireball", "spirit_guardians", "call_lightning", "dimension_door"]));
+    expect(new Set(prepared(10)).size).toBe(prepared(10).length);
+  });
+
+  it("offers spells up to the highest slot: level 3 at 5, level 5 at 9", () => {
+    const levels = (classId: string, level: number) => [...new Set(
+      requiredChoices({ speciesId: "human", classId, backgroundId: "sage", level })
+        .find((s) => s.id === `class.${classId}.prepared`)!.options.map((o) => findSpell(o.id)!.level),
+    )].sort();
+    expect(levels("wizard", 5)).toEqual([1, 2, 3]);
+    expect(levels("cleric", 9)).toEqual([1, 2, 3, 4, 5]);
+    expect(levels("paladin", 9)).toEqual([1, 2, 3]);
+    expect(levels("warlock", 9)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it("requires Pact of the Blade for Thirsting Blade", () => {
+    const base = greedyChoices("human", "warlock", "sage", 5);
+    const invocations = { ...base.picks, "class.warlock.invocation_5": ["thirsting_blade", "gaze_of_two_minds"] };
+    const without = { ...invocations, "class.warlock.invocation_2": ["eldritch_mind", "devils_sight"], "class.warlock.invocation": ["armor_of_shadows"] };
+    const error = errorFor(validateChoices({ ...base, picks: without }), "picks.class.warlock.invocation_5");
+    expect(error?.message).toContain("Filo sediento requiere Pacto del filo");
+    const withBlade = { ...without, "class.warlock.invocation": ["pact_of_the_blade"] };
+    expect(errorFor(validateChoices({ ...base, picks: withBlade }), "picks.class.warlock.invocation_5")).toBeUndefined();
+  });
+
+  it("takes a new feat at each Ability Score Improvement level", () => {
+    const ids = (classId: string, level: number) =>
+      requiredChoices({ speciesId: "human", classId, backgroundId: "sage", level }).map((s) => s.id);
+    expect(ids("fighter", 10)).toEqual(expect.arrayContaining(["class.fighter.level4_feat", "class.fighter.level6_feat", "class.fighter.level8_feat"]));
+    expect(ids("rogue", 10)).toEqual(expect.arrayContaining(["class.rogue.level8_feat", "class.rogue.level10_feat", "class.rogue.level6.expertise"]));
+    expect(ids("wizard", 10)).not.toContain("class.wizard.level6_feat");
+  });
+
+  it("lets a spell list run out: a known cantrip may repeat only when no other is left", () => {
+    // Tiefling (Thaumaturgy) acolyte (Magic Initiate: 2 cleric cantrips) cleric 10 (5 cantrips): 8 of the SRD's 7.
+    const choices = greedyChoices("tiefling", "cleric", "acolyte", 10);
+    expect(validateChoices(choices)).toEqual([]);
+    // With free cantrips left, repeating Thaumaturgy is still an error.
+    const four = greedyChoices("tiefling", "cleric", "acolyte", 4);
+    const picks = four.picks["class.cleric.cantrips"]!;
+    const repeated = withPicks({ "class.cleric.cantrips": ["thaumaturgy", ...picks.slice(1)] }, four);
+    expect(fields(validateChoices(repeated))).toContain("picks.class.cleric.cantrips");
   });
 });

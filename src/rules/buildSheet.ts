@@ -30,6 +30,7 @@ function relatedGroup(id: string): string | null {
   if (isInvocationChoice(id)) return "invocation";
   if (/\.languages?$/.test(id)) return "language";
   if (isExpertise(id)) return "expertise";
+  if (/^class\.sorcerer\.metamagic/.test(id)) return "metamagic";
   return null;
 }
 
@@ -174,6 +175,25 @@ function validateRelated(specs: ChoiceSpec[], picks: Picks): ChoiceError[] {
   return errors;
 }
 
+/** An option with a prerequisite (Thirsting Blade → Pact of the Blade) needs it picked in a choice of the same group. */
+function validatePrerequisites(specs: ChoiceSpec[], picks: Picks): ChoiceError[] {
+  const errors: ChoiceError[] = [];
+  for (const spec of specs) {
+    const group = relatedGroup(spec.id);
+    const missing = pickedOptions(spec, picks).filter((o) => {
+      if (!o.prerequisite) return false;
+      return !specs.some((s) => relatedGroup(s.id) === group && (picks[s.id] ?? []).includes(o.prerequisite!));
+    });
+    if (missing.length === 0) continue;
+    const detail = missing.map((o) => {
+      const needed = spec.options.find((x) => x.id === o.prerequisite)?.name ?? o.prerequisite;
+      return `${o.name} requiere ${needed}`;
+    }).join("; ");
+    errors.push({ field: field(spec), message: `"${spec.label}": ${detail}.` });
+  }
+  return errors;
+}
+
 function scoresBeforeFeats(c: CharacterChoices): Record<Ability, number> {
   return Object.fromEntries(ABILITIES.map((a) => [a, c.baseScores[a] + (c.backgroundBonus[a] ?? 0)])) as Record<Ability, number>;
 }
@@ -269,14 +289,17 @@ export function replaceRepeatedSkills(c: CharacterChoices): CharacterChoices {
   return { ...c, picks };
 }
 
-/** A spell is learned or prepared from one source only: species spells, feats, invocations and class choices. */
+/** A spell is learned or prepared from one source only: species spells, feats, invocations and class choices.
+    Unless the list runs out: a tiefling acolyte cleric at level 10 needs eight cleric cantrips and the SRD has
+    seven, so a choice may repeat as many known spells as it lacks free options for. */
 function validateSpells(c: CharacterChoices, specs: ChoiceSpec[]): ChoiceError[] {
   const errors: ChoiceError[] = [];
   const known = speciesSpells(c, specs);
   for (const spec of specs.filter((s) => isSpellChoice(s.id))) {
     const options = pickedOptions(spec, c.picks);
     const repeats = options.filter((o) => known.has(o.id));
-    if (repeats.length > 0) {
+    const free = spec.options.filter((o) => !known.has(o.id)).length;
+    if (repeats.length > Math.max(0, spec.count - free)) {
       const detail = repeats.map((o) => `${o.name} ya lo tenés por ${known.get(o.id)}`).join("; ");
       errors.push({ field: field(spec), message: `"${spec.label}": ${detail}. Elegí otro conjuro.` });
     }
@@ -379,6 +402,7 @@ export function validateChoices(choices: CharacterChoices): ChoiceError[] {
     ...validatePickShape(specs, choices.picks),
     ...validateSkills(choices, specs),
     ...validateRelated(specs, choices.picks),
+    ...validatePrerequisites(specs, choices.picks),
     ...validateSpells(choices, specs),
     ...validateInvocationCantrips(specs, choices.picks),
     ...validateFeats(choices, specs),

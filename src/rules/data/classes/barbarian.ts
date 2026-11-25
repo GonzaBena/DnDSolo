@@ -1,11 +1,11 @@
 import type { ClassData, LevelRow } from "../../types";
 import {
-  ASI_TRAIT, SOURCE, level4FeatChoice, masteryWeapons, skillOptions, subclassTrait, weaponMasteryChoice, weaponMasteryTrait,
+  ASI_TRAIT, SOURCE, asiFeatChoice, level4FeatChoice, masteryWeapons, skillOptions, subclassTrait, weaponMasteryChoice, weaponMasteryTrait,
 } from "./common";
 
 const SKILL_LIST = ["animal_handling", "athletics", "intimidation", "nature", "perception", "survival"] as const;
 
-// Rages and rage damage by level (SRD table "Rasgos de bárbaro"); mastery grows from 2 to 3 at level 4.
+// Rages and rage damage by level (SRD table "Rasgos de bárbaro"); mastery grows from 2 to 3 at level 4 and 4 at 10.
 const levels: LevelRow[] = [
   {
     level: 1, proficiencyBonus: 2, resources: { Furias: 2, "Daño por furia": 2 },
@@ -60,6 +60,47 @@ const levels: LevelRow[] = [
       weaponMasteryChoice("barbarian", 1, masteryWeapons.melee(), "_level4"),
     ],
   },
+  {
+    level: 5, proficiencyBonus: 3, resources: { Furias: 3, "Daño por furia": 2 },
+    features: [
+      { name: "Ataque adicional", summary: "Cuando realizás la acción de atacar en tu turno, hacés dos ataques en lugar de uno." },
+      { name: "Movimiento rápido", summary: "Tu velocidad aumenta 3 m (10 pies) mientras no lleves armadura pesada." },
+    ],
+    choices: [],
+  },
+  {
+    level: 6, proficiencyBonus: 3, resources: { Furias: 4, "Daño por furia": 2 },
+    features: [],
+    choices: [],
+  },
+  {
+    level: 7, proficiencyBonus: 3, resources: { Furias: 4, "Daño por furia": 2 },
+    features: [
+      { name: "Instinto salvaje", summary: "Tenés ventaja en las tiradas de iniciativa." },
+      { name: "Salto instintivo", summary: "Como parte de la acción adicional de enfurecerte, podés moverte hasta la mitad de tu velocidad." },
+    ],
+    choices: [],
+  },
+  {
+    level: 8, proficiencyBonus: 3, resources: { Furias: 4, "Daño por furia": 2 },
+    features: [ASI_TRAIT],
+    choices: [asiFeatChoice("barbarian", 8)],
+  },
+  {
+    level: 9, proficiencyBonus: 4, resources: { Furias: 4, "Daño por furia": 3 },
+    features: [
+      {
+        name: "Golpe brutal",
+        summary: "Si usás Ataque temerario, podés renunciar a la ventaja en un ataque de Fuerza (sin desventaja): si acierta, suma 1d10 de daño y elegís un efecto. Golpe enérgico: lo empujás 4,5 m y podés acercarte hasta la mitad de tu velocidad sin provocar ataques de oportunidad. Golpe ralentizador: su velocidad baja 4,5 m hasta tu siguiente turno.",
+      },
+    ],
+    choices: [],
+  },
+  {
+    level: 10, proficiencyBonus: 4, resources: { Furias: 4, "Daño por furia": 3 },
+    features: [{ name: "Maestría con armas (4 tipos)", summary: "Ahora podés usar la maestría de 4 tipos de armas." }],
+    choices: [weaponMasteryChoice("barbarian", 1, masteryWeapons.melee(), "_level10")],
+  },
 ];
 
 export const BARBARIAN: ClassData = {
@@ -86,6 +127,20 @@ export const BARBARIAN: ClassData = {
         feature: {
           name: "Frenesí",
           summary: "Si usás Ataque temerario enfurecido, el primer objetivo al que aciertes en tu turno con un ataque de Fuerza recibe daño extra: tirá tantos d6 como tu daño por furia.",
+        },
+      },
+      {
+        level: 6,
+        feature: {
+          name: "Furia irracional",
+          summary: "Mientras estás enfurecido tenés inmunidad a los estados asustado y hechizado; si los tenías al enfurecerte, terminan.",
+        },
+      },
+      {
+        level: 10,
+        feature: {
+          name: "Represalia",
+          summary: "Cuando una criatura a 1,5 m o menos te causa daño, podés usar tu reacción para hacerle un ataque cuerpo a cuerpo con un arma o sin armas.",
         },
       },
     ],

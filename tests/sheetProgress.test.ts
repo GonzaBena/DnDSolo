@@ -36,7 +36,7 @@ const levelFour = () => {
 describe("pendingLevelUp", () => {
   it("true when the level is above the choices' level", () => expect(pendingLevelUp(hero(fighter3(), 4))).toBe(true));
   it("false at the same level", () => expect(pendingLevelUp(hero(fighter3()))).toBe(false));
-  it("false without rules data for the level", () => expect(pendingLevelUp(hero(fighter3(), 5))).toBe(false));
+  it("false without rules data for the level", () => expect(pendingLevelUp(hero(fighter3(), 11))).toBe(false));
   it("false without choices", () => expect(pendingLevelUp({ ...hero(fighter3(), 4), choices: null })).toBe(false));
 });
 
@@ -132,7 +132,7 @@ describe("canUpgradeSheet", () => {
   it("an old save with SRD ids", () => expect(canUpgradeSheet(old())).toBe(true));
   it("not without an SRD background", () => expect(canUpgradeSheet(old({ srdBackgroundId: null }))).toBe(false));
   it("not when it already has choices", () => expect(canUpgradeSheet(old({ choices: fighterChoices() }))).toBe(false));
-  it("not beyond the loaded levels", () => expect(canUpgradeSheet(old({ level: 5 }))).toBe(false));
+  it("not beyond the loaded levels", () => expect(canUpgradeSheet(old({ level: 11 }))).toBe(false));
 });
 
 describe("upgradeSheet", () => {

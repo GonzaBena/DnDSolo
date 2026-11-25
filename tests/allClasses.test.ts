@@ -3,9 +3,9 @@ import { buildSheet, validateChoices } from "../src/rules/buildSheet";
 import { BACKGROUNDS, CLASSES_DATA, SPECIES } from "../src/rules";
 import { greedyChoices as build } from "./helpers";
 
-describe("every class validates at levels 1 and 4", () => {
+describe("every class validates at levels 1 to 10", () => {
   const cases = CLASSES_DATA.flatMap((cls, i) =>
-    [1, 4].map((level) => {
+    [1, 4, 5, 6, 7, 8, 9, 10].map((level) => {
       const species = SPECIES[(i + level) % SPECIES.length]!;
       const background = BACKGROUNDS[(i + level) % BACKGROUNDS.length]!;
       return [cls.id, level, species.id, background.id] as const;
@@ -18,7 +18,7 @@ describe("every class validates at levels 1 and 4", () => {
 
   it("holds for every species and background combination too", () => {
     const failures: string[] = [];
-    for (const cls of CLASSES_DATA) for (const level of [1, 4]) for (const sp of SPECIES) for (const bg of BACKGROUNDS) {
+    for (const cls of CLASSES_DATA) for (const level of [1, 4, 10]) for (const sp of SPECIES) for (const bg of BACKGROUNDS) {
       const errors = validateChoices(build(sp.id, cls.id, bg.id, level));
       if (errors.length > 0) failures.push(`${sp.id}/${cls.id}/${level}/${bg.id}: ${JSON.stringify(errors)}`);
     }
@@ -50,8 +50,8 @@ function sheetProblems(speciesId: string, classId: string, backgroundId: string,
   return problems;
 }
 
-describe("every class builds a sheet at levels 1 and 4", () => {
-  it.each(CLASSES_DATA.flatMap((cls) => [1, 4].map((level) => [cls.id, level] as const)))("%s level %i", (classId, level) => {
+describe("every class builds a sheet at levels 1 to 10", () => {
+  it.each(CLASSES_DATA.flatMap((cls) => [1, 4, 5, 8, 10].map((level) => [cls.id, level] as const)))("%s level %i", (classId, level) => {
     expect(sheetProblems("human", classId, "soldier", level)).toEqual([]);
   });
 
@@ -64,7 +64,7 @@ describe("every class builds a sheet at levels 1 and 4", () => {
 
   it("holds for every species and background combination too", () => {
     const failures: string[] = [];
-    for (const cls of CLASSES_DATA) for (const level of [1, 4]) for (const sp of SPECIES) for (const bg of BACKGROUNDS) {
+    for (const cls of CLASSES_DATA) for (const level of [1, 4, 10]) for (const sp of SPECIES) for (const bg of BACKGROUNDS) {
       const problems = sheetProblems(sp.id, cls.id, bg.id, level);
       if (problems.length > 0) failures.push(`${sp.id}/${cls.id}/${level}/${bg.id}: ${problems.join("; ")}`);
     }

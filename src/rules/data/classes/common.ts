@@ -62,9 +62,14 @@ export const fightingStyleChoice = (classId: string, extra: Option[] = []): Choi
 
 /** Level 4: Ability Score Improvement or another feat the character qualifies for (general and origin feats;
     fighting style feats only for classes with the Fighting Style feature). Prerequisites are checked on validation. */
-export const level4FeatChoice = (classId: string, hasFightingStyle = false): ChoiceSpec => ({
-  id: `class.${classId}.level4_feat`,
-  label: "Mejora de característica (nivel 4)",
+export const level4FeatChoice = (classId: string, hasFightingStyle = false): ChoiceSpec =>
+  asiFeatChoice(classId, 4, hasFightingStyle);
+
+/** The same pick at the later Ability Score Improvement levels (8 for every class, 6 for the fighter, 10 for the
+    rogue). The id keeps the level so each one is its own choice: `class.<id>.level<n>_feat`. */
+export const asiFeatChoice = (classId: string, level: number, hasFightingStyle = false): ChoiceSpec => ({
+  id: `class.${classId}.level${level}_feat`,
+  label: `Mejora de característica (nivel ${level})`,
   count: 1,
   options: FEATS_DATA
     .filter((f) => f.category === "general" || f.category === "origin" || (hasFightingStyle && f.category === "fighting_style"))
@@ -72,8 +77,9 @@ export const level4FeatChoice = (classId: string, hasFightingStyle = false): Cho
 });
 
 /** Expertise: options are every skill; Task 5 validation restricts the picks to skills the character is proficient in. */
-export const expertiseChoice = (classId: string, count: number): ChoiceSpec => ({
-  id: `class.${classId}.expertise`,
+export const expertiseChoice = (classId: string, count: number, level?: number): ChoiceSpec => ({
+  /** A later Expertise feature (bard 9, rogue 6) is its own choice: `class.<id>.level<n>.expertise`. */
+  id: level === undefined ? `class.${classId}.expertise` : `class.${classId}.level${level}.expertise`,
   label: "Pericia",
   count,
   options: SKILLS.map((s) => ({ id: s.id, name: s.name, summary: `Pericia en ${s.name} (doble bonificador por competencia).` })),

@@ -1,5 +1,5 @@
 import type { ClassData, LevelRow, SkillId } from "../../types";
-import { ASI_TRAIT, SOURCE, level4FeatChoice, skillOptions, subclassTrait } from "./common";
+import { ASI_TRAIT, SOURCE, asiFeatChoice, level4FeatChoice, skillOptions, subclassTrait } from "./common";
 
 const SCHOLAR_SKILLS: SkillId[] = ["arcana", "history", "investigation", "medicine", "nature", "religion"];
 
@@ -45,6 +45,25 @@ const levels: LevelRow[] = [
     features: [ASI_TRAIT],
     choices: [level4FeatChoice("wizard")],
   },
+  {
+    level: 5, proficiencyBonus: 3, resources: {}, cantrips: 4, preparedSpells: 9, slots: [4, 3, 2],
+    features: [
+      {
+        name: "Memorizar conjuro",
+        summary: "Tras un descanso corto podés cambiar un conjuro de nivel 1+ que tengas preparado por otro de nivel 1+ de tu libro de conjuros.",
+      },
+    ],
+    choices: [],
+  },
+  { level: 6, proficiencyBonus: 3, resources: {}, cantrips: 4, preparedSpells: 10, slots: [4, 3, 3], features: [], choices: [] },
+  { level: 7, proficiencyBonus: 3, resources: {}, cantrips: 4, preparedSpells: 11, slots: [4, 3, 3, 1], features: [], choices: [] },
+  {
+    level: 8, proficiencyBonus: 3, resources: {}, cantrips: 4, preparedSpells: 12, slots: [4, 3, 3, 2],
+    features: [ASI_TRAIT],
+    choices: [asiFeatChoice("wizard", 8)],
+  },
+  { level: 9, proficiencyBonus: 4, resources: {}, cantrips: 4, preparedSpells: 14, slots: [4, 3, 3, 3, 1], features: [], choices: [] },
+  { level: 10, proficiencyBonus: 4, resources: {}, cantrips: 5, preparedSpells: 15, slots: [4, 3, 3, 3, 2], features: [], choices: [] },
 ];
 
 export const WIZARD: ClassData = {
@@ -84,6 +103,20 @@ export const WIZARD: ClassData = {
         feature: {
           name: "Truco potente",
           summary: "Cuando lanzás un truco que causa daño y la criatura supera la salvación o fallás el ataque, el objetivo sufre la mitad del daño, sin ningún otro efecto adicional.",
+        },
+      },
+      {
+        level: 6,
+        feature: {
+          name: "Esculpir conjuros",
+          summary: "Al lanzar un conjuro de evocación que afecte a criaturas que veas, elegís hasta 1 más el nivel del conjuro de ellas: superan automáticamente la salvación y no sufren daño si normalmente recibirían la mitad.",
+        },
+      },
+      {
+        level: 10,
+        feature: {
+          name: "Evocación potenciada",
+          summary: "Al lanzar un conjuro de mago de evocación, sumás tu modificador de Inteligencia a una de sus tiradas de daño.",
         },
       },
     ],

@@ -34,6 +34,10 @@ const MAX_SCORE = 20;
 const MARTIAL_ARTS_DIE = "Dado de artes marciales";
 const UNARMORED_MOVEMENT_M = "Movimiento sin armadura (m)";
 const JACK_OF_ALL_TRADES = "Aprendiz de mucho";
+/** +10 ft of speed without heavy armor (barbarian 5, ranger 6). */
+const FAST_MOVEMENT = ["Movimiento rápido", "Errante"];
+/** The paladin adds the Charisma modifier (minimum +1) to every saving throw. */
+const AURA_OF_PROTECTION = "Aura de protección";
 /** Languages a class feature teaches at level 1 (Thieves' Cant, Druidic), by language id. */
 const CLASS_LANGUAGES: Record<string, { feature: string; language: string }> = {
   rogue: { feature: "Jerga de ladrones", language: "thieves_cant" },
@@ -48,6 +52,9 @@ export const SHEET_HOOKS = {
   resources: { monk: [MARTIAL_ARTS_DIE, UNARMORED_MOVEMENT_M] },
   features: {
     bard: [JACK_OF_ALL_TRADES],
+    barbarian: [FAST_MOVEMENT[0]!],
+    ranger: [FAST_MOVEMENT[1]!],
+    paladin: [AURA_OF_PROTECTION],
     ...Object.fromEntries(Object.entries(CLASS_LANGUAGES).map(([classId, l]) => [classId, [l.feature]])),
   } as Record<string, string[]>,
   /** Equipment texts the sheet replaces with a pick, and the choice whose pick replaces them. */
@@ -160,6 +167,8 @@ export function alwaysPreparedSpells(cls: ClassData, level: number): string[] {
 
 const classFeatures = (ctx: Context): { row: LevelRow; feature: Trait }[] =>
   ctx.cls.levels.filter((r) => r.level <= ctx.c.level).flatMap((row) => row.features.map((feature) => ({ row, feature })));
+
+const hasClassFeature = (ctx: Context, ...names: string[]) => classFeatures(ctx).some(({ feature }) => names.includes(feature.name));
 
 const subclassFeatures = (ctx: Context): Trait[] =>
   ctx.hasSubclass ? ctx.cls.subclass.features.filter((f) => f.level <= ctx.c.level).map((f) => f.feature) : [];
@@ -284,7 +293,8 @@ function speed(ctx: Context): number {
   const metres = ctx.row.resources[UNARMORED_MOVEMENT_M] ?? 0;
   // The class table gives metres (3 m = 10 ft, as the Spanish SRD converts 1.5 m per 5 ft).
   const heavy = ctx.armor?.strength !== undefined && ctx.scores.str < ctx.armor.strength ? 10 : 0;
-  return base + (unarmored(ctx) ? Math.round((metres * 10) / 3) : 0) - heavy;
+  const fast = ctx.armor?.type !== "heavy" && hasClassFeature(ctx, ...FAST_MOVEMENT) ? 10 : 0;
+  return base + (unarmored(ctx) ? Math.round((metres * 10) / 3) : 0) + fast - heavy;
 }
 
 // ── Attacks ───────────────────────────────────────────────────────────────
@@ -452,6 +462,7 @@ export function computeSheet(c: CharacterChoices): CharacterSheet {
   const sheetSkills = skills(ctx);
   const { armor, weapons } = armorAndWeapons(ctx);
   const perception = sheetSkills.find((s) => s.id === "perception")!;
+  const aura = hasClassFeature(ctx, AURA_OF_PROTECTION) ? Math.max(1, mods.cha) : 0;
   return {
     species: ctx.species.name,
     className: cls.name,
@@ -460,7 +471,8 @@ export function computeSheet(c: CharacterChoices): CharacterSheet {
     background: ctx.background.name,
     abilities: Object.fromEntries(ABILITIES.map((a) => {
       const proficientSave = cls.saves.includes(a);
-      return [a, { score: ctx.scores[a], modifier: mods[a], save: mods[a] + (proficientSave ? prof : 0), proficientSave }];
+      const save = mods[a] + (proficientSave ? prof : 0) + aura;
+      return [a, { score: ctx.scores[a], modifier: mods[a], save, proficientSave }];
     })) as Sheet["abilities"],
     proficiencyBonus: prof,
     hitPoints: hitPoints(ctx),

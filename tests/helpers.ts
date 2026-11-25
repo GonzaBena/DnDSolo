@@ -69,13 +69,18 @@ export function greedyChoices(speciesId: string, classId: string, backgroundId: 
     background.featId, ...background.skills, ...species.fixedSkills, ...speciesSpells, ...alwaysPreparedSpells(cls, level),
   ]);
   const proficient = new Set<string>([...background.skills, ...species.fixedSkills]);
+  const expert = new Set<string>();
   for (let round = 0; round < 20; round++) {
-    const todo = activeChoices(requiredChoices({ speciesId, classId, backgroundId, level }), picks).filter((s) => !picks[s.id]);
+    // Class spell lists last, so the many prepared spells of high levels don't use up a feat's few options.
+    const late = (id: string) => (id.endsWith(".prepared") ? 2 : id === "class.wizard.spellbook" ? 1 : 0);
+    const todo = activeChoices(requiredChoices({ speciesId, classId, backgroundId, level }), picks)
+      .filter((s) => !picks[s.id])
+      .sort((a, b) => late(a.id) - late(b.id));
     if (todo.length === 0) break;
     for (const spec of todo) {
       let options = spec.options;
       if (spec.id.endsWith(".expertise") || spec.id === "class.wizard.scholar") {
-        options = options.filter((o) => proficient.has(o.id));
+        options = options.filter((o) => proficient.has(o.id) && !expert.has(o.id));
       } else if (spec.id === "class.wizard.prepared") {
         options = options.filter((o) => picks["class.wizard.spellbook"]!.includes(o.id));
       } else if (isInvocationCantripChoice(spec.id)) {
@@ -85,10 +90,17 @@ export function greedyChoices(speciesId: string, classId: string, backgroundId: 
       } else {
         options = options.filter((o) => !used.has(o.id) && !(o.skill && used.has(o.skill)));
       }
+      // From level 5 on, highest spell levels first, so feats picked in a later round still find level 1 spells.
+      if (late(spec.id) > 0 && level >= 5) options = [...options].reverse();
+      // Feats after level 4 are Ability Score Improvements: a second Magic Initiate could run out of cantrips.
+      if (/\.level([6-9]|\d{2})_feat$/.test(spec.id)) options = spec.options.filter((o) => o.id === "ability_score_improvement");
       const chosen = spec.allowRepeat
         ? Array.from({ length: spec.count }, () => options[0]!.id)
         : options.slice(0, spec.count).map((o) => o.id);
+      // A spell list that runs out: the rest repeat spells known from elsewhere.
+      for (const o of spec.options) if (chosen.length < spec.count && !chosen.includes(o.id)) chosen.push(o.id);
       picks[spec.id] = chosen;
+      if (spec.id.endsWith(".expertise") || spec.id === "class.wizard.scholar") for (const id of chosen) expert.add(id);
       for (const id of chosen) {
         const option = spec.options.find((o) => o.id === id)!;
         if (spec.id !== "class.wizard.spellbook" && !/\.abilit(y|ies)$/.test(spec.id)) used.add(id);

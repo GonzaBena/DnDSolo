@@ -29,14 +29,21 @@ describe("levelUpOf", () => {
   });
 
   it("a level with no data: just the level and the name", () =>
-    expect(levelUpOf(fighter(4), fighter(5))).toEqual({
-      playerId: fighter(5).players[0]!.id,
+    expect(levelUpOf(fighter(10), fighter(11))).toEqual({
+      playerId: fighter(11).players[0]!.id,
       name: "Lira",
-      level: 5,
+      level: 11,
       features: [],
       proficiencyBonus: null,
       subclass: null,
       customSubclass: null,
+    }));
+
+  it("level 5 fighter: Extra Attack and the new proficiency bonus", () =>
+    expect(levelUpOf(fighter(4), fighter(5))).toMatchObject({
+      level: 5,
+      proficiencyBonus: 3,
+      features: [{ name: "Ataque adicional" }, { name: "Desplazamiento táctico" }],
     }));
 
   it("an unknown class still levels up", () =>
