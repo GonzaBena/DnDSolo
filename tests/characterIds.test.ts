@@ -3,7 +3,7 @@ import { GAME_STATE_VERSION } from "../src/domain/types";
 import { createCharacter, createGame } from "../src/domain/character";
 import { gameStateSchema } from "../src/domain/schemas";
 import { migrateSave } from "../src/persistence/migrations";
-import { newGame } from "./helpers";
+import { fighterChoices, newGame } from "./helpers";
 
 const base = { name: "Lira", subclassId: null, srdBackgroundId: null, level: 1, background: "" };
 
@@ -245,7 +245,38 @@ describe("v15 -> v16", () => {
   it("carries old saves over unchanged (turns gained an optional chapter)", () => {
     const game = newGame();
     const migrated = migrateSave({ ...game, version: 15 });
-    expect(migrated?.version).toBe(16);
+    expect(migrated?.version).toBe(GAME_STATE_VERSION);
     expect(migrated?.turns).toEqual(game.turns);
   });
+});
+
+describe("v16 -> v17", () => {
+  it("every player gets choices: null", () => {
+    const game = newGame();
+    const players = game.players.map(({ choices: _choices, ...rest }) => rest);
+    const migrated = migrateSave({ ...game, version: 16, players });
+    expect(migrated?.version).toBe(17);
+    expect(migrated?.players.every((p) => p.choices === null)).toBe(true);
+  });
+});
+
+describe("createCharacter keeps the generator's choices", () => {
+  const base = {
+    name: "Brann", speciesId: "human", classId: "fighter", subclassId: null, srdBackgroundId: "soldier",
+    level: 1, background: "",
+  };
+  const id = () => "x";
+
+  it("stores choices that match the character", () =>
+    expect(createCharacter({ ...base, choices: fighterChoices() }, id).choices).toEqual(fighterChoices()));
+
+  it("drops choices whose species no longer matches", () =>
+    expect(createCharacter({ ...base, speciesId: "elf", choices: fighterChoices() }, id).choices).toBeNull());
+
+  it("drops choices without an SRD background or with another level", () => {
+    expect(createCharacter({ ...base, srdBackgroundId: null, choices: fighterChoices() }, id).choices).toBeNull();
+    expect(createCharacter({ ...base, level: 2, choices: fighterChoices() }, id).choices).toBeNull();
+  });
+
+  it("without choices, null", () => expect(createCharacter(base, id).choices).toBeNull());
 });

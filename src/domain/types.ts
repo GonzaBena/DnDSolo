@@ -3,6 +3,7 @@
 
 import type { HealthLabel } from "./health";
 import type { PortraitId } from "./portraits";
+import type { CharacterChoices } from "../rules/buildSheet";
 
 export const DICE = ["d4", "d6", "d8", "d10", "d12", "d20", "d100"] as const;
 export type Die = (typeof DICE)[number];
@@ -57,6 +58,9 @@ export interface Character {
   deathSaves: DeathSaves;
   /** Milestones earned since the last level up. */
   milestonesSinceLevel: number;
+  /** The rules choices the sheet is built from; `choices.level` is the level
+      they were made up to. Null for manual sheets and saves made before v17. */
+  choices: CharacterChoices | null;
 }
 
 export const ROLL_MODES = ["normal", "advantage", "disadvantage"] as const;
@@ -364,4 +368,4 @@ export interface GameState {
 /** Milestones needed since the last level to gain a new one. */
 export const MILESTONES_PER_LEVEL = 2;
 
-export const GAME_STATE_VERSION = 16;
+export const GAME_STATE_VERSION = 17;

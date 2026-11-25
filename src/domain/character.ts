@@ -1,5 +1,5 @@
 import { findCampaign } from "../campaigns";
-import type { CharacterChoices } from "../rules/buildSheet";
+import { buildSheet, type CharacterChoices } from "../rules/buildSheet";
 import { BACKGROUNDS, CLASSES_DATA, SPECIES, findBackground, findClass, findSpecies } from "../rules";
 import { GAME_STATE_VERSION, type Character, type CharacterStats, type GameState, type InventoryItem, type StoryItem } from "./types";
 
@@ -39,6 +39,16 @@ interface CreateOptions {
   now?: () => Date;
 }
 
+/** The generator's choices, only while they still describe this character
+    (the form can change species or level after generating) and build a sheet. */
+function matchingChoices(input: CharacterInput, level: number): CharacterChoices | null {
+  const c = input.choices;
+  if (!c) return null;
+  const matches =
+    c.speciesId === input.speciesId && c.classId === input.classId && c.backgroundId === input.srdBackgroundId && c.level === level;
+  return matches && buildSheet(c).ok ? c : null;
+}
+
 export function createCharacter(input: CharacterInput, newId: () => string): Character {
   const species = findSpecies(input.speciesId);
   if (!species) throw new Error(`Unknown species: ${input.speciesId}`);
@@ -70,6 +80,7 @@ export function createCharacter(input: CharacterInput, newId: () => string): Cha
     condition: "ok",
     deathSaves: { successes: 0, failures: 0 },
     milestonesSinceLevel: 0,
+    choices: matchingChoices(input, level),
   };
 }
 
