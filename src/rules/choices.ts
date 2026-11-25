@@ -5,7 +5,11 @@ import { spellOptions } from "./data/spells";
 import { requirementsOf } from "./types";
 import type { ChoiceSpec, ClassData, LevelRow, Option, Requirement } from "./types";
 
-export interface Concept { speciesId: string; classId: string; backgroundId: string; level: number }
+export interface Concept {
+  speciesId: string; classId: string; backgroundId: string; level: number;
+  /** false: the player's subclass is outside the SRD, so the SRD subclass doesn't apply. */
+  srdSubclass?: false;
+}
 
 /** Choices whose option ids are feat ids (fighting styles may also offer non-feat options). */
 export function isFeatChoice(id: string): boolean {
@@ -130,7 +134,8 @@ export function requiredChoices(concept: Concept): ChoiceSpec[] {
     },
     ...spellChoices(cls, row),
     ...cls.levels.filter((r) => r.level <= concept.level).flatMap((r) => r.choices),
-    ...cls.subclass.features.filter((f) => f.level <= concept.level).flatMap((f) => f.choices ?? []),
+    ...(concept.srdSubclass === false ? [] : cls.subclass.features.filter((f) => f.level <= concept.level))
+      .flatMap((f) => f.choices ?? []),
   ];
   const fromInvocations = grantedBy(base.filter((s) => isInvocationChoice(s.id)), (id) => INVOCATION_GRANTS[id]?.() ?? []);
   const featParents = [...base, ...fromInvocations].filter((s) => isFeatChoice(s.id));

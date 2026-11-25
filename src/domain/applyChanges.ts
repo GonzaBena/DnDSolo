@@ -227,6 +227,10 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
           rejected.push({ change, reason: "That is not the SRD subclass of the player's class." });
           break;
         }
+        if (player.outsideSrd.subclass !== null) {
+          rejected.push({ change, reason: "The player chose a subclass outside the SRD." });
+          break;
+        }
         if (player.subclassId !== null) {
           rejected.push({ change, reason: "The player already has a subclass." });
           break;

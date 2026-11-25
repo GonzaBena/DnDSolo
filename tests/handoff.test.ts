@@ -31,6 +31,12 @@ describe("character handoff", () => {
     expect(takeCharacter(storage)).toBeNull();
   });
 
+  it("carries the outside-SRD note", () => {
+    const storage = memoryStorage();
+    stashCharacter(storage, { ...VALUES, outsideSrdNote: "Trasfondo Ermitaño." });
+    expect(takeCharacter(storage)?.outsideSrdNote).toBe("Trasfondo Ermitaño.");
+  });
+
   it("carries stats and the starting inventory", () => {
     const storage = memoryStorage();
     const full: CharacterInput = {

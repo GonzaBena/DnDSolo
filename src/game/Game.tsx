@@ -16,10 +16,11 @@ import { QuestBanner } from "./QuestBanner";
 import { RecapScreen } from "./RecapScreen";
 import { recapOf, shouldShowRecap } from "../domain/recap";
 import { LevelUpScreen, shouldOpenLevelUp } from "./LevelUpScreen";
-import { levelUpFromPlayer, type LevelUp } from "./levelUp";
-import { applyLevelUp, pendingLevelUp } from "../domain/sheetProgress";
+import { enqueueLevelUp, levelUpFromPlayer, type LevelUp } from "./levelUp";
+import { pendingLevelUp } from "../domain/sheetProgress";
 import { usePlayerUpdate } from "./usePlayerUpdate";
 import { canUpgradeSheet, upgradeSheet } from "../domain/sheetProgress";
+import { confirmLevelUp, setOutsideSrd } from "../domain/outsideSrd";
 import { SheetUpgradeDialog, UpgradeNotice } from "./SheetUpgrade";
 import { InfoDrawer } from "./InfoDrawer";
 import { RollDialog } from "./RollDialog";
@@ -65,7 +66,7 @@ export default function Game() {
   // toasts have left, and an open one stays until "Seguir".
   const [levelUps, setLevelUps] = useState<LevelUp[]>([]);
   const [levelUpOpen, setLevelUpOpen] = useState(false);
-  const showLevelUp = useCallback((levelUp: LevelUp) => setLevelUps((queue) => [...queue, levelUp]), []);
+  const showLevelUp = useCallback((levelUp: LevelUp) => setLevelUps((queue) => enqueueLevelUp(queue, levelUp)), []);
   // "Anteriormente en…": opens by itself on entering a game left 12 hours
   // ago (once per game), and from the info drawer whenever asked.
   const [recapOpen, setRecapOpen] = useState(false);
@@ -236,11 +237,8 @@ export default function Game() {
           <LevelUpScreen
             levelUp={levelUps[0]}
             player={state.players.find((p) => p.id === levelUps[0]!.playerId) ?? null}
-            onConfirm={(picks) =>
-              updatePlayer(engine, state, levelUps[0]!.playerId, (p) => {
-                const result = applyLevelUp(p, picks);
-                return result.ok ? result.player : p;
-              })
+            onConfirm={(picks, subclass, note) =>
+              updatePlayer(engine, state, levelUps[0]!.playerId, (p) => confirmLevelUp(p, picks, subclass, note))
             }
             onClose={() => {
               setLevelUps((queue) => queue.slice(1));
@@ -266,6 +264,15 @@ export default function Game() {
           open={infoOpen}
           onClose={() => setInfoOpen(false)}
           turnRunning={busy || inFlight !== null}
+          onSaveOutsideSrd={async (edit) => {
+            // Checked first on the shown player, so Info can say why a change can't be made.
+            const check = setOutsideSrd(state.players[0]!, edit);
+            if (!check.ok) throw new Error(check.message);
+            await updatePlayer(engine, state, state.players[0]!.id, (p) => {
+              const result = setOutsideSrd(p, edit);
+              return result.ok ? result.player : p;
+            });
+          }}
           onOpenRecap={() => {
             setInfoOpen(false);
             setRecapOpen(true);

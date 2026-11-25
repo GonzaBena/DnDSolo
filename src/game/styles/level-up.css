@@ -84,3 +84,12 @@
   padding-left: var(--space-4);
   font-weight: 400;
 }
+.level-up__subclass-pick,
+.level-up__note {
+  width: min(32rem, 100%);
+  text-align: left;
+}
+.level-up__subclass-pick input[type="text"],
+.level-up__note textarea {
+  width: 100%;
+}

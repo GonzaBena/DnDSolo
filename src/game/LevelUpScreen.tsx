@@ -2,9 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { play } from "../audio/sound";
 import { enterLevelUp } from "../animations/motion";
 import type { BannerQueue } from "./bannerQueue";
-import type { LevelUp } from "./levelUp";
+import { viewForSubclass, type LevelUp } from "./levelUp";
 import { ChoicePicker } from "./ChoicePicker";
 import { hiddenErrors, levelSpecs, lockedPicks, pendingLevelUp, pendingSpecs, previewLevelUp } from "../domain/sheetProgress";
+import { SUBCLASS_NAME_MAX, applySubclassPick, needsSubclassChoice, type SubclassPick } from "../domain/outsideSrd";
+import { OUTSIDE_SRD_NOTE_MAX } from "../domain/character";
+import { findClass } from "../rules";
 import type { Character } from "../domain/types";
 
 /** Whether to open the next pending level-up screen: only once the turn's
@@ -31,6 +34,9 @@ export function LevelUpContent({ levelUp, maxHp }: { levelUp: LevelUp; maxHp?: {
       </h2>
       <p className="level-up__name">{levelUp.name}</p>
       {levelUp.subclass !== null && <p className="level-up__subclass">Subclase: {levelUp.subclass}</p>}
+      {levelUp.customSubclass !== null && (
+        <p className="level-up__bonus">Tu subclase está fuera del SRD: revisá tu manual para este nivel.</p>
+      )}
       {maxHp && maxHp.after !== maxHp.before && (
         <p className="level-up__bonus">
           PG máx: {maxHp.before} → {maxHp.after}
@@ -56,6 +62,21 @@ export function LevelUpContent({ levelUp, maxHp }: { levelUp: LevelUp; maxHp?: {
 /** The hero reached a new level: a full screen that stays until "Seguir".
     With stored choices, it also asks for the level's picks and rebuilds the
     sheet before closing; "Seguir" waits until the picks are valid. */
+/** Whether "Seguir" has anything to save: the level's picks, the subclass, or a changed note. */
+export function levelUpChanges({
+  asks,
+  asksSubclass,
+  note,
+  savedNote,
+}: {
+  asks: boolean;
+  asksSubclass: boolean;
+  note: string;
+  savedNote: string;
+}): boolean {
+  return asks || asksSubclass || note.trim() !== savedNote;
+}
+
 export function LevelUpScreen({
   levelUp,
   player,
@@ -64,23 +85,43 @@ export function LevelUpScreen({
 }: {
   levelUp: LevelUp;
   player: Character | null;
-  onConfirm: (picks: Record<string, string[]>) => Promise<void>;
+  onConfirm: (picks: Record<string, string[]>, subclass: SubclassPick | null, note: string) => Promise<void>;
   onClose: () => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const asks = player !== null && pendingLevelUp(player);
+  const asksSubclass = player !== null && needsSubclassChoice(player);
+  const [subclassKind, setSubclassKind] = useState<"srd" | "custom" | null>(null);
+  const [customName, setCustomName] = useState("");
+  const pick: SubclassPick | null =
+    subclassKind === "srd" ? { kind: "srd" } : subclassKind === "custom" ? { kind: "custom", name: customName } : null;
+  const picked = player && asksSubclass && pick ? applySubclassPick(player, pick) : null;
+  const pickValid = !asksSubclass || picked?.ok === true;
+  // The player as "Seguir" would leave them: the subclass picked here decides what the level's sheet includes.
+  const staged = picked?.ok ? picked.player : player;
+  const asks = staged !== null && pendingLevelUp(staged);
   const [picks, setPicks] = useState(() => (player ? lockedPicks(player) : {}));
+  const [note, setNote] = useState(player?.outsideSrd.note ?? "");
   const [saving, setSaving] = useState(false);
   // The preview is null until the level's picks build a valid sheet.
-  const preview = asks ? previewLevelUp(player, picks) : null;
-  const specs = asks ? levelSpecs(player, picks) : [];
-  const missing = asks ? pendingSpecs(player, picks).length : 0;
+  const preview = asks ? previewLevelUp(staged, picks) : null;
+  const specs = asks ? levelSpecs(staged, picks) : [];
+  const missing = asks ? pendingSpecs(staged, picks).length : 0;
   const maxHp =
     preview?.ok && player?.stats ? { before: player.stats.maxHp, after: preview.sheet.hitPoints } : undefined;
   // Errors only once every pick is made: before that, "falta elegir" says nothing new.
   const errors = preview && !preview.ok && missing === 0 ? preview.errors : [];
   // Errors the picker can't fix: listed, and "Más tarde" lets the player out instead of trapping them.
-  const stuck = asks ? hiddenErrors(player, picks) : [];
+  const stuck = asks ? hiddenErrors(staged, picks) : [];
+  // The queued level up (it may span two levels); the subclass picked here decides what of the SRD one it shows.
+  const classId = player?.classId ?? player?.characterClass ?? "";
+  const shown = !asksSubclass
+    ? levelUp
+    : viewForSubclass(
+        levelUp,
+        classId,
+        subclassKind === "srd" ? "srd" : subclassKind === "custom" && picked?.ok ? { custom: customName.trim() } : "undecided",
+      );
+  const srdSubclass = player ? findClass(player.classId ?? player.characterClass)?.subclass : undefined;
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -91,10 +132,13 @@ export function LevelUpScreen({
   }, []);
 
   const confirm = async () => {
-    if (asks) {
+    const changes =
+      player !== null &&
+      levelUpChanges({ asks, asksSubclass, note, savedNote: player.outsideSrd.note });
+    if (changes) {
       setSaving(true);
       try {
-        await onConfirm(picks);
+        await onConfirm(picks, asksSubclass ? pick : null, note);
       } finally {
         setSaving(false);
       }
@@ -110,12 +154,49 @@ export function LevelUpScreen({
       onClose={onClose}
       // Esc would skip the level's choices.
       onCancel={(event) => {
-        if (asks && stuck.length === 0) event.preventDefault();
+        if ((asks || asksSubclass) && stuck.length === 0) event.preventDefault();
       }}
     >
-      <LevelUpContent levelUp={levelUp} maxHp={maxHp} />
+      <LevelUpContent levelUp={shown} maxHp={maxHp} />
+      {asksSubclass && srdSubclass && (
+        <fieldset className="choice-picker choice-picker__group level-up__subclass-pick">
+          <legend className="choice-picker__label">Subclase</legend>
+          <label className="choice-picker__option">
+            <input type="radio" name="subclass" checked={subclassKind === "srd"} onChange={() => setSubclassKind("srd")} />
+            <span className="choice-picker__text">
+              <strong>{srdSubclass.name} (SRD)</strong>
+            </span>
+          </label>
+          <label className="choice-picker__option">
+            <input
+              type="radio"
+              name="subclass"
+              checked={subclassKind === "custom"}
+              onChange={() => setSubclassKind("custom")}
+            />
+            <span className="choice-picker__text">
+              <strong>Otra de tu manual</strong>
+              <input
+                type="text"
+                maxLength={SUBCLASS_NAME_MAX}
+                value={customName}
+                placeholder="Ej: Maestro de las bestias"
+                aria-label="Nombre de la subclase"
+                onFocus={() => setSubclassKind("custom")}
+                onChange={(e) => setCustomName(e.target.value)}
+              />
+            </span>
+          </label>
+        </fieldset>
+      )}
       {asks && (
-        <ChoicePicker specs={specs} picks={picks} locked={lockedPicks(player)} errors={errors} onChange={setPicks} />
+        <ChoicePicker specs={specs} picks={picks} locked={lockedPicks(staged)} errors={errors} onChange={setPicks} />
+      )}
+      {player && (
+        <label className="field level-up__note">
+          <span>Fuera del SRD (opcional)</span>
+          <textarea rows={3} maxLength={OUTSIDE_SRD_NOTE_MAX} value={note} onChange={(e) => setNote(e.target.value)} />
+        </label>
       )}
       {stuck.length > 0 && (
         <div className="notice notice--error level-up__stuck">
@@ -133,8 +214,8 @@ export function LevelUpScreen({
       <button
         type="button"
         className="button button--primary"
-        autoFocus={!asks}
-        disabled={saving || (asks && !preview?.ok)}
+        autoFocus={!asks && !asksSubclass}
+        disabled={saving || !pickValid || (asks && !preview?.ok)}
         onClick={() => void confirm()}
       >
         Seguir

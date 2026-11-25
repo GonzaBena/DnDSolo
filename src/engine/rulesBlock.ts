@@ -2,6 +2,9 @@ import type { Character } from "../domain/types";
 import { LOADED_MAX_LEVEL, findClass, findSpecies } from "../rules";
 import type { ClassData, LevelRow } from "../rules";
 
+const OUTSIDE_SRD_LABEL =
+  "Fuera del SRD (lo anotó el jugador; aplicalo con lo que sepas del Player's Handbook 2024): ";
+
 function describeSlots(row: LevelRow): string | null {
   const parts: string[] = [];
   if (row.slots?.some((n) => n > 0)) {
@@ -13,11 +16,15 @@ function describeSlots(row: LevelRow): string | null {
 
 /** One line per feature ("name: summary"), class and subclass, for one level.
     `previewSubclass` lists the unchosen SRD subclass's features under an explicit label. */
-function describeLevel(cls: ClassData, subclassChosen: boolean, previewSubclass: boolean, level: number): string[] {
+function describeLevel(
+  cls: ClassData, subclassChosen: boolean, previewSubclass: boolean, level: number, customSubclass = false,
+): string[] {
   const row = cls.levels.find((r) => r.level === level);
   if (!row) return [];
   const subclassFeatures = cls.subclass.features.filter((f) => f.level === level).map((f) => f.feature);
-  const features = [...row.features, ...(subclassChosen ? subclassFeatures : [])];
+  // With a subclass from the player's manual, the class's "pick a subclass (SRD: X)" feature would point at the SRD one.
+  const classFeatures = customSubclass ? row.features.filter((f) => !f.name.startsWith("Subclase de ")) : row.features;
+  const features = [...classFeatures, ...(subclassChosen ? subclassFeatures : [])];
   const slots = describeSlots(row);
   return [
     `Nivel ${level} (bonificador de competencia +${row.proficiencyBonus}):`,
@@ -35,11 +42,12 @@ function describeLevel(cls: ClassData, subclassChosen: boolean, previewSubclass:
 function describeCharacter(c: Character): string {
   const species = findSpecies(c.speciesId ?? c.race);
   const cls = findClass(c.classId ?? c.characterClass);
-  const subclassChosen = cls !== undefined && c.subclassId !== null && c.subclassId === cls.subclass.id;
+  const customSubclass = c.outsideSrd.subclass;
+  const subclassChosen = cls !== undefined && customSubclass === null && c.subclassId !== null && c.subclassId === cls.subclass.id;
   const missing: string[] = [];
   if (!species) missing.push(`especie "${c.race}"`);
   if (!cls) missing.push(`clase "${c.characterClass}"`);
-  if (cls && !subclassChosen && c.level >= cls.subclass.level) {
+  if (cls && customSubclass === null && !subclassChosen && c.level >= cls.subclass.level) {
     missing.push(`subclase no elegida (se obtiene en el nivel ${cls.subclass.level}; la del SRD es ${cls.subclass.name}, id "${cls.subclass.id}")`);
   }
   if (c.level + 1 > LOADED_MAX_LEVEL) {
@@ -54,11 +62,13 @@ function describeCharacter(c: Character): string {
       // The SRD has one subclass per class, so even before it is chosen the DM
       // can preview what level-up brings (e.g. a level 2 fighter's Champion).
       // Once its level is reached and it is still unchosen, keep offering it (with its id) for the "subclass" change.
-      const preview = !subclassChosen && level >= cls.subclass.level;
-      lines.push(...describeLevel(cls, subclassChosen, preview, level));
+      const preview = customSubclass === null && !subclassChosen && level >= cls.subclass.level;
+      lines.push(...describeLevel(cls, subclassChosen, preview, level, customSubclass !== null));
     }
   }
+  if (customSubclass !== null) lines.push(`Subclase: ${customSubclass} (fuera del SRD)`);
   if (species) lines.push(`Rasgos de especie: ${species.traits.map((t) => t.name).join(", ")}`);
+  if (c.outsideSrd.note !== "") lines.push(`${OUTSIDE_SRD_LABEL}${c.outsideSrd.note}`);
   if (missing.length) lines.push(`Sin datos de reglas: ${missing.join("; ")}`);
   return lines.join("\n");
 }

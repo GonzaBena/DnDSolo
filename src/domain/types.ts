@@ -61,6 +61,15 @@ export interface Character {
   /** The rules choices the sheet is built from; `choices.level` is the level
       they were made up to. Null for manual sheets and saves made before v17. */
   choices: CharacterChoices | null;
+  /** What the player noted outside the SRD 5.2 (for the DM), and a subclass from their manual. */
+  outsideSrd: OutsideSrd;
+}
+
+export interface OutsideSrd {
+  /** Free text, up to 1000 characters. */
+  note: string;
+  /** Name of a subclass outside the SRD; while set, the SRD subclass doesn't apply. */
+  subclass: string | null;
 }
 
 export const ROLL_MODES = ["normal", "advantage", "disadvantage"] as const;
@@ -368,4 +377,4 @@ export interface GameState {
 /** Milestones needed since the last level to gain a new one. */
 export const MILESTONES_PER_LEVEL = 2;
 
-export const GAME_STATE_VERSION = 17;
+export const GAME_STATE_VERSION = 18;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { CharacterInput } from "../domain/character";
-import { BACKGROUND_OPTIONS, CLASSES, MAX_LEVEL, MIN_LEVEL, SPECIES_OPTIONS, createGame } from "../domain/character";
+import { BACKGROUND_OPTIONS, CLASSES, MAX_LEVEL, MIN_LEVEL, OUTSIDE_SRD_NOTE_MAX, SPECIES_OPTIONS, createGame } from "../domain/character";
 import { statsFromForm } from "../domain/stats";
 import { applyBuildChange, levelTextFor, mergeReviewedStats, parseLevel, parseWholeNumber } from "./buildChange";
 import { createGameRepo } from "../sync/runtime";
@@ -231,6 +231,19 @@ export function CharacterForm({ values, onChange, onNext }: Props) {
             onChange={(e) => set({ background: e.target.value })}
             placeholder="Ej: ex soldado que busca a su hermana desaparecida."
           />
+        </label>
+        <label className="field">
+          <span>
+            Fuera del SRD <small>(opcional)</small>
+          </span>
+          <textarea
+            rows={2}
+            maxLength={OUTSIDE_SRD_NOTE_MAX}
+            value={values.outsideSrdNote ?? ""}
+            onChange={(e) => set({ outsideSrdNote: e.target.value })}
+            placeholder="Ej: trasfondo Ermitaño, elfo de los bosques."
+          />
+          <small>Lo que tu personaje tiene y no está en el SRD. El DM lo tiene en cuenta.</small>
         </label>
         <p className="status" role="status" aria-live="polite" data-tone={error ? "error" : undefined}>
           {error ?? ""}

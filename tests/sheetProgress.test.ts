@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Character } from "../src/domain/types";
 import { statsFromSheet } from "../src/domain/stats";
+import { confirmLevelUp } from "../src/domain/outsideSrd";
 import {
   hiddenErrors,
   levelSpecs,
@@ -193,5 +194,32 @@ describe("hiddenErrors", () => {
   it("none for a level up that just needs its picks", () => {
     const player = hero(fighterChoices(), 2);
     expect(hiddenErrors(player, lockedPicks(player))).toEqual([]);
+  });
+});
+
+describe("confirmLevelUp", () => {
+  const twoToThree = () => hero(greedyChoices("human", "fighter", "soldier", 2), 3);
+
+  it("a subclass from the manual: level 3 sheet without the Champion, and the note saved", () => {
+    const player = twoToThree();
+    const after = confirmLevelUp(player, lockedPicks(player), { kind: "custom", name: "Maestro de armas" }, "Compañero: ninguno.");
+    expect(after.choices!.level).toBe(3);
+    expect(after.choices!.srdSubclass).toBe(false);
+    expect(after.outsideSrd).toEqual({ note: "Compañero: ninguno.", subclass: "Maestro de armas" });
+    expect(after.subclassId).toBeNull();
+  });
+
+  it("the SRD subclass: Champion set and applied", () => {
+    const player = twoToThree();
+    const after = confirmLevelUp(player, lockedPicks(player), { kind: "srd" }, "");
+    expect(after.subclassId).toBe("champion");
+    expect(after.choices!.level).toBe(3);
+  });
+
+  it("without stored choices: only the subclass and the note", () => {
+    const player: Character = { ...twoToThree(), choices: null };
+    const after = confirmLevelUp(player, {}, { kind: "custom", name: "Maestro de armas" }, "x");
+    expect(after.outsideSrd).toEqual({ note: "x", subclass: "Maestro de armas" });
+    expect(after.stats).toEqual(player.stats);
   });
 });

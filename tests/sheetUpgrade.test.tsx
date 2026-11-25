@@ -10,8 +10,9 @@ describe("UpgradeNotice", () => {
   it("says why, with Cancelar and Actualizar", () => {
     const html = renderToStaticMarkup(<UpgradeNotice onUpgrade={noop} onCancel={noop} />);
     expect(html).toContain(
-      "Esta partida usa una ficha antigua. Actualizala para que suba de nivel con sus PG y elecciones.",
+      "Tu personaje no tiene guardadas sus elecciones de reglas. Completalas para que al subir de nivel se recalculen sus PG y elecciones.",
     );
+    expect(html).not.toContain("antigua");
     expect(html).toContain("Cancelar");
     expect(html).toContain("Actualizar");
   });
@@ -35,6 +36,21 @@ describe("SheetUpgradeBody", () => {
     );
     expect(html).toContain("Vex");
     for (const text of ["Usar esta", "Otra propuesta", "Cancelar"]) expect(html).toContain(text);
+  });
+
+  it("while saving, the actions are disabled (no double save)", () => {
+    const html = renderToStaticMarkup(
+      <SheetUpgradeBody
+        name="Vex"
+        story=""
+        phase={{ status: "proposal", choices, sheet: built.sheet }}
+        saving
+        onUse={noop}
+        onRetry={noop}
+        onCancel={noop}
+      />,
+    );
+    expect(html.match(/disabled=""/g)?.length).toBe(3);
   });
 
   it("a failure shows the reason and lets you ask again", () => {

@@ -1,5 +1,6 @@
 import type { CharacterInput } from "../domain/character";
 import { inventoryFromSheet, statsFromSheet } from "../domain/stats";
+import { stripOutsideSrdPhrase } from "../domain/outsideSrd";
 import { findClass } from "../rules";
 import type { GeneratedOption } from "../rules/generateOptions";
 
@@ -18,5 +19,6 @@ export function formValuesFromOption(option: GeneratedOption): CharacterInput {
     stats: statsFromSheet(option.sheet),
     startingInventory: inventoryFromSheet(option.sheet),
     choices: option.choices,
+    outsideSrdNote: stripOutsideSrdPhrase(option.outsideSrdNote),
   };
 }

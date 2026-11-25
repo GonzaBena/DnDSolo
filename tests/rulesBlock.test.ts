@@ -9,7 +9,7 @@ function hero(overrides: Partial<Character>): Character {
     id: "p1", name: "Hero", race: "Humano", characterClass: "Guerrero",
     speciesId: "human", classId: "fighter", subclassId: null, srdBackgroundId: null,
     level: 2, background: null, inventory: [], stats: null, currentHp: null,
-    condition: "ok", deathSaves: { successes: 0, failures: 0 }, milestonesSinceLevel: 0, choices: null, ...overrides,
+    condition: "ok", deathSaves: { successes: 0, failures: 0 }, milestonesSinceLevel: 0, choices: null, outsideSrd: { note: "", subclass: null }, ...overrides,
   };
 }
 
@@ -105,5 +105,24 @@ describe("buildTurnPrompt", () => {
     expect(prompt).toContain("REGLAS DE LOS PERSONAJES");
     expect(prompt.indexOf("ESTADO")).toBeLessThan(prompt.indexOf("REGLAS DE LOS PERSONAJES"));
     expect(prompt.indexOf("REGLAS DE LOS PERSONAJES")).toBeLessThan(prompt.indexOf("RESUMEN"));
+  });
+});
+
+describe("describeCharacterRules: outside the SRD", () => {
+  const PREFIX = "Fuera del SRD (lo anotó el jugador; aplicalo con lo que sepas del Player's Handbook 2024): ";
+
+  it("passes the player's note", () =>
+    expect(describeCharacterRules([hero({ outsideSrd: { note: "Trasfondo Ermitaño.", subclass: null } })])).toContain(
+      `${PREFIX}Trasfondo Ermitaño.`,
+    ));
+
+  it("no note, no line", () => expect(describeCharacterRules([hero({})])).not.toContain("Fuera del SRD"));
+
+  it("a subclass from the manual replaces the SRD one", () => {
+    const block = describeCharacterRules([hero({ level: 3, outsideSrd: { note: "", subclass: "Maestro de armas" } })]);
+    expect(block).toContain("Subclase: Maestro de armas (fuera del SRD)");
+    expect(block).not.toContain("Campeón");
+    expect(block).not.toContain("subclase no elegida");
+    expect(block).not.toContain("Si elige la subclase SRD");
   });
 });

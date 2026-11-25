@@ -255,7 +255,7 @@ describe("v16 -> v17", () => {
     const game = newGame();
     const players = game.players.map(({ choices: _choices, ...rest }) => rest);
     const migrated = migrateSave({ ...game, version: 16, players });
-    expect(migrated?.version).toBe(17);
+    expect(migrated?.version).toBe(GAME_STATE_VERSION);
     expect(migrated?.players.every((p) => p.choices === null)).toBe(true);
   });
 });
@@ -286,4 +286,28 @@ describe("createCharacter keeps the generator's choices", () => {
   });
 
   it("without choices, null", () => expect(createCharacter(base, id).choices).toBeNull());
+});
+
+describe("v17 -> v18", () => {
+  it("every player gets an empty outsideSrd; choices stay", () => {
+    const game = newGame();
+    const players = game.players.map(({ outsideSrd: _o, ...rest }) => ({ ...rest, choices: fighterChoices() }));
+    const migrated = migrateSave({ ...game, version: 17, players });
+    expect(migrated?.version).toBe(18);
+    expect(migrated?.players[0]!.outsideSrd).toEqual({ note: "", subclass: null });
+    expect(migrated?.players[0]!.choices).toEqual(fighterChoices());
+  });
+});
+
+describe("createCharacter keeps the note", () => {
+  const base = {
+    name: "Brann", speciesId: "human", classId: "fighter", subclassId: null, srdBackgroundId: null,
+    level: 1, background: "",
+  };
+  it("trimmed", () =>
+    expect(createCharacter({ ...base, outsideSrdNote: "  Trasfondo Ermitaño  " }, () => "x").outsideSrd).toEqual({
+      note: "Trasfondo Ermitaño", subclass: null,
+    }));
+  it("cut to 1000 characters", () =>
+    expect(createCharacter({ ...base, outsideSrdNote: "a".repeat(1200) }, () => "x").outsideSrd.note).toHaveLength(1000));
 });

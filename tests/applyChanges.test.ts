@@ -230,6 +230,13 @@ describe("applyStateChanges", () => {
   });
 
   describe("subclass", () => {
+    it("is rejected once the player chose a subclass from their manual", () => {
+      const game = newGame();
+      const custom = { ...game, players: [{ ...game.players[0]!, outsideSrd: { note: "", subclass: "Embaucador arcano" } }] };
+      const result = applyStateChanges(custom, [{ type: "subclass" as const, playerId: PLAYER_ID, subclassId: "thief" }]);
+      expect(result.state.players[0]!.subclassId).toBeNull();
+      expect(result.rejected[0]?.reason).toBe("The player chose a subclass outside the SRD.");
+    });
     // newGame() is a level 3 elf rogue without a subclass; the SRD rogue subclass is the Thief at level 3.
     const subclass = (subclassId: string) => ({ type: "subclass" as const, playerId: PLAYER_ID, subclassId });
 

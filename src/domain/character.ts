@@ -15,6 +15,7 @@ export const BACKGROUND_OPTIONS: ClassOption[] = BACKGROUNDS.map((b) => ({ id: b
 
 export const MIN_LEVEL = 1;
 export const MAX_LEVEL = 20;
+export const OUTSIDE_SRD_NOTE_MAX = 1000;
 
 export interface CharacterInput {
   name: string;
@@ -30,6 +31,8 @@ export interface CharacterInput {
   startingInventory?: InventoryItem[];
   /** The generator's choices, so the form can rebuild the sheet when the species changes. */
   choices?: CharacterChoices;
+  /** What the character has outside the SRD, for the DM (the generator's note, or typed on the form). */
+  outsideSrdNote?: string;
   /** Official campaign module id; null or omitted for a free adventure. */
   campaignId?: string | null;
 }
@@ -80,6 +83,7 @@ export function createCharacter(input: CharacterInput, newId: () => string): Cha
     deathSaves: { successes: 0, failures: 0 },
     milestonesSinceLevel: 0,
     choices: matchingChoices(input, level),
+    outsideSrd: { note: (input.outsideSrdNote ?? "").trim().slice(0, OUTSIDE_SRD_NOTE_MAX), subclass: null },
   };
 }
 
