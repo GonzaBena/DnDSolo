@@ -239,6 +239,7 @@ export default function Game() {
           state={state}
           open={infoOpen}
           onClose={() => setInfoOpen(false)}
+          turnRunning={busy || inFlight !== null}
           onOpenRecap={() => {
             setInfoOpen(false);
             setRecapOpen(true);

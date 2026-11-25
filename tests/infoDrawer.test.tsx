@@ -11,4 +11,12 @@ describe("InfoDrawer", () => {
     expect(html).toContain('href="/campaign?id=a%20b"');
     expect(html).toContain("Ver tu campaña");
   });
+
+  it("while a turn is being played, the campaign link is not offered (leaving would lose the turn)", () => {
+    const state = { ...newGame(), id: "a b" };
+    const html = renderToStaticMarkup(
+      <InfoDrawer state={state} open onClose={() => {}} onOpenRecap={() => {}} turnRunning />,
+    );
+    expect(html).not.toContain("/campaign?id=");
+  });
 });

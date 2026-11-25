@@ -61,11 +61,13 @@ interface Props {
   onClose: () => void;
   /** Opens "Anteriormente en…" over the game. */
   onOpenRecap: () => void;
+  /** A turn is being played: leaving the page now would lose it. */
+  turnRunning?: boolean;
 }
 
 /** Everything the campaign knows: characters, place, quests, story items
     and the NPCs met so far. */
-export function InfoDrawer({ state, open, onClose, onOpenRecap }: Props) {
+export function InfoDrawer({ state, open, onClose, onOpenRecap, turnRunning = false }: Props) {
   const { dialogProps, panelRef } = useDrawer(open, onClose);
   const campaign = findCampaign(state.campaignId);
   const players = state.players ?? [];
@@ -129,9 +131,11 @@ export function InfoDrawer({ state, open, onClose, onOpenRecap }: Props) {
                 Anteriormente en…
               </button>
             )}
-            <a className="button button--small" href={campaignHref(state.id)}>
-              Ver tu campaña
-            </a>
+            {!turnRunning && (
+              <a className="button button--small" href={campaignHref(state.id)}>
+                Ver tu campaña
+              </a>
+            )}
           </div>
         </section>
 
