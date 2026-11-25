@@ -1,0 +1,68 @@
+/* Old saves: the notice offering the new sheet, and the dialog that proposes it. */
+.upgrade-notice {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-sun);
+  color: var(--color-sun-ink);
+  font-weight: 700;
+}
+.upgrade-notice p {
+  margin: 0;
+}
+.upgrade-notice__actions,
+.sheet-upgrade__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+.sheet-upgrade {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: var(--space-5) var(--space-3);
+  border: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+}
+.sheet-upgrade[open] {
+  display: grid;
+  align-content: safe center;
+  justify-items: center;
+  overflow-y: auto;
+}
+.sheet-upgrade::backdrop {
+  background: var(--color-bg);
+}
+.sheet-upgrade__content {
+  display: grid;
+  gap: var(--space-3);
+  width: min(36rem, 100%);
+}
+.sheet-upgrade__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  color: var(--color-primary);
+  text-align: center;
+}
+.sheet-upgrade__status {
+  margin: 0;
+  text-align: center;
+  color: var(--color-ink-soft);
+}
+.sheet-upgrade__sheet {
+  margin: 0;
+  padding: var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  font-size: var(--text-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

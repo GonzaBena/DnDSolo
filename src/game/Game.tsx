@@ -19,6 +19,8 @@ import { LevelUpScreen, shouldOpenLevelUp } from "./LevelUpScreen";
 import { levelUpFromPlayer, type LevelUp } from "./levelUp";
 import { applyLevelUp, pendingLevelUp } from "../domain/sheetProgress";
 import { usePlayerUpdate } from "./usePlayerUpdate";
+import { canUpgradeSheet, upgradeSheet } from "../domain/sheetProgress";
+import { SheetUpgradeDialog, UpgradeNotice } from "./SheetUpgrade";
 import { InfoDrawer } from "./InfoDrawer";
 import { RollDialog } from "./RollDialog";
 import { RollRequest } from "./RollRequest";
@@ -77,6 +79,9 @@ export default function Game() {
   const { hpPending, adjustHp } = useHpAdjust(session, setToasts);
   const updatePlayer = usePlayerUpdate(session);
   const pendingLevelCheckedRef = useRef<string | null>(null);
+  // Old saves without stored choices: a notice until "Cancelar" (for this visit) or the upgrade.
+  const [upgradeDismissed, setUpgradeDismissed] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -293,6 +298,18 @@ export default function Game() {
           />
         )}
         {warning && <p className="notice">{warning}</p>}
+        {!upgradeDismissed && !upgradeOpen && state.players[0] && canUpgradeSheet(state.players[0]) && (
+          <UpgradeNotice onUpgrade={() => setUpgradeOpen(true)} onCancel={() => setUpgradeDismissed(true)} />
+        )}
+        {upgradeOpen && state.players[0] && (
+          <SheetUpgradeDialog
+            player={state.players[0]}
+            onUse={(choices, sheet) =>
+              updatePlayer(engine, state, state.players[0]!.id, (p) => upgradeSheet(p, choices, sheet))
+            }
+            onClose={() => setUpgradeOpen(false)}
+          />
+        )}
 
         {playerRoll && !inFlight && !dying && <RollRequest roll={playerRoll} />}
 
