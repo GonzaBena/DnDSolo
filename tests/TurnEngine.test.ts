@@ -1267,7 +1267,7 @@ describe("TurnEngine.updatePlayer", () => {
   it("replaces the player and saves without adding a turn", async () => {
     const ctx = setup();
     const state = newGame();
-    const out = await ctx.engine.updatePlayer(state, PLAYER_ID, (p) => ({ ...p, level: 4 }));
+    const out = await ctx.engine.updatePlayer(state, state.players[0]!.id, (p) => ({ ...p, level: 4 }));
     expect(out.state.players[0]!.level).toBe(4);
     expect(out.state.turns).toHaveLength(state.turns.length);
     expect(out.saveError).toBeNull();
