@@ -11,10 +11,26 @@
 .roll-dialog::backdrop {
   background: rgb(0 0 0 / 0.4);
 }
+/* Leaving: it no longer takes clicks while it flies away. */
+.roll-dialog--leaving {
+  pointer-events: none;
+}
 .roll-dialog__panel {
   display: grid;
   gap: var(--space-3);
   padding: var(--space-4);
+}
+/* The gem (or the picked die) beside the title and the DM's request. */
+.roll-dialog__head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+}
+.roll-dialog__titles {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
 }
 .roll-dialog__title {
   margin: 0;
@@ -22,9 +38,140 @@
   font-size: var(--text-lg);
 }
 .roll-dialog__request {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
   margin: 0;
   font-size: var(--text-sm);
   color: var(--color-ink-soft);
+}
+.roll-dialog__chip {
+  padding: 0 var(--space-2);
+  border: 2px solid var(--color-ink);
+  border-radius: 999px;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-weight: 800;
+  font-size: var(--text-xs);
+  line-height: 1.6;
+}
+.roll-dialog__chip--sun {
+  background: var(--color-sun);
+  color: var(--color-sun-ink);
+}
+
+.roll-dialog__figure {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 4.6rem;
+  height: 4.6rem;
+}
+/* A natural 20: a gold disc behind the gem. */
+.roll-dialog__figure::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -4px;
+  border: var(--border);
+  border-radius: 50%;
+  background: var(--color-sun);
+  transform: scale(0);
+}
+.roll-dialog__figure--nat20::before {
+  transform: scale(1);
+}
+.roll-dialog__figs {
+  display: flex;
+  gap: 0.15rem;
+}
+.roll-dialog__fig {
+  width: 4.4rem;
+  height: 4.4rem;
+  transform-origin: 50% 55%;
+}
+.roll-dialog__figs--two .roll-dialog__fig {
+  width: 3.3rem;
+  height: 3.3rem;
+}
+/* The second gem waits folded to nothing until advantage is picked. */
+.roll-dialog__fig--off {
+  width: 0 !important;
+  margin-left: -0.15rem;
+  opacity: 0;
+  transform: scale(0.3) rotate(-90deg);
+}
+.roll-dialog__fig--empty .gem__number text {
+  fill: var(--color-ink-soft);
+}
+.roll-dialog__fig--dropped {
+  opacity: 0.4;
+  filter: grayscale(0.7);
+  transform: rotate(-14deg) scale(0.86);
+}
+/* A natural 1: the gem goes grey and the number red. */
+.roll-dialog__figure--nat1 .roll-dialog__fig:not(.roll-dialog__fig--dropped) {
+  filter: grayscale(0.85);
+}
+.roll-dialog__figure--nat1 .gem__number text {
+  fill: var(--color-primary);
+}
+/* Any other die: its silhouette painted, the number on a token, since
+   its edges cross the middle. */
+.roll-dialog__fig--plain {
+  display: block;
+  fill: var(--color-gem-top);
+  stroke: var(--color-ink);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+.roll-dialog__figs:has(.roll-dialog__fig--plain + .roll-dialog__fig--plain)
+  .roll-dialog__fig--plain {
+  width: 2.6rem;
+}
+.roll-dialog__badge {
+  position: absolute;
+  right: -6px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  min-width: 2.1rem;
+  height: 2.1rem;
+  padding: 0 var(--space-1);
+  border: var(--border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  font-family: var(--font-display);
+  font-weight: 900;
+}
+.roll-dialog__burst .gem-spark {
+  left: 50%;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  margin: -5.5px;
+}
+
+/* Parts that come and go (the mode picker, "queda el…") fold open
+   instead of popping in. Closed, it also eats the panel's gap. */
+.roll-dialog__fold {
+  display: grid;
+  grid-template-rows: 1fr;
+}
+.roll-dialog__fold > * {
+  min-height: 0;
+  overflow: hidden;
+  /* Room for focus rings inside the clip. */
+  margin: -8px;
+  padding: 8px;
+}
+.roll-dialog__fold--closed {
+  grid-template-rows: 0fr;
+  margin-top: calc(-1 * var(--space-3));
+  opacity: 0;
 }
 .roll-dialog__dice {
   display: flex;
@@ -60,8 +207,12 @@
   pointer-events: none;
 }
 .roll-dialog__die:has(input:checked) {
-  background: var(--color-primary);
-  color: var(--color-primary-ink);
+  background: var(--color-sun);
+  color: var(--color-sun-ink);
+}
+.roll-dialog__die:has(input:checked) .roll-dialog__die-svg {
+  fill: var(--color-surface);
+  stroke: var(--color-ink);
 }
 .roll-dialog__die:has(input:focus-visible) {
   outline: var(--line) solid var(--color-ink);
@@ -78,19 +229,78 @@
   stroke-width: 2;
   stroke-linejoin: round;
 }
+/* Always one row: with advantage the second die's column opens from no
+   width, instead of the row reflowing. */
 .roll-dialog__fields {
+  container-type: inline-size;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0fr) auto minmax(
+      0,
+      1fr
+    ) auto minmax(3ch, auto);
   align-items: end;
-  gap: var(--space-2);
+}
+.roll-dialog__fields--pair {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto minmax(
+      0,
+      1fr
+    ) auto minmax(3ch, auto);
+}
+.roll-dialog__fields--bare {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0fr);
+}
+/* On a phone the four boxes get narrow: each box and its label shrink with
+   its column (a label that still doesn't fit is cut with an ellipsis)
+   instead of pushing past it. */
+.roll-dialog__fields .field {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
 }
 .roll-dialog__fields label {
+  overflow: hidden;
   white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.roll-dialog__second {
+  min-width: 0;
+  overflow: hidden;
+}
+.roll-dialog__second .field {
+  padding-left: var(--space-2);
+  opacity: 0;
+}
+.roll-dialog__fields--pair .roll-dialog__second .field {
+  opacity: 1;
+}
+.roll-dialog__label-short {
+  display: none;
+}
+/* On a phone the total and the signs take less room, always (not only
+   with two dice) so picking advantage doesn't resize them, and the
+   modifier's label shortens when there are four boxes. */
+@container (max-width: 23rem) {
+  .roll-dialog__fields .roll-dialog__total {
+    font-size: 2rem;
+  }
+  .roll-dialog__fields .roll-dialog__op {
+    padding-inline: var(--space-1);
+  }
+  .roll-dialog__second .field {
+    padding-left: var(--space-1);
+  }
+  .roll-dialog__fields--pair .roll-dialog__label-long {
+    display: none;
+  }
+  .roll-dialog__fields--pair .roll-dialog__label-short {
+    display: inline;
+  }
 }
 /* Numbers read big and centered; the spinner arrows would eat the digits. */
 .roll-dialog__fields input {
+  padding-inline: var(--space-1);
+  font-family: var(--font-display);
   font-size: var(--text-lg);
-  font-weight: 700;
+  font-weight: 800;
   text-align: center;
   appearance: textfield;
   -moz-appearance: textfield;
@@ -100,51 +310,211 @@
   margin: 0;
   -webkit-appearance: none;
 }
-/* With two dice, they take the first row and the modifier the second. */
-.roll-dialog__fields--pair {
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+/* The ring sits inside the box: the second die's column clips outside it. */
+.roll-dialog__fields input:focus-visible {
+  outline: none;
+  border-color: var(--color-sun);
+  box-shadow: inset 0 0 0 2px var(--color-ink);
 }
-.roll-dialog__fields--pair .roll-dialog__pair {
-  grid-column: 1 / -1;
-}
-.roll-dialog__pair {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-2);
-}
+/* Normal / Ventaja / Desventaja as one segmented pill, like the theme
+   switch: the picked one is filled with ink. */
 .roll-dialog__modes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
   margin: 0;
   padding: 0;
   border: 0;
+  min-width: 0;
 }
 .roll-dialog__modes legend {
   margin-bottom: var(--space-1);
   padding: 0;
   font-weight: 700;
 }
+.roll-dialog__modes-track {
+  display: inline-flex;
+  flex-wrap: wrap;
+  border: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
 .roll-dialog__mode {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
+  position: relative;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease-out,
+    color 160ms ease-out;
+}
+.roll-dialog__mode + .roll-dialog__mode {
+  border-left: var(--border);
+}
+.roll-dialog__mode input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.roll-dialog__mode:has(input:checked) {
+  background: var(--color-ink);
+  color: var(--color-bg);
+}
+.roll-dialog__mode:has(input:focus-visible) {
+  outline: 3px solid var(--color-sun);
+  outline-offset: -3px;
+}
+@media (hover: hover) {
+  .roll-dialog__mode:not(:has(input:checked)):hover {
+    background: var(--color-sun);
+    color: var(--color-sun-ink);
+  }
+}
+@media (pointer: coarse) {
+  .roll-dialog__mode {
+    padding-block: var(--space-2);
+  }
 }
 .roll-dialog__kept {
   margin: 0;
   font-weight: 700;
 }
-.roll-dialog__op,
-.roll-dialog__total {
-  padding-bottom: var(--space-2);
+.roll-dialog__op {
+  padding: 0 var(--space-2) var(--space-2);
   font-weight: 800;
 }
 .roll-dialog__total {
-  min-width: 2.5ch;
+  display: inline-block;
+  min-width: 3ch;
   font-family: var(--font-display);
-  font-size: var(--text-lg);
+  font-size: var(--text-xl);
+  font-weight: 900;
+  line-height: 1.4;
   text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.roll-dialog__total > span {
+  display: inline-block;
 }
 .roll-dialog .actions {
   justify-content: end;
+}
+
+/* Motion. Without it every state above still reads, just without travel. */
+@media (prefers-reduced-motion: no-preference) {
+  .roll-dialog[open]::backdrop {
+    animation: roll-dialog-backdrop 220ms ease both;
+  }
+  .roll-dialog--leaving::backdrop {
+    animation: roll-dialog-backdrop 240ms ease reverse both;
+  }
+  /* Each time it opens, the die lands spinning (gem.css). */
+  .roll-dialog[open] .roll-dialog__figure {
+    animation: gem-roll 680ms 100ms cubic-bezier(0.2, 0.8, 0.25, 1) backwards;
+  }
+  .roll-dialog__fig {
+    transition:
+      opacity 300ms,
+      filter 300ms,
+      transform 300ms cubic-bezier(0.3, 1.5, 0.5, 1),
+      width 340ms cubic-bezier(0.3, 1.15, 0.5, 1),
+      height 340ms cubic-bezier(0.3, 1.15, 0.5, 1),
+      margin 340ms;
+  }
+  /* Another die picked: the old figure spins away, the new one pops in. */
+  .roll-dialog__figs {
+    animation: roll-dialog-figure-in 400ms cubic-bezier(0.3, 1.5, 0.5, 1)
+      backwards;
+  }
+  .roll-dialog__figs--leaving {
+    transition:
+      transform 140ms ease-in,
+      opacity 140ms ease-in;
+    transform: scale(0.5) rotate(40deg);
+    opacity: 0;
+  }
+  .roll-dialog__badge {
+    animation: gem-number-in 220ms cubic-bezier(0.3, 1.8, 0.5, 1);
+  }
+  .roll-dialog__figure::before {
+    transition: transform 320ms cubic-bezier(0.3, 1.6, 0.5, 1);
+  }
+  .roll-dialog__burst .gem-spark {
+    animation: roll-dialog-burst 720ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  }
+  .roll-dialog__figure--nat1 .roll-dialog__fig {
+    animation: roll-dialog-nat1 440ms ease;
+  }
+  .roll-dialog__fold {
+    transition:
+      grid-template-rows 320ms cubic-bezier(0.3, 1, 0.5, 1),
+      margin-top 320ms cubic-bezier(0.3, 1, 0.5, 1),
+      opacity 220ms;
+  }
+  .roll-dialog__fields {
+    transition: grid-template-columns 340ms cubic-bezier(0.3, 1.15, 0.5, 1);
+  }
+  .roll-dialog__second .field {
+    transform: translateX(-10px);
+    transition:
+      opacity 180ms,
+      transform 300ms cubic-bezier(0.3, 1.4, 0.5, 1);
+  }
+  .roll-dialog__fields--pair .roll-dialog__second .field {
+    transform: none;
+    transition-delay: 90ms;
+  }
+  .roll-dialog__total > span {
+    animation: roll-dialog-total 260ms cubic-bezier(0.3, 1.8, 0.5, 1);
+  }
+  .roll-dialog__die:has(input:checked) .roll-dialog__die-svg {
+    animation: roll-dialog-hop 380ms cubic-bezier(0.3, 1.6, 0.5, 1);
+  }
+}
+@keyframes roll-dialog-backdrop {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes roll-dialog-figure-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4) rotate(-60deg);
+  }
+}
+@keyframes roll-dialog-burst {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--angle)) translateY(0) scale(0.3);
+  }
+  70% {
+    opacity: 1;
+    transform: rotate(var(--angle)) translateY(-50px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--angle)) translateY(-58px) scale(0.4);
+  }
+}
+@keyframes roll-dialog-nat1 {
+  20% {
+    transform: translateX(-4px) rotate(-6deg);
+  }
+  40% {
+    transform: translateX(4px) rotate(5deg);
+  }
+  60% {
+    transform: translateX(-3px) rotate(-3deg);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+@keyframes roll-dialog-total {
+  from {
+    transform: scale(1.35);
+  }
+}
+@keyframes roll-dialog-hop {
+  40% {
+    transform: translateY(-6px) rotate(-14deg);
+  }
 }

@@ -63,3 +63,44 @@ export function DieShape({ die, className }: { die: Die; className: string }) {
   }
   return <Shape die={die} className={className} />;
 }
+
+// The d20 as a cut gem: the faces of SHAPES.d20 painted in three tones (lit
+// top, mid sides, shaded bottom) with the front face left as paper so a
+// number reads on it.
+const GEM_FACES: { points: string; tone: "top" | "side" | "low" | "front" }[] = [
+  { points: "3,9.5 16,2 16,8.5", tone: "top" },
+  { points: "16,2 29,9.5 16,8.5", tone: "top" },
+  { points: "3,9.5 16,8.5 8.2,21.5", tone: "side" },
+  { points: "29,9.5 16,8.5 23.8,21.5", tone: "side" },
+  { points: "3,9.5 8.2,21.5 3,22.5", tone: "low" },
+  { points: "29,9.5 23.8,21.5 29,22.5", tone: "low" },
+  { points: "3,22.5 8.2,21.5 16,30", tone: "low" },
+  { points: "29,22.5 23.8,21.5 16,30", tone: "low" },
+  { points: "8.2,21.5 23.8,21.5 16,30", tone: "side" },
+  { points: "16,8.5 23.8,21.5 8.2,21.5", tone: "front" },
+];
+
+/** A four-point star, for the sparks around the gem. */
+export const SPARK = "M5 0L6.2 3.8L10 5L6.2 6.2L5 10L3.8 6.2L0 5L3.8 3.8Z";
+
+/** The painted d20, with `value` written on its front face. A new value
+    remounts the number so its CSS entrance plays again. */
+export function GemD20({ className, value }: { className: string; value: string }) {
+  const { outline, edges } = SHAPES.d20;
+  return (
+    <svg className={`gem ${className}`} viewBox="0 0 32 32" aria-hidden="true">
+      {GEM_FACES.map((face) => (
+        <polygon key={face.points} className={`gem__face gem__face--${face.tone}`} points={face.points} />
+      ))}
+      <g className="gem__edges">
+        <polygon points={outline} />
+        <path d={edges} />
+      </g>
+      <g className="gem__number" key={value}>
+        <text x="16" y="19.4">
+          {value}
+        </text>
+      </g>
+    </svg>
+  );
+}

@@ -301,3 +301,76 @@ export function rollIn(card: Element): void {
       : tumbleDie(dice[0]!);
   landValue(value, landsAt);
 }
+
+/** Where `origin` sits relative to the centre of the screen, which is where
+    a modal dialog is drawn: the offset that puts the dialog over it. */
+function offsetFromCenter(origin: Element | null): { x: number; y: number } {
+  const box = origin?.getBoundingClientRect();
+  if (!box || box.width === 0 || box.height === 0) return { x: 0, y: 24 };
+  return {
+    x: box.left + box.width / 2 - innerWidth / 2,
+    y: box.top + box.height / 2 - innerHeight / 2,
+  };
+}
+
+/** The roll dialog growing out of the die button. The inline transform
+    is cleared at the end. */
+export function enterRollDialog(dialog: HTMLElement, origin: Element | null): void {
+  if (!motionAllowed()) return;
+  const { x, y } = offsetFromCenter(origin);
+  animate(dialog, {
+    translateX: [x, 0],
+    translateY: [y, 0],
+    scale: [0.15, 1],
+    rotate: [-10, 0],
+    opacity: { from: 0, to: 1, duration: 240, ease: "outQuad" },
+    duration: 440,
+    ease: "outBack",
+    onComplete: () => {
+      dialog.style.removeProperty("transform");
+      dialog.style.removeProperty("opacity");
+    },
+  });
+}
+
+/** The roll dialog leaving: sent, it shrinks back into the die button;
+    cancelled, it drops a little and fades. Returns a cancel function. */
+export function leaveRollDialog(
+  dialog: HTMLElement,
+  how: "sent" | "cancelled",
+  origin: Element | null,
+  onDone: () => void,
+): () => void {
+  if (!motionAllowed()) {
+    onDone();
+    return () => {};
+  }
+  const done = () => {
+    dialog.style.removeProperty("transform");
+    dialog.style.removeProperty("opacity");
+    onDone();
+  };
+  if (how === "cancelled") {
+    const animation = animate(dialog, {
+      translateY: [0, 14],
+      scale: [1, 0.97],
+      opacity: [1, 0],
+      duration: 180,
+      ease: "inQuad",
+      onComplete: done,
+    });
+    return () => animation.cancel();
+  }
+  const { x, y } = offsetFromCenter(origin);
+  const animation = animate(dialog, {
+    translateX: [0, x],
+    translateY: [0, y],
+    scale: [1, 0.15],
+    rotate: [0, 10],
+    opacity: [1, 0],
+    duration: 300,
+    ease: "inCubic",
+    onComplete: done,
+  });
+  return () => animation.cancel();
+}
