@@ -64,6 +64,9 @@ sacudida de pantalla al recibir daño.
   2026-11-25, etapa 1): la partida guarda las elecciones, la pantalla de
   nivel pide las del nivel nuevo y las partidas viejas se actualizan desde
   un aviso.
+- Nota "Fuera del SRD" ✓ (hecho 2026-11-25): texto libre que el DM lee
+  cada turno (trasfondos, linajes, etc. del Player's Handbook) y subclase de
+  tu manual elegida al subir de nivel o desde Info.
 - Reglas, etapa 2: los datos de clase llegan hasta nivel 4. Del 5 en
   adelante faltan rasgos, competencia (+3 en 5) y hechizos de nivel 3+.
 - Tiradas con suspenso: el dado gira un poco más; animación propia para 20 y 1
