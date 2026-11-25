@@ -246,6 +246,15 @@ describe("saved turns", () => {
     ).toBe(false);
   });
 
+  it("keeps the DC of the player's roll, and loads rolls saved without it", () => {
+    const roll = { die: "d20", count: 1, value: 14, modifier: 3, reason: "Sigilo" };
+    const input = (extra: object) => ({ input: { type: "action", text: "", roll: { ...roll, ...extra } } });
+    const saved = gameStateSchema.parse(withTurn(input({ difficulty: 15 }))).turns[0]!.input;
+    expect(saved.type === "action" && saved.roll?.difficulty).toBe(15);
+    const old = gameStateSchema.parse(withTurn(input({}))).turns[0]!.input;
+    expect(old.type === "action" && old.roll && "difficulty" in old.roll).toBe(false);
+  });
+
   it("loads turns saved without arrivals as they are", () => {
     const parsed = gameStateSchema.parse(withTurn({}));
     expect("arrivals" in parsed.turns[0]!).toBe(false);

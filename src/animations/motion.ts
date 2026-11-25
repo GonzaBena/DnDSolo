@@ -483,6 +483,11 @@ export function rollIn(
     utils.set(meta, { opacity: 0 });
     animate(meta, { opacity: [0, 1], duration: 300, delay: landsAt + 200, ease: "outQuad" });
   }
+  const verdict = card.querySelector(".roll-card__verdict");
+  if (verdict) {
+    utils.set(verdict, { opacity: 0 });
+    animate(verdict, { opacity: [0, 1], translateY: [6, 0], duration: 320, delay: landsAt + 300, ease: "outCubic" });
+  }
   if (natural === "critical") criticalBurst(card, landsAt);
   if (natural === "fumble") {
     // The fumble's number drops in from above instead of popping.

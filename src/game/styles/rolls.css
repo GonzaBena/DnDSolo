@@ -177,3 +177,20 @@
   vector-effect: non-scaling-stroke;
   stroke-dasharray: 120;
 }
+
+/* Whether the player's total reached the DC the DM asked for. */
+.roll-card__verdict {
+  padding: 0 var(--space-2);
+  border: var(--border);
+  border-radius: 999px;
+  font-size: var(--text-sm);
+  font-weight: 800;
+}
+.roll-card__verdict--hit {
+  background: var(--color-friendly);
+  color: var(--color-accent-ink);
+}
+.roll-card__verdict--miss {
+  background: var(--color-hostile);
+  color: var(--color-primary-ink);
+}

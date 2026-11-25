@@ -227,6 +227,7 @@ const turnInput = z.discriminatedUnion("type", [
         reason: z.string().optional(),
         mode: z.enum(ROLL_MODES).optional(),
         rolls: z.tuple([z.number().int(), z.number().int()]).optional(),
+        difficulty: z.number().int().optional(),
       })
       .optional(),
   }),

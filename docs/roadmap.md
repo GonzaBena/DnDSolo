@@ -71,7 +71,9 @@ sacudida de pantalla al recibir daño.
   del SRD llegan al nivel 10, con los conjuros de nivel 3 a 5.
 - Reglas, etapa 3: niveles 11 a 20 (conjuros de nivel 6 a 9, Arcanum
   místico del brujo, dones épicos).
-- Tiradas con suspenso: el dado gira un poco más; animación propia para 20 y 1
-  naturales.
-- Mostrar la CD después de tirar: "Necesitabas 15, sacaste 17 ✓".
+- Tiradas con suspenso ✓ (hecho 2026-11-25): las de los enemigos frenan
+  antes de caer; el 20 natural estalla en dorado y el 1 natural se tambalea,
+  cae una cara más y raja la tarjeta.
+- Mostrar la CD después de tirar ✓ (hecho 2026-11-25): "Necesitabas 15,
+  sacaste 17 ✓" cuando el DM pidió la tirada con dificultad.
 - Tiradas de muerte con más dramatismo: latido, pantalla que se oscurece.

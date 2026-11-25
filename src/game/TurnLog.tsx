@@ -39,6 +39,7 @@ function RollCard({
   meta,
   variant,
   natural = null,
+  difficulty,
   animated,
 }: {
   label: string;
@@ -49,9 +50,12 @@ function RollCard({
   meta: string;
   variant: "enemy" | "player";
   natural?: "critical" | "fumble" | null;
+  /** The DC it had to reach, when the DM gave one. */
+  difficulty?: number | undefined;
   animated?: boolean | undefined;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const reached = difficulty !== undefined && total >= difficulty;
   useLayoutEffect(() => {
     const card = ref.current;
     if (!animated || !card) return;
@@ -90,6 +94,11 @@ function RollCard({
         <span className="roll-card__value">{total}</span>
       </span>
       <span className="roll-card__meta">{meta}</span>
+      {difficulty !== undefined && (
+        <span className={`roll-card__verdict roll-card__verdict--${reached ? "hit" : "miss"}`}>
+          Necesitabas {difficulty}, sacaste {total} {reached ? "✓" : "✗"}
+        </span>
+      )}
       {natural === "fumble" && (
         <svg className="roll-card__crack" viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true">
           <path d="M58 0 L52 14 L61 22 L47 35 L55 44 L44 60" pathLength={120} />
@@ -157,6 +166,7 @@ function PlayerRollCard({
       total={roll.value + roll.modifier}
       kept={roll.value}
       meta={meta}
+      difficulty={roll.difficulty}
       variant="player"
       natural={naturalResult(roll)}
       animated={animated}
