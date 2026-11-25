@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
 import type { GameState } from "../src/domain/types";
-import { campaignRow, driveRow, playHref, saveRow } from "../src/home/campaignRows";
+import { campaignHref, campaignRow, driveRow, playHref, saveRow } from "../src/home/campaignRows";
 import { animateRowOut, deleteWarning } from "../src/home/deleteDialog";
 import { markMissing } from "../src/settings/apiSection";
 import { newGame } from "./helpers";
@@ -22,6 +22,14 @@ describe("campaign rows", () => {
   it("link to the game with its id encoded", () => {
     expect(playHref("a b&c")).toBe("/play?id=a%20b%26c");
     expect(campaignRow(hostile()).querySelector("a")!.getAttribute("href")).toBe("/play?id=a%20b%26c");
+  });
+
+  it("a saved campaign links to its page", () => {
+    expect(campaignHref("a b&c")).toBe("/campaign?id=a%20b%26c");
+    const link = [...saveRow(hostile(), { onExport() {}, onDelete() {} }).querySelectorAll("a")].find(
+      (a) => a.textContent === "Ver campaña",
+    );
+    expect(link?.getAttribute("href")).toBe("/campaign?id=a%20b%26c");
   });
 
   it("export and delete the row's campaign", () => {

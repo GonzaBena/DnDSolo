@@ -1,3 +1,4 @@
+import { campaignHref } from "../campaign/links";
 import type { Cast } from "../domain/dialogue";
 import type { GameState } from "../domain/types";
 import { downloadGame } from "../persistence/exportGame";
@@ -14,6 +15,9 @@ export function GameOver({ state, cast }: { state: GameState; cast: Cast }) {
           {state.players[0]?.name ?? "Tu personaje"} cayó para no volver a levantarse.
         </p>
         <div className="actions">
+          <a className="button" href={campaignHref(state.id)}>
+            Ver tu campaña
+          </a>
           <button type="button" className="button" onClick={() => downloadGame(state)}>
             Exportar partida
           </button>

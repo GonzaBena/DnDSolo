@@ -36,11 +36,14 @@ salvo que se indique.
   aporta).
 - Descartado: tipografía según la voz del NPC (la burbuja ya alcanza).
 
-### Continuidad
-- "Anteriormente en…" al retomar una partida: resumen del LLM a partir de los
-  hilos y misiones abiertas.
-- Diario de la campaña legible: crónica automática de los momentos clave.
-- Epílogo al morir o terminar, con estadísticas de la partida.
+### Continuidad ✓ (hecho 2026-11-24)
+- "Anteriormente en…" al volver después de 12 horas: resumen, misiones en
+  curso y dónde quedaste. Sin llamadas nuevas al LLM.
+- Página "Tu campaña" (`/campaign`): números, crónica con línea de tiempo y
+  bestiario de personajes y monstruos. Se llega desde Info, la portada y el
+  epílogo al morir.
+- Descartado: "terminar sin morir" (la historia puede seguir) y contar
+  monedas o daño (se juega por la historia).
 
 ## En suspenso
 
