@@ -176,10 +176,17 @@ export function describeArchetypes(): string {
     .join("\n");
 }
 
-/** Archetypes that are creatures rather than people, for the bestiary. */
-const MONSTER_ARCHETYPES: ReadonlySet<string> = new Set(["goblin", "kobold", "wolf", "skeleton", "zombie", "drowned", "dragon"]);
+/** Archetypes that are creatures rather than people, in the order the
+    bestiary's album shows them. */
+const MONSTER_ARCHETYPES = ["goblin", "kobold", "wolf", "skeleton", "zombie", "drowned", "dragon"] as const;
+
+/** The creature kinds the album has a slot for: those with images. */
+export const MONSTER_KINDS: readonly string[] = MONSTER_ARCHETYPES.filter((kind) => folderOf(kind) !== null);
+
+/** The archetype without its gender ("guard-female" -> "guard"). */
+export const archetypeBase = (portrait: string) => portrait.replace(/-(male|female)$/, "");
 
 /** Whether an NPC with this portrait is a monster; no portrait means a person. */
 export function isMonsterPortrait(portrait: string | null): boolean {
-  return portrait !== null && MONSTER_ARCHETYPES.has(portrait.replace(/-(male|female)$/, ""));
+  return portrait !== null && (MONSTER_ARCHETYPES as readonly string[]).includes(archetypeBase(portrait));
 }

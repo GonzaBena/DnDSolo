@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { bestiaryOf } from "../src/domain/bestiary";
+import { bestiaryOf, monsterAlbum } from "../src/domain/bestiary";
+import { portraitUrl } from "../src/domain/portraits";
 import type { GameState, Npc } from "../src/domain/types";
 import { newGame } from "./helpers";
 
@@ -66,5 +67,47 @@ describe("bestiaryOf", () => {
     const result = bestiaryOf(withNpcs([npc("Guardia 1"), npc("Guardia 2")]));
     expect(result.people.map((e) => e.name)).toEqual(["Guardia 1", "Guardia 2"]);
     expect(result.monsters).toEqual([]);
+  });
+});
+
+describe("monsterAlbum", () => {
+  const kinds = (state: GameState) => monsterAlbum(state).slots.map((slot) => slot.kind);
+
+  it("with no monsters met, every kind has its empty slot, named after the kind", () => {
+    const album = monsterAlbum(withNpcs([]));
+    expect(album).toMatchObject({ found: 0, total: 7 });
+    expect(kinds(withNpcs([]))).toEqual(["goblin", "kobold", "wolf", "skeleton", "zombie", "drowned", "dragon"]);
+    expect(album.slots.every((slot) => slot.entry === null)).toBe(true);
+    expect(album.slots[0]).toMatchObject({ name: "Goblin", image: portraitUrl("goblin", "goblin") });
+  });
+
+  it("numbered goblins fill the goblin slot", () => {
+    const album = monsterAlbum(withNpcs([goblin("Goblin 1", 0), goblin("Goblin 2", 0)]));
+    expect(album.found).toBe(1);
+    expect(album.slots[0]!.entry).toMatchObject({ name: "Goblin", status: "Derrotado" });
+  });
+
+  it("a named goblin gets its own slot after the goblins and doesn't count as a kind", () => {
+    const album = monsterAlbum(withNpcs([goblin("Grishnak", 7), goblin("Goblin 2", 0)]));
+    expect(album.found).toBe(1);
+    expect(album.slots.slice(0, 2).map((slot) => slot.entry?.name)).toEqual(["Goblin", "Grishnak"]);
+    expect(album.slots).toHaveLength(8);
+  });
+
+  it("when only a named one of a kind was met, it takes the kind's slot", () => {
+    const album = monsterAlbum(withNpcs([goblin("Grishnak", 7)]));
+    expect(album.found).toBe(1);
+    expect(album.slots[0]!.entry?.name).toBe("Grishnak");
+    expect(album.slots).toHaveLength(7);
+  });
+
+  it("keeps the catalog order whatever the order they were met in", () => {
+    const state = withNpcs([npc("Escamagris", { portrait: "dragon" }), npc("Lobo 1", { portrait: "wolf" })]);
+    expect(kinds(state)).toEqual(["goblin", "kobold", "wolf", "skeleton", "zombie", "drowned", "dragon"]);
+    expect(monsterAlbum(state).found).toBe(2);
+  });
+
+  it("a monster only mentioned doesn't count as found", () => {
+    expect(monsterAlbum(withNpcs([npc("Lobo", { portrait: "wolf", seen: false })])).found).toBe(0);
   });
 });
