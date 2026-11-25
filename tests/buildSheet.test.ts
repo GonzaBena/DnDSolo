@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildSheet, replaceRepeatedSkills, replaceRepeatedSpells, validateChoices } from "../src/rules/buildSheet";
 import type { CharacterChoices, ChoiceError } from "../src/rules/buildSheet";
-import { WEAPONS, findClass, findSpell, spellsFor } from "../src/rules";
+import { CLASSES_DATA, WEAPONS, findClass, findSpell, spellsFor } from "../src/rules";
 import type { CharacterSheet, SkillId } from "../src/rules";
 import { isWeaponProficient, weaponAbilityModifier } from "../src/rules/sheet";
 import { requiredChoices } from "../src/rules/choices";
@@ -1093,5 +1093,33 @@ describe("replaceRepeatedSkills", () => {
   it("leaves legal choices untouched", () => {
     const c = greedyChoices("elf", "rogue", "criminal", 4);
     expect(replaceRepeatedSkills(c)).toEqual(c);
+  });
+});
+
+describe("srdSubclass: false (a subclass from the player's manual)", () => {
+  const build = (c: CharacterChoices) => {
+    const built = buildSheet(c);
+    if (!built.ok) throw new Error(JSON.stringify(built.errors));
+    return built.sheet;
+  };
+
+  it("no SRD subclass name or features on the sheet", () => {
+    const sheet = build({ ...greedyChoices("human", "fighter", "soldier", 3), srdSubclass: false });
+    expect(sheet.subclass).toBeNull();
+    expect(sheet.features.some((f) => f.name === "Crítico mejorado")).toBe(false);
+  });
+
+  it("no Draconic Resilience hit points", () => {
+    const sorcerer = greedyChoices("human", "sorcerer", "sage", 3);
+    expect(build({ ...sorcerer, srdSubclass: false }).hitPoints).toBe(build(sorcerer).hitPoints - 3);
+  });
+
+  it("no choices from the SRD subclass's features", () => {
+    const concept = { speciesId: "human", classId: "ranger", backgroundId: "soldier", level: 3 };
+    const subclassIds = CLASSES_DATA.find((c) => c.id === "ranger")!.subclass.features.flatMap((f) => f.choices ?? []).map((s) => s.id);
+    expect(subclassIds.length).toBeGreaterThan(0);
+    const ids = requiredChoices({ ...concept, srdSubclass: false }).map((s) => s.id);
+    for (const id of subclassIds) expect(ids).not.toContain(id);
+    expect(requiredChoices(concept).map((s) => s.id)).toContain(subclassIds[0]);
   });
 });

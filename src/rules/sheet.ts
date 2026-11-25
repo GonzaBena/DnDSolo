@@ -104,7 +104,7 @@ function context(c: CharacterChoices): Context {
   const armors = items.flatMap((id) => armorOf(id) ?? []);
   return {
     c, species, cls, background, row, specs,
-    hasSubclass: c.level >= cls.subclass.level,
+    hasSubclass: c.srdSubclass !== false && c.level >= cls.subclass.level,
     scores, mods: Object.fromEntries(ABILITIES.map((a) => [a, modifier(scores[a])])) as Record<Ability, number>,
     prof: row.proficiencyBonus,
     items,
