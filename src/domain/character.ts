@@ -1,6 +1,7 @@
 import { findCampaign } from "../campaigns";
 import { buildSheet, withSpecies, type CharacterChoices } from "../rules/buildSheet";
 import { BACKGROUNDS, CLASSES_DATA, SPECIES, findBackground, findClass, findSpecies } from "../rules";
+import { portraitForClass } from "./heroPortraits";
 import { GAME_STATE_VERSION, type Character, type CharacterStats, type GameState, type InventoryItem, type StoryItem } from "./types";
 
 export interface ClassOption {
@@ -33,6 +34,8 @@ export interface CharacterInput {
   choices?: CharacterChoices;
   /** What the character has outside the SRD, for the DM (the generator's note, or typed on the form). */
   outsideSrdNote?: string;
+  /** The picked portrait (heroPortraits.ts); kept only if it belongs to the class. */
+  portrait?: string | null;
   /** Official campaign module id; null or omitted for a free adventure. */
   campaignId?: string | null;
 }
@@ -84,6 +87,7 @@ export function createCharacter(input: CharacterInput, newId: () => string): Cha
     milestonesSinceLevel: 0,
     choices: matchingChoices(input, level),
     outsideSrd: { note: (input.outsideSrdNote ?? "").trim().slice(0, OUTSIDE_SRD_NOTE_MAX), subclass: null },
+    portrait: portraitForClass(input.portrait, cls.id),
   };
 }
 

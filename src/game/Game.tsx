@@ -268,6 +268,9 @@ export default function Game() {
             setInfoOpen(false);
             setUpgradeOpen(true);
           }}
+          onSavePortrait={async (portrait) => {
+            await updatePlayer(engine, state, state.players[0]!.id, (p) => ({ ...p, portrait }));
+          }}
           onSaveOutsideSrd={async (edit) => {
             // Checked first on the shown player, so Info can say why a change can't be made.
             const check = setOutsideSrd(state.players[0]!, edit);

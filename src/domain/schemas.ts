@@ -315,6 +315,7 @@ export const gameStateSchema = z.object({
         milestonesSinceLevel: z.number().int().min(0),
         choices: characterChoicesSchema.nullable(),
         outsideSrd: z.object({ note: z.string(), subclass: z.string().nullable() }),
+        portrait: z.string().nullable(),
       }),
     )
     .min(1),

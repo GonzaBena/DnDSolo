@@ -37,7 +37,18 @@
   background: var(--color-primary);
   clip-path: inherit;
 }
-.character-card__die { isolation: isolate; }
+.character-card__die { isolation: isolate; z-index: 1; }
+/* The picked portrait fills the crest: the bust (transparent around it) stands on the band, taller to hold it. */
+.character-card--portrait .character-card__crest { height: 11rem; }
+.character-card__portrait {
+  position: absolute;
+  inset: var(--space-2) 0 0;
+  display: block;
+  width: 100%;
+  height: calc(100% - var(--space-2));
+  object-fit: contain;
+  object-position: 50% 100%;
+}
 .character-card__body { display: grid; gap: var(--space-2); padding: var(--space-5) var(--space-3) var(--space-3); }
 .character-card__body > * { margin: 0; }
 .character-card__eyebrow {

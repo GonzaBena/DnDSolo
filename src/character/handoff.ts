@@ -36,6 +36,7 @@ const handoffSchema = z.object({
   stats: statsSchema.nullable().optional(),
   choices: characterChoicesSchema.optional(),
   outsideSrdNote: z.string().optional(),
+  portrait: z.string().nullable().optional(),
   startingInventory: z.array(z.object({ name: z.string().min(1), quantity: z.number().int().min(1) })).optional(),
   campaignId: z
     .string()

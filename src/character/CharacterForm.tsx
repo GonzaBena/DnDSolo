@@ -6,6 +6,8 @@ import { applyBuildChange, levelTextFor, mergeReviewedStats, parseLevel, parseWh
 import { createGameRepo } from "../sync/runtime";
 import { findClass } from "../rules";
 import { CharacterPreview } from "./CharacterPreview";
+import { PortraitChooser } from "./PortraitPicker";
+import { genderOf, portraitFor } from "../domain/heroPortraits";
 
 interface Props {
   values: CharacterInput;
@@ -32,6 +34,8 @@ export function CharacterForm({ values, onChange, onNext }: Props) {
     setLevelText((text) => levelTextFor(text, values.level));
   }, [values.level]);
   const set = (patch: Partial<CharacterInput>) => onChange({ ...values, ...patch });
+  // The gender of the last picked portrait, kept across classes (even one without portraits); none for the initials.
+  const [portraitGender, setPortraitGender] = useState(() => genderOf(values.portrait));
   // The generated stats and gear describe one exact build: see applyBuildChange.
   const setBuild = (patch: Partial<CharacterInput>) => {
     const result = applyBuildChange(values, patch);
@@ -119,6 +123,15 @@ export function CharacterForm({ values, onChange, onNext }: Props) {
             />
           </label>
         </div>
+        <PortraitChooser
+          classId={values.classId}
+          name={values.name}
+          value={values.portrait ?? null}
+          onPick={(portrait) => {
+            setPortraitGender(genderOf(portrait));
+            set({ portrait });
+          }}
+        />
         <div className="form-row form-row--3">
           <label className="field">
             <span>Especie</span>
@@ -132,7 +145,14 @@ export function CharacterForm({ values, onChange, onNext }: Props) {
           </label>
           <label className="field">
             <span>Clase</span>
-            <select value={values.classId} onChange={(e) => setBuild({ classId: e.target.value, subclassId: null })}>
+            <select value={values.classId} onChange={(e) =>
+                setBuild({
+                  classId: e.target.value,
+                  subclassId: null,
+                  // The portraits are the class's: the new class's bust of the same gender.
+                  portrait: portraitFor(e.target.value, portraitGender),
+                })
+              }>
               {CLASSES.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.label}

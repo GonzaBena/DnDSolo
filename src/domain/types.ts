@@ -63,6 +63,8 @@ export interface Character {
   choices: CharacterChoices | null;
   /** What the player noted outside the SRD 5.2 (for the DM), and a subclass from their manual. */
   outsideSrd: OutsideSrd;
+  /** The player's portrait (an id in heroPortraits.ts); null shows their initials. */
+  portrait: string | null;
 }
 
 export interface OutsideSrd {
@@ -377,4 +379,4 @@ export interface GameState {
 /** Milestones needed since the last level to gain a new one. */
 export const MILESTONES_PER_LEVEL = 2;
 
-export const GAME_STATE_VERSION = 18;
+export const GAME_STATE_VERSION = 19;

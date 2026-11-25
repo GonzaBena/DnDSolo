@@ -24,6 +24,7 @@ export function NpcAvatar({
   size,
   kind,
   speaking = false,
+  playerPortrait,
 }: {
   name: string;
   npc: Npc | undefined;
@@ -31,9 +32,17 @@ export function NpcAvatar({
   /** Who they are when it isn't an NPC; an NPC's attitude otherwise. */
   kind?: "dm" | "player" | Attitude;
   speaking?: boolean;
+  /** A player's own portrait; null or omitted shows their initials. */
+  playerPortrait?: string | null;
 }) {
   const url =
-    kind === "dm" ? DM_PORTRAIT_URL : npc?.portrait ? portraitUrl(npc.portrait, npc.name) : null;
+    kind === "dm"
+      ? DM_PORTRAIT_URL
+      : kind === "player"
+        ? (playerPortrait ?? null)
+        : npc?.portrait
+          ? portraitUrl(npc.portrait, npc.name)
+          : null;
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const showImage = url !== null && url !== failedUrl;
   // The container grows (CSS) and the face swings, so the two transforms

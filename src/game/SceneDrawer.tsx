@@ -1,5 +1,6 @@
 import { healthLabel, type HealthLabel } from "../domain/health";
 import type { Attitude, GameState } from "../domain/types";
+import { heroPortraitUrl } from "../domain/heroPortraits";
 import { initials } from "./NpcAvatar";
 import { useDrawer } from "./useDrawer";
 
@@ -22,6 +23,8 @@ export interface SceneMember {
   health: HealthLabel | null;
   /** Place in the initiative order during a fight, from 1. */
   initiative: number | null;
+  /** A player's portrait image; null shows their initials. */
+  portraitUrl: string | null;
 }
 
 /** Everyone at the table: the DM at the head, the players, then the NPCs
@@ -54,6 +57,7 @@ function tableMembers(state: GameState, dmActing: boolean): SceneMember[] {
       hasTurn: dmActing,
       health: null,
       initiative: null,
+      portraitUrl: null,
     },
     ...state.players.map((p) => ({
       name: p.name,
@@ -63,6 +67,7 @@ function tableMembers(state: GameState, dmActing: boolean): SceneMember[] {
       hasTurn: p.name === turnOf,
       health: null,
       initiative: null,
+      portraitUrl: heroPortraitUrl(p.portrait),
     })),
     ...state.npcs
       .filter((n) => n.present)
@@ -74,6 +79,7 @@ function tableMembers(state: GameState, dmActing: boolean): SceneMember[] {
         hasTurn: n.name === turnOf,
         health: n.attitude === "hostile" ? healthLabel(n) : null,
         initiative: null,
+        portraitUrl: null,
       })),
   ];
 }
@@ -130,7 +136,13 @@ export function SceneDrawer({ state, dmActing, open, onClose }: Props) {
                 data-kind={member.kind}
                 aria-hidden="true"
               >
-                {member.kind === "dm" ? "DM" : initials(member.name)}
+                {member.portraitUrl ? (
+                  <img src={member.portraitUrl} alt="" decoding="async" />
+                ) : member.kind === "dm" ? (
+                  "DM"
+                ) : (
+                  initials(member.name)
+                )}
               </span>
               <div className="scene-card__body">
                 <strong>
