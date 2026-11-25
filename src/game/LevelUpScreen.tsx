@@ -4,7 +4,7 @@ import { enterLevelUp } from "../animations/motion";
 import type { BannerQueue } from "./bannerQueue";
 import type { LevelUp } from "./levelUp";
 import { ChoicePicker } from "./ChoicePicker";
-import { lockedPicks, pendingLevelUp, pendingSpecs, previewLevelUp } from "../domain/sheetProgress";
+import { levelSpecs, lockedPicks, pendingLevelUp, pendingSpecs, previewLevelUp } from "../domain/sheetProgress";
 import type { Character } from "../domain/types";
 
 /** Whether to open the next pending level-up screen: only once the turn's
@@ -73,11 +73,12 @@ export function LevelUpScreen({
   const [saving, setSaving] = useState(false);
   // The preview is null until the level's picks build a valid sheet.
   const preview = asks ? previewLevelUp(player, picks) : null;
-  const specs = asks ? pendingSpecs(player, picks) : [];
+  const specs = asks ? levelSpecs(player, picks) : [];
+  const missing = asks ? pendingSpecs(player, picks).length : 0;
   const maxHp =
     preview?.ok && player?.stats ? { before: player.stats.maxHp, after: preview.sheet.hitPoints } : undefined;
   // Errors only once every pick is made: before that, "falta elegir" says nothing new.
-  const errors = preview && !preview.ok && specs.length === 0 ? preview.errors : [];
+  const errors = preview && !preview.ok && missing === 0 ? preview.errors : [];
 
   useEffect(() => {
     const dialog = dialogRef.current;

@@ -27,9 +27,26 @@ export function pendingSpecs(player: Character, picks: Picks): ChoiceSpec[] {
   return specs.filter((spec) => (picks[spec.id]?.length ?? 0) < spec.count);
 }
 
+/** What the level-up picker shows: the choices this level brings, filled or not, so a pick can still be changed.
+    Choices made at earlier levels that are complete stay out. */
+export function levelSpecs(player: Character, picks: Picks): ChoiceSpec[] {
+  const c = player.choices;
+  if (!c) return [];
+  const locked = lockedPicks(player);
+  return activeChoices(requiredChoices({ ...c, level: player.level }), picks).filter(
+    (spec) => (locked[spec.id]?.length ?? 0) < spec.count,
+  );
+}
+
+/** Drops picks of choices the other picks no longer open (a feat swapped for another). */
+function activePicks(player: Character, picks: Picks): Picks {
+  const active = new Set(activeChoices(requiredChoices({ ...player.choices!, level: player.level }), picks).map((s) => s.id));
+  return Object.fromEntries(Object.entries(picks).filter(([id]) => active.has(id)));
+}
+
 export function previewLevelUp(player: Character, picks: Picks): BuildResult {
   if (!player.choices) return { ok: false, errors: [{ field: "choices", message: "Sin elecciones guardadas." }] };
-  return buildSheet({ ...player.choices, level: player.level, picks });
+  return buildSheet({ ...player.choices, level: player.level, picks: activePicks(player, picks) });
 }
 
 /** Rebuilds the sheet at the new level. Current HP rises as much as the maximum (it stays at 0 while down). */
@@ -45,7 +62,7 @@ export function applyLevelUp(
   const currentHp = current > 0 ? Math.min(stats.maxHp, current + (stats.maxHp - oldMax)) : current;
   return {
     ok: true,
-    player: { ...player, stats, currentHp, choices: { ...player.choices!, level: player.level, picks } },
+    player: { ...player, stats, currentHp, choices: { ...player.choices!, level: player.level, picks: activePicks(player, picks) } },
   };
 }
 

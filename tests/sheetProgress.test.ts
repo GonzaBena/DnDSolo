@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Character } from "../src/domain/types";
 import { statsFromSheet } from "../src/domain/stats";
 import {
+  levelSpecs,
   applyLevelUp, canUpgradeSheet, lockedPicks, pendingLevelUp, pendingSpecs, previewLevelUp, upgradeSheet,
 } from "../src/domain/sheetProgress";
 import { buildSheet, type CharacterChoices } from "../src/rules/buildSheet";
@@ -20,6 +21,13 @@ function hero(choices: CharacterChoices, level = choices.level, overrides: Parti
 }
 
 const fighter3 = () => greedyChoices("human", "fighter", "soldier", 3);
+/** Valid level 4 picks for fighter3: what the greedy level 4 build adds (a feat, its own choices, a mastery). */
+const levelFour = () => {
+  const before = fighter3().picks;
+  return Object.fromEntries(
+    Object.entries(greedyChoices("human", "fighter", "soldier", 4).picks).filter(([id]) => !(id in before)),
+  );
+};
 
 describe("pendingLevelUp", () => {
   it("true when the level is above the choices' level", () => expect(pendingLevelUp(hero(fighter3(), 4))).toBe(true));
@@ -53,7 +61,33 @@ describe("pendingSpecs", () => {
   });
 });
 
+describe("levelSpecs", () => {
+  it("keeps showing a level's choice once it is filled, so it can be changed", () => {
+    const player = hero(fighter3(), 4);
+    const picks = {
+      ...lockedPicks(player),
+      ...levelFour(),
+    };
+    const ids = levelSpecs(player, picks).map((s) => s.id);
+    expect(ids).toContain("class.fighter.level4_feat");
+    expect(ids).toContain("class.fighter.weapon_mastery_level4");
+    expect(ids).not.toContain("class.fighter.skills");
+  });
+});
+
 describe("applyLevelUp", () => {
+  it("ignores picks of a choice the other picks no longer open", () => {
+    const player = hero(fighter3(), 4);
+    const picks = {
+      ...lockedPicks(player),
+      ...levelFour(),
+      "feat.asi.abilities": ["str", "str"],
+    };
+    const result = applyLevelUp(player, picks);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.player.choices!.picks["feat.asi.abilities"]).toBeUndefined();
+  });
+
   it("fighter 1 -> 2: fixed HP gain, choices at level 2, inventory kept", () => {
     const player = hero(fighterChoices(), 2);
     const result = applyLevelUp(player, player.choices!.picks);
