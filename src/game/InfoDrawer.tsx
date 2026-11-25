@@ -1,4 +1,5 @@
 import { campaignHref } from "../campaign/links";
+import { OutsideSrdSection, type OutsideSrdEdit } from "./OutsideSrdSection";
 import { findCampaign } from "../campaigns";
 import type { Attitude, GameState, QuestStatus, StoryItem, ThreadKind } from "../domain/types";
 import { useDrawer } from "./useDrawer";
@@ -63,11 +64,13 @@ interface Props {
   onOpenRecap: () => void;
   /** A turn is being played: leaving the page now would lose it. */
   turnRunning?: boolean;
+  /** Saves the first player's "Fuera del SRD" note and subclass; without it the section is not shown. */
+  onSaveOutsideSrd?: (edit: OutsideSrdEdit) => Promise<void>;
 }
 
 /** Everything the campaign knows: characters, place, quests, story items
     and the NPCs met so far. */
-export function InfoDrawer({ state, open, onClose, onOpenRecap, turnRunning = false }: Props) {
+export function InfoDrawer({ state, open, onClose, onOpenRecap, turnRunning = false, onSaveOutsideSrd }: Props) {
   const { dialogProps, panelRef } = useDrawer(open, onClose);
   const campaign = findCampaign(state.campaignId);
   const players = state.players ?? [];
@@ -153,6 +156,8 @@ export function InfoDrawer({ state, open, onClose, onOpenRecap, turnRunning = fa
             ))}
           </ul>
         </section>
+
+        {onSaveOutsideSrd && players[0] && <OutsideSrdSection player={players[0]} onSave={onSaveOutsideSrd} />}
 
         <section className="info-section">
           <h3>Misiones</h3>

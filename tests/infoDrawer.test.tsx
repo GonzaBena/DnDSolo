@@ -19,4 +19,27 @@ describe("InfoDrawer", () => {
     );
     expect(html).not.toContain("/campaign?id=");
   });
+
+  describe("Fuera del SRD", () => {
+    const withPlayer = (overrides: object) => {
+      const game = newGame();
+      return { ...game, players: [{ ...game.players[0]!, ...overrides }] };
+    };
+    const render = (state: ReturnType<typeof newGame>) =>
+      renderToStaticMarkup(
+        <InfoDrawer state={state} open onClose={() => {}} onOpenRecap={() => {}} onSaveOutsideSrd={async () => {}} />,
+      );
+
+    it("shows the note and, past the subclass level, the subclass options", () => {
+      // newGame(): a level 3 elf rogue; the SRD rogue subclass is the Thief.
+      const html = render(withPlayer({ outsideSrd: { note: "Trasfondo Ermitaño.", subclass: null } }));
+      expect(html).toContain("Fuera del SRD");
+      expect(html).toContain("Trasfondo Ermitaño.");
+      expect(html).toContain("Ladrón (SRD)");
+      expect(html).toContain("Otra de tu manual");
+    });
+
+    it("no subclass options before the subclass level", () =>
+      expect(render(withPlayer({ level: 1 }))).not.toContain("Otra de tu manual"));
+  });
 });

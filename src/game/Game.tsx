@@ -20,6 +20,7 @@ import { levelUpFromPlayer, type LevelUp } from "./levelUp";
 import { confirmLevelUp, pendingLevelUp } from "../domain/sheetProgress";
 import { usePlayerUpdate } from "./usePlayerUpdate";
 import { canUpgradeSheet, upgradeSheet } from "../domain/sheetProgress";
+import { setOutsideSrd } from "../domain/outsideSrd";
 import { SheetUpgradeDialog, UpgradeNotice } from "./SheetUpgrade";
 import { InfoDrawer } from "./InfoDrawer";
 import { RollDialog } from "./RollDialog";
@@ -263,6 +264,9 @@ export default function Game() {
           open={infoOpen}
           onClose={() => setInfoOpen(false)}
           turnRunning={busy || inFlight !== null}
+          onSaveOutsideSrd={(edit) =>
+            updatePlayer(engine, state, state.players[0]!.id, (p) => setOutsideSrd(p, edit))
+          }
           onOpenRecap={() => {
             setInfoOpen(false);
             setRecapOpen(true);
