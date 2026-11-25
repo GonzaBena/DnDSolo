@@ -27,7 +27,7 @@ describe("campaign rows", () => {
   it("a saved campaign links to its page", () => {
     expect(campaignHref("a b&c")).toBe("/campaign?id=a%20b%26c");
     const link = [...saveRow(hostile(), { onExport() {}, onDelete() {} }).querySelectorAll("a")].find(
-      (a) => a.textContent === "Ver campaña",
+      (a) => a.title === "Ver campaña",
     );
     expect(link?.getAttribute("href")).toBe("/campaign?id=a%20b%26c");
   });
@@ -36,7 +36,7 @@ describe("campaign rows", () => {
     const game = newGame();
     const actions = { onExport: vi.fn(), onDelete: vi.fn() };
     const buttons = [...saveRow(game, actions).querySelectorAll("button")];
-    expect(buttons.map((b) => b.textContent)).toEqual(["Exportar", "Borrar"]);
+    expect(buttons.map((b) => b.title)).toEqual(["Exportar", "Borrar"]);
     buttons[0]!.click();
     buttons[1]!.click();
     expect(actions.onExport).toHaveBeenCalledWith(game);

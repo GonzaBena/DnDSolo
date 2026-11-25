@@ -21,6 +21,15 @@ function button(text: string, onClick: () => void): HTMLButtonElement {
   return node;
 }
 
+/** Makes a control icon-only: the glyph comes from CSS, the name from aria-label. */
+function iconOnly<T extends HTMLElement>(node: T, icon: string, label: string, name: string): T {
+  node.textContent = "";
+  node.classList.add("button--icon", "icon", `icon--${icon}`);
+  node.setAttribute("aria-label", `${label} ${name}`);
+  node.title = label;
+  return node;
+}
+
 /** A compact ✕ that still announces itself as "Borrar <name>". */
 function deleteButton(name: string, onClick: () => void): HTMLButtonElement {
   const node = button("✕", onClick);
@@ -55,17 +64,18 @@ export function saveRow(game: GameState, actions: SaveRowActions): HTMLLIElement
   const { name, subtitle, detail } = summarizeCampaign(game);
   const text = el("div");
   text.append(el("strong", undefined, subtitle ? `${name}, ${subtitle}` : name), el("small", undefined, detail));
-  const play = el("a", "button button--primary", "Jugar");
+  const play = iconOnly(el("a", "button button--primary"), "play", "Jugar", name);
   play.href = playHref(game.id);
-  const page = el("a", "button", "Ver campaña");
+  const page = iconOnly(el("a", "button"), "info", "Ver campaña", name);
   page.href = campaignHref(game.id);
+  const share = iconOnly(button("", () => actions.onExport(game)), "share", "Exportar", name);
   const item = el("li", "save");
   item.dataset.id = game.id;
   item.append(
     text,
     play,
     page,
-    button("Exportar", () => actions.onExport(game)),
+    share,
     deleteButton(name, () => actions.onDelete(game)),
   );
   return item;
