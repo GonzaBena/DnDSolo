@@ -7,7 +7,7 @@ import {
   rollIn,
 } from "../animations/motion";
 import { findNpc, splitDialogue, type Cast } from "../domain/dialogue";
-import { formatDice, naturalResult, rollModeLabel } from "../domain/dice";
+import { dieSides, enemyNaturalResult, formatDice, naturalResult, rollModeLabel } from "../domain/dice";
 import { parseInline, type InlineNode } from "../domain/inlineMarkdown";
 import type {
   Character,
@@ -28,11 +28,14 @@ import { useEnter } from "./useEnter";
 // entrance instead (see TurnLog).
 
 /** A die result with its tumbling animation, for enemy rolls and for the
-    rolls the player reports through the dice button. */
+    rolls the player reports through the dice button. Enemy rolls slow down
+    before landing; a natural 20 lands quick and bursts gold; a natural 1
+    rocks, tips one more face and cracks. */
 function RollCard({
   label,
   die,
   total,
+  kept,
   meta,
   variant,
   natural = null,
@@ -41,36 +44,57 @@ function RollCard({
   label: string;
   die: EnemyRollResult["die"];
   total: number;
+  /** The face the die shows while it lands (the kept die, without modifiers). */
+  kept: number;
   meta: string;
   variant: "enemy" | "player";
   natural?: "critical" | "fumble" | null;
   animated?: boolean | undefined;
 }) {
-  const ref = useEnter<HTMLDivElement>(animated ? rollIn : null);
-  // Only a roll arriving now: the history stays quiet. The player rolled
-  // their own dice at the table, so theirs sounds softer.
-  useEffect(() => {
-    if (animated) play("dice", variant === "player" ? 0.5 : 1);
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const card = ref.current;
+    if (!animated || !card) return;
+    const style = natural === "fumble" ? "lastTip" : natural === "critical" || variant === "player" ? "quick" : "slowdown";
+    const landsAt = rollIn(card, { style, sides: dieSides(die), natural, kept });
+    // Only a roll arriving now: the history stays quiet. The player rolled
+    // their own dice at the table, so theirs sounds softer.
+    play("dice", variant === "player" ? 0.5 : 1);
+    if (natural === "critical") setTimeout(() => play("levelUp", 0.6), landsAt);
+    if (natural === "fumble") setTimeout(() => play("hit", 0.7), landsAt);
+    // Mount-only on purpose, like useEnter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  const naturalLabel = natural === "critical" ? "¡20 natural!" : natural === "fumble" ? "¡Pifia!" : null;
   return (
     <div
       ref={ref}
       className={`roll-card roll-card--${variant}${natural ? ` roll-card--${natural}` : ""}`}
     >
-      <span className="roll-card__label">
-        {natural === "critical"
-          ? "¡20 natural!"
-          : natural === "fumble"
-            ? "¡Pifia!"
-            : label}
+      <span className="roll-card__label" data-plain={label}>
+        {naturalLabel ?? label}
       </span>
       <span className="roll-card__result">
         {/* Only visible while the roll animates (see rollIn). */}
         <DieShape die={die} className="roll-card__die" />
+        {/* The face on the die only makes sense for a single die. */}
+        {die !== "d100" && kept <= dieSides(die) && <span className="roll-card__face" aria-hidden="true" />}
         {die === "d100" && <span className="roll-card__burst" />}
+        {natural === "critical" && (
+          <>
+            <span className="roll-card__ring" aria-hidden="true" />
+            <span className="roll-card__ring" aria-hidden="true" />
+            {Array.from({ length: 10 }, (_, i) => <span key={i} className="roll-card__spark" aria-hidden="true" />)}
+          </>
+        )}
         <span className="roll-card__value">{total}</span>
       </span>
       <span className="roll-card__meta">{meta}</span>
+      {natural === "fumble" && (
+        <svg className="roll-card__crack" viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M58 0 L52 14 L61 22 L47 35 L55 44 L44 60" pathLength={120} />
+        </svg>
+      )}
     </div>
   );
 }
@@ -93,8 +117,10 @@ function EnemyRollCard({
       label="Tirada del enemigo"
       die={result.die}
       total={result.total}
+      kept={result.total - result.modifier}
       meta={meta}
       variant="enemy"
+      natural={enemyNaturalResult(result)}
       animated={animated}
     />
   );
@@ -129,6 +155,7 @@ function PlayerRollCard({
       label="Tu tirada"
       die={roll.die}
       total={roll.value + roll.modifier}
+      kept={roll.value}
       meta={meta}
       variant="player"
       natural={naturalResult(roll)}

@@ -1,4 +1,5 @@
 .roll-card {
+  position: relative;
   justify-self: center;
   display: grid;
   justify-items: center;
@@ -113,4 +114,66 @@
 }
 .roll-request__hint {
   font-size: var(--text-sm);
+}
+
+/* The face shown on the tumbling die while it slows down. Animation-only:
+   hidden unless rollIn shows it. */
+.roll-card__face {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: calc(var(--text-roll) * 0.32);
+  color: var(--color-primary-ink);
+  opacity: 0;
+  pointer-events: none;
+}
+/* A natural 20: rings and sparks thrown out when it lands. Animation-only. */
+.roll-card__ring,
+.roll-card__spark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+.roll-card__ring {
+  width: var(--text-roll);
+  height: var(--text-roll);
+  margin: calc(var(--text-roll) / -2) 0 0 calc(var(--text-roll) / -2);
+  border: var(--line) solid var(--color-sun);
+  border-radius: 50%;
+}
+.roll-card__spark {
+  width: 0.5rem;
+  height: 0.5rem;
+  margin: -0.25rem 0 0 -0.25rem;
+  border-radius: 50%;
+  background: var(--color-sun);
+  box-shadow: 0 0 0.5rem var(--color-sun);
+}
+.roll-card--glow {
+  box-shadow:
+    0 0 0 var(--line) var(--color-sun),
+    0 0 1.5rem var(--color-sun),
+    var(--shadow-flat);
+}
+/* A natural 1 cracks the card. Drawn in by rollIn; shown as is in the log. */
+.roll-card__crack {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+.roll-card__crack path {
+  fill: none;
+  stroke: var(--color-ink);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 120;
 }

@@ -117,6 +117,11 @@ export function naturalResult(
   return null;
 }
 
+/** The same for an enemy's roll: the kept d20 is the total without the modifier. */
+export function enemyNaturalResult(result: EnemyRollResult): "critical" | "fumble" | null {
+  return naturalResult({ die: result.die, count: result.count, value: result.total - result.modifier });
+}
+
 /** Highest total a die can show, for validating what the player types. */
 export function dieSides(die: Die): number {
   return SIDES[die];
