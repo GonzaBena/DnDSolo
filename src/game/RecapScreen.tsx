@@ -69,7 +69,11 @@ export function RecapScreen({ recap, onClose }: { recap: Recap; onClose: () => v
   const dialogRef = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = dialogRef.current;
-    if (dialog && !dialog.open) dialog.showModal();
+    if (!dialog || dialog.open) return;
+    dialog.showModal();
+    // "Seguir" takes the focus, which scrolls a long recap to its end:
+    // the player starts reading from the title.
+    dialog.scrollTop = 0;
   }, []);
   return (
     <dialog ref={dialogRef} className="recap" aria-labelledby="recap-title" onClose={onClose}>
