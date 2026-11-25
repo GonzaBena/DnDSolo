@@ -222,3 +222,33 @@
 - [ ] **Step 6: Commit** `feat: accesos a Tu campaña desde la portada y el epílogo`
 
 **Orden de ejecución:** 1 → 4 → 3 → 6 → 2 → 5. La Task 6 va antes que la 2 porque define `campaignHref`, que la 2 usa.
+
+---
+
+## Addendum: rediseño "libro" (spec, sección "Rediseño de Tu campaña")
+
+### Task 7: Álbum de monstruos
+**Files:** Modify `src/domain/portraits.ts`, `src/domain/bestiary.ts`; Test `tests/bestiary.test.ts`
+**Interfaces:**
+- Produces: `MONSTER_KINDS: readonly string[]` (orden fijo, solo con imágenes); `type MonsterSlot = { kind: string; name: string; image: string | null; entry: BestiaryEntry | null }`; `monsterAlbum(state: GameState): { slots: MonsterSlot[]; found: number; total: number }`.
+- [ ] Tests:
+  - Sin monstruos: hay 7 lugares, todos con `entry: null`, `found: 0` y `total: 7`, y el `name` es el de la especie ("Goblin").
+  - "Goblin 1" y "Goblin 2" ocupan el lugar de goblin, y `found` es 1.
+  - "Grishnak" (retrato goblin) junto a "Goblin 2": va en un lugar aparte después del de goblin y no suma a `found`.
+  - Si de goblin solo se vio a "Grishnak", él ocupa el lugar de goblin.
+  - El orden es fijo aunque se hayan visto al revés.
+  - Un NPC con `seen: false` no cuenta como descubierto.
+  - `image` de un lugar vacío es la imagen de la especie.
+- [ ] Implementar. Commit `feat: álbum de monstruos con las especies por descubrir`.
+
+### Task 8: Página en forma de libro
+**Files:** Modify `src/campaign/CampaignView.tsx`, `src/campaign/CampaignPage.tsx`, `src/campaign/campaign.css`; Test `tests/campaignView.test.tsx`
+**Interfaces:** `CampaignView({ state, tab, onTab }: { state: GameState; tab: CampaignTab; onTab?: (tab: CampaignTab) => void })`, con `type CampaignTab = "cronica" | "personajes" | "monstruos"` y `tabFromHash(hash: string): CampaignTab`. CampaignPage lee y escribe el hash.
+- [ ] Tests:
+  - Las tres pestañas tienen `role="tab"` y `aria-selected` correcto.
+  - Solo se renderiza el panel de la pestaña activa.
+  - La pestaña Monstruos muestra "4/7"-style `found/total`.
+  - El panel de monstruos muestra "Descubriste 1 de 7" y las tarjetas "???".
+  - `tabFromHash("#monstruos")` da `"monstruos"`, y un hash desconocido da `"cronica"`.
+  - Siguen valiendo los tests existentes, adaptados a la pestaña que corresponda.
+- [ ] Implementar estilos desde la maqueta (`src/pages/mock-campaign.astro`, que se borra al terminar). Verificar en el navegador. Commit `feat: Tu campaña como un libro con pestañas y álbum de monstruos`.

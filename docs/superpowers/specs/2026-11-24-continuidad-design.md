@@ -158,3 +158,28 @@ opcional, no necesita migración.
 - Textos exactos de los estados vacíos.
 - Pruebas: `momentsOf`, la clasificación de monstruos, las estadísticas y la
   regla de las 12 h, como funciones puras.
+
+## Rediseño de "Tu campaña" (aprobado sobre maqueta, 2026-11-24)
+El usuario quiso la página "como un libro", con galerías y tarjetas verticales,
+y aprobó la maqueta.
+- Arriba, siempre visibles: el encabezado (campaña, personaje, fechas,
+  botones) y las estadísticas.
+- Debajo, tres pestañas tipo señalador: **Crónica**, **Personajes** y
+  **Monstruos**, de a una por vez. Arranca en Crónica. La elegida queda en el
+  hash (`#cronica`, `#personajes`, `#monstruos`).
+- La página es de papel, con doble filete y sombra, título en cursiva y el
+  ornamento ❦. La crónica va con letra de libro y capital en rojo, y debajo
+  la línea de tiempo.
+- Galerías: 2 columnas en el celular y 3 desde 46rem. La tarjeta es vertical:
+  retrato cuadrado grande con borde del color de la actitud, nombre,
+  descripción y etiquetas. Un hostil derrotado se ve en gris.
+- **Álbum de monstruos:** siempre se ven todas las especies de criatura que
+  tienen retrato, en orden fijo (goblin, kobold, lobo, esqueleto, zombi,
+  ahogado, dragón). Las que no se vieron muestran la silueta en negro con un
+  "?", el nombre "???" y "Todavía no te cruzaste con esta criatura". Arriba
+  dice "Descubriste N de M" y la pestaña dice "N/M".
+- Un monstruo con nombre propio (un goblin "Grishnak") va en su propia
+  tarjeta, después de la de su especie, y no suma al contador. Si de esa
+  especie solo se vieron monstruos con nombre, el primero ocupa el lugar de
+  la especie. (Decisión del implementador, presentada al usuario.)
+- Los personajes no tienen huecos "?" porque no hay una lista cerrada.
