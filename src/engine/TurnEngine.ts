@@ -8,6 +8,7 @@ import { dmResponseJsonSchema, parseDMResponse, parseSuggestions, suggestionsJso
 import type {
   DMResponse,
   EnemyRollResult,
+  Character,
   GameState,
   Turn,
   TurnInput,
@@ -304,6 +305,25 @@ export class TurnEngine {
     const next: GameState = { ...applied.state, updatedAt: this.now().toISOString() };
     this.latestByGame.set(next.id, next);
     return { state: next, saveError: await this.enqueueSave(next), before: base };
+  }
+
+  /** Replaces one player (a level up's choices, an upgraded sheet) and saves,
+      without a turn. On top of the newest known state, like adjustHp. */
+  async updatePlayer(
+    given: GameState,
+    playerId: string,
+    update: (player: Character) => Character,
+  ): Promise<{ state: GameState; saveError: unknown | null }> {
+    const tracked = this.latestByGame.get(given.id);
+    const base = tracked && tracked.turns.length >= given.turns.length ? tracked : given;
+    if (!base.players.some((p) => p.id === playerId)) return { state: given, saveError: null };
+    const next: GameState = {
+      ...base,
+      players: base.players.map((p) => (p.id === playerId ? update(p) : p)),
+      updatedAt: this.now().toISOString(),
+    };
+    this.latestByGame.set(next.id, next);
+    return { state: next, saveError: await this.enqueueSave(next) };
   }
 
   /** Saves after every earlier save has settled; a failure doesn't break

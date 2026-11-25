@@ -1262,3 +1262,23 @@ describe("suggestFor", () => {
     expect(await ctx.engine.suggestFor(state)).toEqual([]);
   });
 });
+
+describe("TurnEngine.updatePlayer", () => {
+  it("replaces the player and saves without adding a turn", async () => {
+    const ctx = setup();
+    const state = newGame();
+    const out = await ctx.engine.updatePlayer(state, PLAYER_ID, (p) => ({ ...p, level: 4 }));
+    expect(out.state.players[0]!.level).toBe(4);
+    expect(out.state.turns).toHaveLength(state.turns.length);
+    expect(out.saveError).toBeNull();
+    expect((await ctx.repo.load(state.id))!.players[0]!.level).toBe(4);
+  });
+
+  it("an unknown player leaves the state as it was and saves nothing", async () => {
+    const ctx = setup();
+    const state = newGame();
+    const out = await ctx.engine.updatePlayer(state, "nobody", (p) => ({ ...p, level: 4 }));
+    expect(out.state).toBe(state);
+    expect(await ctx.repo.load(state.id)).toBeNull();
+  });
+});
