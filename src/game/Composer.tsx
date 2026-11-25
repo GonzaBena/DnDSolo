@@ -1,6 +1,6 @@
 import { useLayoutEffect, useState, type RefObject } from "react";
 import { fieldHeight, nextExpanded } from "./composerLayout";
-import { DieShape } from "./DieShape";
+import { GemD20, SPARK } from "./DieShape";
 import { Suggestions } from "./Suggestions";
 import { withSuggestion } from "./suggestions";
 
@@ -17,7 +17,8 @@ interface Props {
   /** Null when the player turned suggestions off. */
   suggestions: { actions: string[]; visible: boolean } | null;
   onSubmit: (event: { preventDefault(): void }) => void;
-  onOpenRoll: () => void;
+  /** Gets the button, so the roll dialog can grow out of it. */
+  onOpenRoll: (origin: HTMLElement) => void;
   onStop: () => void;
 }
 
@@ -115,9 +116,32 @@ export function Composer({
             aria-label="Cargar tirada"
             title="Cargar tirada"
             disabled={!canAct}
-            onClick={onOpenRoll}
+            onClick={(event) => {
+              // Restart the throw even on a quick second tap.
+              const button = event.currentTarget;
+              button.classList.remove("action-roll--thrown");
+              void button.offsetWidth;
+              button.classList.add("action-roll--thrown");
+              onOpenRoll(button);
+            }}
+            onAnimationEnd={(event) => {
+              if (event.animationName === "gem-roll") event.currentTarget.classList.remove("action-roll--thrown");
+            }}
           >
-            <DieShape die="d20" className="action-roll__die" />
+            <GemD20 className="action-roll__die" value="20" />
+            {rollRequested && (
+              <>
+                <svg className="gem-spark action-roll__spark" viewBox="0 0 10 10" aria-hidden="true">
+                  <path d={SPARK} />
+                </svg>
+                <svg className="gem-spark action-roll__spark" viewBox="0 0 10 10" aria-hidden="true">
+                  <path d={SPARK} />
+                </svg>
+                <svg className="gem-spark action-roll__spark" viewBox="0 0 10 10" aria-hidden="true">
+                  <path d={SPARK} />
+                </svg>
+              </>
+            )}
           </button>
           {/* Distinct keys plus preventDefault: otherwise React reuses this
               same <button> and turns it into the submit one before the

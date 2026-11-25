@@ -5,7 +5,8 @@ interface Props {
   deathSaves: Character["deathSaves"];
   canAct: boolean;
   busy: boolean;
-  onRoll: () => void;
+  /** Gets the button, so the roll dialog can grow out of it. */
+  onRoll: (origin: HTMLElement) => void;
   onStop: () => void;
 }
 
@@ -18,8 +19,13 @@ export function DyingNotice({ deathSaves, canAct, busy, onRoll, onStop }: Props)
       </p>
       <DeathSaveTrack successes={deathSaves.successes} failures={deathSaves.failures} />
       <div className="dying-notice__actions">
-        <button type="button" className="button button--primary" disabled={!canAct} onClick={onRoll}>
-          <DieShape die="d20" className="action-roll__die" />
+        <button
+          type="button"
+          className="button button--primary"
+          disabled={!canAct}
+          onClick={(event) => onRoll(event.currentTarget)}
+        >
+          <DieShape die="d20" className="dying-notice__die" />
           Tirar salvación contra la muerte
         </button>
         {busy && (

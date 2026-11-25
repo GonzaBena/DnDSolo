@@ -1,7 +1,8 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type RefObject } from "react";
+import { enterRollDialog, leaveRollDialog, motionAllowed } from "../animations/motion";
 import { dieSides, formatDice, resolveRollMode, rollModeLabel } from "../domain/dice";
 import { DICE, type Die, type PlayerRollRequest, type RollMode } from "../domain/types";
-import { DieShape } from "./DieShape";
+import { DieShape, GemD20, SPARK } from "./DieShape";
 
 interface Props {
   open: boolean;
@@ -9,6 +10,8 @@ interface Props {
   request: PlayerRollRequest | null;
   /** A death save: a bare d20 with no modifier, resolved by code. */
   deathSave?: boolean;
+  /** The button that opened it: the dialog grows out of it and, once sent, goes back into it. */
+  originRef?: RefObject<HTMLElement | null>;
   onClose: () => void;
   onSubmit: (roll: {
     die: Die;
@@ -30,7 +33,10 @@ const DEATH_SAVE: PlayerRollRequest = {
   mode: "normal",
 };
 
-export function RollDialog({ open, request: asked, deathSave = false, onClose, onSubmit }: Props) {
+/** How long the old figure takes to spin away when another die is picked. */
+const FIGURE_SWAP_MS = 140;
+
+export function RollDialog({ open, request: asked, deathSave = false, originRef, onClose, onSubmit }: Props) {
   const request = deathSave ? DEATH_SAVE : asked;
   const dialogRef = useRef<HTMLDialogElement>(null);
   // Two of these are mounted (any roll and the death save): ids must not clash.
@@ -53,18 +59,39 @@ export function RollDialog({ open, request: asked, deathSave = false, onClose, o
   // Advantage only exists on the d20 when the player picks it by hand.
   const mode: RollMode = request ? request.mode : die === "d20" ? chosenMode : "normal";
 
+  // How the next close should look: sending flies back into the button.
+  const leavingAs = useRef<"sent" | "cancelled">("cancelled");
+  const valueRef = useRef<HTMLInputElement>(null);
+  const cancelLeave = useRef<() => void>(() => {});
+  const [leaving, setLeaving] = useState(false);
+
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    if (open && !dialog.open) {
+    const origin = originRef?.current ?? null;
+    if (open) {
+      // Reopened mid-exit: stop the exit and stay.
+      cancelLeave.current();
+      setLeaving(false);
+      if (dialog.open) return;
       setValue("");
       setSecondValue("");
       setChosenMode("normal");
       dialog.showModal();
-    } else if (!open && dialog.open) {
-      dialog.close();
+      // showModal focuses the first control (the d4 when picking a die);
+      // the result is what the player came to type.
+      valueRef.current?.focus();
+      enterRollDialog(dialog, origin);
+    } else if (dialog.open) {
+      const how = leavingAs.current;
+      leavingAs.current = "cancelled";
+      setLeaving(true);
+      cancelLeave.current = leaveRollDialog(dialog, how, origin, () => {
+        setLeaving(false);
+        dialog.close();
+      });
     }
-  }, [open]);
+  }, [open, originRef]);
 
   const parsedValue = Number.parseInt(value, 10);
   const parsedModifier = deathSave ? 0 : Number.parseInt(modifier, 10) || 0;
@@ -77,13 +104,45 @@ export function RollDialog({ open, request: asked, deathSave = false, onClose, o
   const valid = twoDice ? inRange(parsedValue) && inRange(parsedSecond) : inRange(parsedValue);
   const kept =
     twoDice && valid ? resolveRollMode([parsedValue, parsedSecond], mode) : parsedValue;
+  // A natural 20 or 1 on the die that counts (only the d20 has them).
+  const natural = die === "d20" && valid && (kept === 20 || kept === 1) ? kept : null;
+  // With two dice, the one that doesn't count.
+  const dropped = twoDice && valid ? (parsedValue === kept ? 1 : 0) : null;
+
+  // Picking another die by hand: the old figure spins away first, then the
+  // new one pops in (keyed on the figure). A requested die never changes.
+  const [shownDie, setShownDie] = useState<Die>(die);
+  const [figureLeaving, setFigureLeaving] = useState(false);
+  useEffect(() => {
+    if (die === shownDie) return;
+    if (request || !motionAllowed() || !dialogRef.current?.open) {
+      setShownDie(die);
+      return;
+    }
+    setFigureLeaving(true);
+    const timer = setTimeout(() => {
+      setShownDie(die);
+      setFigureLeaving(false);
+    }, FIGURE_SWAP_MS);
+    return () => clearTimeout(timer);
+  }, [die, shownDie, request]);
+  const figureDie = request ? die : shownDie;
+  const shown = (raw: string) => {
+    const n = Number.parseInt(raw, 10);
+    return inRange(n) ? String(n) : "?";
+  };
 
   return (
     <dialog
       ref={dialogRef}
-      className="roll-dialog"
+      className={`roll-dialog${leaving ? " roll-dialog--leaving" : ""}`}
       aria-labelledby={ids.title}
       onClose={onClose}
+      // Escape closes through the same exit animation as Cancelar.
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
       // A click on the dialog itself (not its form) is a click on the backdrop.
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
@@ -93,7 +152,8 @@ export function RollDialog({ open, request: asked, deathSave = false, onClose, o
         className="roll-dialog__panel"
         onSubmit={(event) => {
           event.preventDefault();
-          if (!valid) return;
+          if (!valid || leaving) return;
+          leavingAs.current = "sent";
           onSubmit({
             die,
             count,
@@ -104,17 +164,85 @@ export function RollDialog({ open, request: asked, deathSave = false, onClose, o
           });
         }}
       >
-        <h2 id={ids.title} className="roll-dialog__title">
-          {deathSave ? "Salvación contra la muerte" : "Tu tirada"}
-        </h2>
-        {request && (
-          <p className="roll-dialog__request">
-            {formatDice(request)}
-            {request.mode !== "normal" && ` con ${rollModeLabel(request.mode)}`}
-            {request.difficulty !== null &&
-              ` · CD ${request.difficulty}`} — {request.reason}
-          </p>
-        )}
+        <div className="roll-dialog__head">
+          <div
+            className={[
+              "roll-dialog__figure",
+              natural === 20 && "roll-dialog__figure--nat20",
+              natural === 1 && "roll-dialog__figure--nat1",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            <div
+              key={figureDie}
+              className={[
+                "roll-dialog__figs",
+                twoDice && "roll-dialog__figs--two",
+                figureLeaving && "roll-dialog__figs--leaving",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
+              {figureDie === "d20" ? (
+                [value, secondValue].map((raw, index) => (
+                  <GemD20
+                    key={index}
+                    className={[
+                      "roll-dialog__fig",
+                      index === 1 && !twoDice && "roll-dialog__fig--off",
+                      shown(raw) === "?" && "roll-dialog__fig--empty",
+                      dropped === index && "roll-dialog__fig--dropped",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    value={shown(raw)}
+                  />
+                ))
+              ) : (
+                <>
+                  <DieShape die={figureDie} className="roll-dialog__fig roll-dialog__fig--plain" />
+                  <span className="roll-dialog__badge" key={shown(value)} aria-hidden="true">
+                    {shown(value)}
+                  </span>
+                </>
+              )}
+            </div>
+            {natural === 20 && (
+              <span className="roll-dialog__burst" aria-hidden="true">
+                {[0, 45, 90, 135, 180, 225, 270, 315].map((angle) => (
+                  <svg
+                    key={angle}
+                    className="gem-spark"
+                    viewBox="0 0 10 10"
+                    style={{ "--angle": `${angle}deg` } as CSSProperties}
+                  >
+                    <path d={SPARK} />
+                  </svg>
+                ))}
+              </span>
+            )}
+          </div>
+          <div className="roll-dialog__titles">
+            <h2 id={ids.title} className="roll-dialog__title">
+              {deathSave ? "Salvación contra la muerte" : "Tu tirada"}
+            </h2>
+            {request && (
+              <p className="roll-dialog__request">
+                <span className="roll-dialog__chip">{formatDice(request)}</span>
+                {request.mode !== "normal" && (
+                  <span className="roll-dialog__chip roll-dialog__chip--sun">
+                    con {rollModeLabel(request.mode)}
+                  </span>
+                )}
+                {request.difficulty !== null && (
+                  <span className="roll-dialog__chip">CD {request.difficulty}</span>
+                )}
+                <span>{request.reason}</span>
+              </p>
+            )}
+          </div>
+        </div>
         {deathSave && (
           <p className="roll-dialog__kept">
             Sin modificadores. 10 o más es un éxito; 20 natural te levanta con 1 PG.
@@ -140,85 +268,89 @@ export function RollDialog({ open, request: asked, deathSave = false, onClose, o
             ))}
           </fieldset>
         )}
-        {!request && die === "d20" && (
-          <fieldset className="roll-dialog__modes">
-            <legend>Tirada</legend>
-            {(
-              [
-                ["normal", "Normal"],
-                ["advantage", "Ventaja"],
-                ["disadvantage", "Desventaja"],
-              ] as const
-            ).map(([option, label]) => (
-              <label key={option} className="roll-dialog__mode">
-                <input
-                  type="radio"
-                  name="roll-mode"
-                  value={option}
-                  checked={mode === option}
-                  onChange={() => setChosenMode(option)}
-                />
-                {label}
-              </label>
-            ))}
-          </fieldset>
+        {!request && (
+          <div
+            className={`roll-dialog__fold${die === "d20" ? "" : " roll-dialog__fold--closed"}`}
+            inert={die !== "d20"}
+          >
+            <fieldset className="roll-dialog__modes">
+              <legend>Tirada</legend>
+              <div className="roll-dialog__modes-track">
+                {(
+                  [
+                    ["normal", "Normal"],
+                    ["advantage", "Ventaja"],
+                    ["disadvantage", "Desventaja"],
+                  ] as const
+                ).map(([option, label]) => (
+                  <label key={option} className="roll-dialog__mode">
+                    <input
+                      type="radio"
+                      name="roll-mode"
+                      value={option}
+                      checked={mode === option}
+                      onChange={() => setChosenMode(option)}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          </div>
         )}
-        <div className={`roll-dialog__fields${twoDice ? " roll-dialog__fields--pair" : ""}`}>
-          {twoDice ? (
-            <div className="roll-dialog__pair">
-              <div className="field">
-                <label htmlFor={ids.value}>Dado 1</label>
-                <input
-                  id={ids.value}
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={maxValue}
-                  required
-                  autoFocus
-                  value={value}
-                  onChange={(event) => setValue(event.target.value)}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor={ids.second}>Dado 2</label>
-                <input
-                  id={ids.second}
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={maxValue}
-                  required
-                  value={secondValue}
-                  onChange={(event) => setSecondValue(event.target.value)}
-                />
-              </div>
-            </div>
-          ) : (
+        <div
+          className={[
+            "roll-dialog__fields",
+            twoDice && "roll-dialog__fields--pair",
+            deathSave && "roll-dialog__fields--bare",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          <div className="field">
+            <label htmlFor={ids.value}>
+              {twoDice ? "Dado 1" : count > 1 ? `Suma de ${count}${die}` : "Resultado"}
+            </label>
+            <input
+              ref={valueRef}
+              id={ids.value}
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={maxValue}
+              required
+              autoFocus
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+            />
+          </div>
+          {/* Always there, folded to no width without advantage, so picking
+              it opens a column instead of reflowing the row. */}
+          <div className="roll-dialog__second" inert={!twoDice}>
             <div className="field">
-              <label htmlFor={ids.value}>
-                {count > 1 ? `Suma de ${count}${die}` : "Resultado"}
-              </label>
+              <label htmlFor={ids.second}>Dado 2</label>
               <input
-                id={ids.value}
+                id={ids.second}
                 type="number"
                 inputMode="numeric"
                 min={1}
                 max={maxValue}
-                required
-                autoFocus
-                value={value}
-                onChange={(event) => setValue(event.target.value)}
+                required={twoDice}
+                value={secondValue}
+                onChange={(event) => setSecondValue(event.target.value)}
               />
             </div>
-          )}
+          </div>
           {!deathSave && (
             <>
               <span className="roll-dialog__op" aria-hidden="true">
                 +
               </span>
               <div className="field">
-                <label htmlFor={ids.modifier}>Modificador</label>
+                <label htmlFor={ids.modifier}>
+                  <span className="roll-dialog__label-long">Modificador</span>
+                  <span className="roll-dialog__label-short">Mod.</span>
+                </label>
                 <input
                   id={ids.modifier}
                   type="number"
@@ -234,16 +366,20 @@ export function RollDialog({ open, request: asked, deathSave = false, onClose, o
                 className="roll-dialog__total"
                 htmlFor={`${ids.value} ${ids.second} ${ids.modifier}`}
               >
-                {valid ? kept + parsedModifier : "—"}
+                {/* Keyed on the total so each new one pops in. */}
+                <span key={valid ? kept + parsedModifier : "none"}>{valid ? kept + parsedModifier : "—"}</span>
               </output>
             </>
           )}
         </div>
-        {twoDice && valid && (
+        <div
+          className={`roll-dialog__fold${twoDice && valid ? "" : " roll-dialog__fold--closed"}`}
+          inert={!(twoDice && valid)}
+        >
           <p className="roll-dialog__kept">
-            Con {rollModeLabel(mode)} queda el {kept}.
+            {twoDice && valid ? `Con ${rollModeLabel(mode)} queda el ${kept}.` : "\u00a0"}
           </p>
-        )}
+        </div>
         <div className="actions">
           <button type="button" className="button" onClick={onClose}>
             Cancelar

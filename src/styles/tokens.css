@@ -31,6 +31,10 @@
   --color-npc-friendly: #cfe9d4;
   --color-npc-neutral: #d3e1f2;
   --color-npc-ink: #2a1f1a;
+  /* Faces of the painted d20 (the roll button and the roll dialog). */
+  --color-gem-top: #f2b134;
+  --color-gem-side: #e8751a;
+  --color-gem-low: #c9631a;
 
   /* Type */
   --font-display: "Fraunces Variable", Georgia, serif;
@@ -93,4 +97,7 @@
   --color-npc-friendly: #a8d4b2;
   --color-npc-neutral: #a9bfdd;
   --color-npc-ink: #1b1512;
+  --color-gem-top: #f2b134;
+  --color-gem-side: #ee7f22;
+  --color-gem-low: #b75a17;
 }

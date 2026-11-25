@@ -43,18 +43,94 @@
   padding: 0;
 }
 
-.action-roll__die {
-  width: 1.5rem;
-  height: 1.5rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linejoin: round;
+.action-roll {
+  position: relative;
+}
+/* The painted d20; a touch bigger than the outline icons, it fills its face. */
+.action-roll .action-roll__die {
+  width: 1.7rem;
+  height: 1.7rem;
+  transform-origin: 50% 55%;
 }
 /* The DM is waiting on a roll: point the player at the die button. */
 .action-roll--requested:not(:disabled) {
   background: var(--color-sun);
   color: var(--color-sun-ink);
+}
+.action-roll__spark:nth-of-type(2) {
+  top: -7px;
+  right: -6px;
+}
+.action-roll__spark:nth-of-type(3) {
+  bottom: -5px;
+  left: -8px;
+  width: 7px;
+  height: 7px;
+}
+.action-roll__spark:nth-of-type(4) {
+  top: -9px;
+  left: 4px;
+  width: 6px;
+  height: 6px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .action-roll .action-roll__die {
+    transition: transform 260ms cubic-bezier(0.3, 1.7, 0.5, 1);
+  }
+  @media (hover: hover) {
+    .action-roll:hover:not(:disabled) .action-roll__die {
+      transform: rotate(-14deg) scale(1.08);
+    }
+  }
+  /* Waiting on a roll: every few seconds the die hops and gives off sparks. */
+  .action-roll--requested:not(:disabled) .action-roll__die {
+    animation: action-roll-nudge 2.6s ease-in-out infinite;
+  }
+  .action-roll--requested:not(:disabled) .action-roll__spark {
+    animation: action-roll-spark 2.6s ease-out infinite;
+  }
+  .action-roll__spark:nth-of-type(3) {
+    animation-delay: 80ms;
+  }
+  .action-roll__spark:nth-of-type(4) {
+    animation-delay: 160ms;
+  }
+  /* Tapped: the die is thrown (gem.css). */
+  .action-roll.action-roll--thrown .action-roll__die {
+    animation: gem-roll 680ms cubic-bezier(0.2, 0.8, 0.25, 1) both;
+  }
+}
+@keyframes action-roll-nudge {
+  0%,
+  68%,
+  100% {
+    transform: none;
+  }
+  76% {
+    transform: translateY(-5px) rotate(-16deg) scale(1.06);
+  }
+  84% {
+    transform: translateY(0) rotate(9deg) scale(0.97, 1.03);
+  }
+  91% {
+    transform: rotate(-4deg);
+  }
+}
+@keyframes action-roll-spark {
+  0%,
+  70% {
+    opacity: 0;
+    transform: scale(0) rotate(0);
+  }
+  80% {
+    opacity: 1;
+    transform: scale(1.1) rotate(45deg);
+  }
+  96%,
+  100% {
+    opacity: 0;
+    transform: scale(0.2) rotate(90deg);
+  }
 }
 
 .field .action-input {
@@ -104,6 +180,14 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+}
+.dying-notice__die {
+  width: 1.5rem;
+  height: 1.5rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
 }
 .dying-notice__actions .button {
   display: inline-flex;

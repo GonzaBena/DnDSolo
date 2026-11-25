@@ -45,6 +45,8 @@ export default function Game() {
   const [sceneOpen, setSceneOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [rollOpen, setRollOpen] = useState(false);
+  // The button that opened the roll dialog: it grows out of it and goes back into it.
+  const rollOriginRef = useRef<HTMLElement | null>(null);
   const [deathSaveOpen, setDeathSaveOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   // Banners from the top play one after another, each keyed by the id it
@@ -278,6 +280,7 @@ export default function Game() {
         <RollDialog
           open={rollOpen}
           request={playerRoll}
+          originRef={rollOriginRef}
           onClose={() => setRollOpen(false)}
           onSubmit={submitRoll}
         />
@@ -285,6 +288,7 @@ export default function Game() {
           open={deathSaveOpen}
           request={null}
           deathSave
+          originRef={rollOriginRef}
           onClose={() => setDeathSaveOpen(false)}
           onSubmit={submitDeathSave}
         />
@@ -294,7 +298,10 @@ export default function Game() {
             deathSaves={hero.deathSaves}
             canAct={canAct}
             busy={busy}
-            onRoll={() => setDeathSaveOpen(true)}
+            onRoll={(origin) => {
+              rollOriginRef.current = origin;
+              setDeathSaveOpen(true);
+            }}
             onStop={stop}
           />
         ) : (
@@ -313,7 +320,10 @@ export default function Game() {
                 : null
             }
             onSubmit={submitAction}
-            onOpenRoll={() => setRollOpen(true)}
+            onOpenRoll={(origin) => {
+              rollOriginRef.current = origin;
+              setRollOpen(true);
+            }}
             onStop={stop}
           />
         )}

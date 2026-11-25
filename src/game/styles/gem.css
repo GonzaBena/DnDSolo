@@ -1,0 +1,77 @@
+/* The painted d20 (GemD20): three tones of faces, the front one as paper
+   with the number on it, and ink edges like every other outline. */
+.gem {
+  display: block;
+  overflow: visible;
+}
+.gem__face--top {
+  fill: var(--color-gem-top);
+}
+.gem__face--side {
+  fill: var(--color-gem-side);
+}
+.gem__face--low {
+  fill: var(--color-gem-low);
+}
+.gem__face--front {
+  fill: var(--color-surface);
+}
+.gem__edges {
+  fill: none;
+  stroke: var(--color-ink);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+.gem__number text {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 6.6px;
+  /* The front face is the surface color, so the theme ink reads on it. */
+  fill: var(--color-ink);
+  text-anchor: middle;
+}
+/* Each new number pops in (the group is remounted per value). */
+.gem__number {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .gem__number {
+    animation: gem-number-in 220ms cubic-bezier(0.3, 1.8, 0.5, 1);
+  }
+}
+@keyframes gem-number-in {
+  from {
+    transform: scale(0.35);
+  }
+}
+
+/* Thrown: squashes, jumps spinning and lands with a bounce. Shared by the
+   roll button and the dialog's figure. */
+@keyframes gem-roll {
+  0% {
+    transform: none;
+  }
+  14% {
+    transform: translateY(2px) scale(1.18, 0.78);
+  }
+  48% {
+    transform: translateY(-12px) rotate(290deg) scale(0.94, 1.08);
+  }
+  76% {
+    transform: translateY(0) rotate(360deg) scale(1.12, 0.88);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* A small four-point star in ink: sparks around the gem. */
+.gem-spark {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  fill: var(--color-ink);
+  opacity: 0;
+  pointer-events: none;
+}
