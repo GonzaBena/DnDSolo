@@ -68,7 +68,7 @@ describe("genderOf and portraitFor", () => {
   });
 
   it("is null for a class without that bust, or without a gender", () => {
-    expect(portraitFor("warlock", "female")).toBeNull();
+    expect(portraitFor("nope", "female")).toBeNull();
     expect(portraitFor("bard", null)).toBeNull();
   });
 });

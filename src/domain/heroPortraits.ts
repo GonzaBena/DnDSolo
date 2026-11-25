@@ -23,6 +23,11 @@ export const HERO_PORTRAIT_IDS: readonly string[] = [
   "rogue-male",
   "rogue-female",
   "sorcerer-male",
+  "sorcerer-female",
+  "warlock-male",
+  "warlock-female",
+  "wizard-male",
+  "wizard-female",
 ];
 
 /** The portraits a character of this class can pick, in order. */
