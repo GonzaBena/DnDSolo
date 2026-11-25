@@ -309,7 +309,16 @@ export function RollDialog({ open, request: asked, deathSave = false, originRef,
         >
           <div className="field">
             <label htmlFor={ids.value}>
-              {twoDice ? "Dado 1" : count > 1 ? `Suma de ${count}${die}` : "Resultado"}
+              {twoDice ? (
+                <>
+                  <span className="roll-dialog__label-long">Dado 1</span>
+                  <span className="roll-dialog__label-tiny">1.º</span>
+                </>
+              ) : count > 1 ? (
+                `Suma de ${count}${die}`
+              ) : (
+                "Resultado"
+              )}
             </label>
             <input
               ref={valueRef}
@@ -328,7 +337,10 @@ export function RollDialog({ open, request: asked, deathSave = false, originRef,
               it opens a column instead of reflowing the row. */}
           <div className="roll-dialog__second" inert={!twoDice}>
             <div className="field">
-              <label htmlFor={ids.second}>Dado 2</label>
+              <label htmlFor={ids.second}>
+                <span className="roll-dialog__label-long">Dado 2</span>
+                <span className="roll-dialog__label-tiny">2.º</span>
+              </label>
               <input
                 id={ids.second}
                 type="number"

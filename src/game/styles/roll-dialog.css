@@ -272,8 +272,19 @@
 .roll-dialog__fields--pair .roll-dialog__second .field {
   opacity: 1;
 }
-.roll-dialog__label-short {
+.roll-dialog__label-short,
+.roll-dialog__label-tiny {
   display: none;
+}
+/* The smallest phones (320px wide): "Dado 1" no longer fits, so the dice
+   become "1.º" and "2.º". The modifier keeps its own short label. */
+@container (max-width: 17rem) {
+  .roll-dialog__fields--pair .roll-dialog__label-long:has(+ .roll-dialog__label-tiny) {
+    display: none;
+  }
+  .roll-dialog__fields--pair .roll-dialog__label-tiny {
+    display: inline;
+  }
 }
 /* On a phone the total and the signs take less room, always (not only
    with two dice) so picking advantage doesn't resize them, and the
@@ -288,7 +299,7 @@
   .roll-dialog__second .field {
     padding-left: var(--space-1);
   }
-  .roll-dialog__fields--pair .roll-dialog__label-long {
+  .roll-dialog__fields--pair .roll-dialog__label-long:has(+ .roll-dialog__label-short) {
     display: none;
   }
   .roll-dialog__fields--pair .roll-dialog__label-short {
@@ -371,6 +382,19 @@
 @media (pointer: coarse) {
   .roll-dialog__mode {
     padding-block: var(--space-2);
+  }
+}
+/* Smallest phones: the three options share the full width on one line
+   instead of wrapping "Desventaja" under the others. */
+@media (max-width: 22rem) {
+  .roll-dialog__modes-track {
+    display: flex;
+    flex-wrap: nowrap;
+  }
+  .roll-dialog__mode {
+    flex: 1 1 auto;
+    padding-inline: var(--space-1);
+    text-align: center;
   }
 }
 .roll-dialog__kept {
