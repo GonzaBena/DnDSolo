@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { OUTSIDE_SRD_NOTE_MAX } from "../domain/character";
-import type { SubclassPick } from "../domain/outsideSrd";
+import { SUBCLASS_NAME_MAX, type SubclassPick } from "../domain/outsideSrd";
 import type { Character } from "../domain/types";
 import { findClass } from "../rules";
 
@@ -18,6 +18,7 @@ export function OutsideSrdSection({ player, onSave }: { player: Character; onSav
   const [kind, setKind] = useState<"srd" | "custom" | null>(initialKind);
   const [name, setName] = useState(player.outsideSrd.subclass ?? "");
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [failure, setFailure] = useState<string | null>(null);
 
   // A save (or a level up) changed the player: start from what is stored.
   useEffect(() => {
@@ -42,8 +43,10 @@ export function OutsideSrdSection({ player, onSave }: { player: Character; onSav
           : null;
     try {
       await onSave({ note, subclass });
+      setFailure(null);
       setStatus("saved");
-    } catch {
+    } catch (error) {
+      setFailure(error instanceof Error ? error.message : "No se pudo guardar.");
       setStatus("idle");
     }
   };
@@ -78,7 +81,7 @@ export function OutsideSrdSection({ player, onSave }: { player: Character; onSav
           {kind === "custom" && (
             <input
               type="text"
-              maxLength={80}
+              maxLength={SUBCLASS_NAME_MAX}
               value={name}
               placeholder="Ej: Maestro de las bestias"
               aria-label="Nombre de la subclase"
@@ -100,7 +103,7 @@ export function OutsideSrdSection({ player, onSave }: { player: Character; onSav
           Guardar
         </button>
         <span role="status" aria-live="polite">
-          {status === "saved" ? "Guardado." : ""}
+          {status === "saved" ? "Guardado." : failure ?? ""}
         </span>
       </div>
     </section>

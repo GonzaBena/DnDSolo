@@ -5,7 +5,7 @@ import type { BannerQueue } from "./bannerQueue";
 import { levelUpFromPlayer, type LevelUp } from "./levelUp";
 import { ChoicePicker } from "./ChoicePicker";
 import { hiddenErrors, levelSpecs, lockedPicks, pendingLevelUp, pendingSpecs, previewLevelUp } from "../domain/sheetProgress";
-import { applySubclassPick, needsSubclassChoice, type SubclassPick } from "../domain/outsideSrd";
+import { SUBCLASS_NAME_MAX, applySubclassPick, needsSubclassChoice, type SubclassPick } from "../domain/outsideSrd";
 import { OUTSIDE_SRD_NOTE_MAX } from "../domain/character";
 import { findClass } from "../rules";
 import type { Character } from "../domain/types";
@@ -79,9 +79,10 @@ export function LevelUpScreen({
   const [customName, setCustomName] = useState("");
   const pick: SubclassPick | null =
     subclassKind === "srd" ? { kind: "srd" } : subclassKind === "custom" ? { kind: "custom", name: customName } : null;
-  const pickValid = !asksSubclass || subclassKind === "srd" || (subclassKind === "custom" && customName.trim() !== "");
+  const picked = player && asksSubclass && pick ? applySubclassPick(player, pick) : null;
+  const pickValid = !asksSubclass || picked?.ok === true;
   // The player as "Seguir" would leave them: the subclass picked here decides what the level's sheet includes.
-  const staged = player && asksSubclass && pick && pickValid ? applySubclassPick(player, pick) : player;
+  const staged = picked?.ok ? picked.player : player;
   const asks = staged !== null && pendingLevelUp(staged);
   const [picks, setPicks] = useState(() => (player ? lockedPicks(player) : {}));
   const [note, setNote] = useState(player?.outsideSrd.note ?? "");
@@ -153,9 +154,10 @@ export function LevelUpScreen({
               <strong>Otra de tu manual</strong>
               <input
                 type="text"
-                maxLength={80}
+                maxLength={SUBCLASS_NAME_MAX}
                 value={customName}
                 placeholder="Ej: Maestro de las bestias"
+                aria-label="Nombre de la subclase"
                 onFocus={() => setSubclassKind("custom")}
                 onChange={(e) => setCustomName(e.target.value)}
               />

@@ -264,9 +264,15 @@ export default function Game() {
           open={infoOpen}
           onClose={() => setInfoOpen(false)}
           turnRunning={busy || inFlight !== null}
-          onSaveOutsideSrd={(edit) =>
-            updatePlayer(engine, state, state.players[0]!.id, (p) => setOutsideSrd(p, edit))
-          }
+          onSaveOutsideSrd={async (edit) => {
+            // Checked first on the shown player, so Info can say why a change can't be made.
+            const check = setOutsideSrd(state.players[0]!, edit);
+            if (!check.ok) throw new Error(check.message);
+            await updatePlayer(engine, state, state.players[0]!.id, (p) => {
+              const result = setOutsideSrd(p, edit);
+              return result.ok ? result.player : p;
+            });
+          }}
           onOpenRecap={() => {
             setInfoOpen(false);
             setRecapOpen(true);

@@ -69,18 +69,12 @@ export function hiddenErrors(player: Character, picks: Picks): ChoiceError[] {
 }
 
 /** The player with a sheet built from `sheet` and `choices`. Current HP moves as much as the maximum (0 stays 0). */
-function withSheet(player: Character, choices: CharacterChoices, sheet: CharacterSheet): Character {
+export function withSheet(player: Character, choices: CharacterChoices, sheet: CharacterSheet): Character {
   const stats = statsFromSheet(sheet);
   const oldMax = player.stats?.maxHp ?? stats.maxHp;
   const current = player.currentHp ?? stats.maxHp;
   const currentHp = current > 0 ? Math.max(1, Math.min(stats.maxHp, current + (stats.maxHp - oldMax))) : current;
   return { ...player, stats, currentHp, choices };
-}
-
-/** Rebuilds the sheet from `choices` (e.g. the subclass changed). When they don't build, the player stays as is. */
-export function rebuildSheet(player: Character, choices: CharacterChoices): Character {
-  const built = buildSheet(choices);
-  return built.ok ? withSheet(player, choices, built.sheet) : player;
 }
 
 /** Rebuilds the sheet at the new level. Current HP rises as much as the maximum (it stays at 0 while down). */
