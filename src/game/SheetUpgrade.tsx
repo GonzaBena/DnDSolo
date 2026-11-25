@@ -9,11 +9,15 @@ import { formatSheetText } from "../rules/formatSheet";
 import { generateChoicesFor } from "../rules/generateOptions";
 import type { CharacterSheet } from "../rules/types";
 
-/** Shown on opening an old save; "Cancelar" hides it until the game is opened again. */
+/** Shown on opening a game whose character has no stored choices (an old save or a manual sheet); "Cancelar"
+    hides it until the game is opened again. */
 export function UpgradeNotice({ onUpgrade, onCancel }: { onUpgrade: () => void; onCancel: () => void }) {
   return (
     <div className="upgrade-notice" role="status">
-      <p>Esta partida usa una ficha antigua. Actualizala para que suba de nivel con sus PG y elecciones.</p>
+      <p>
+        Tu personaje no tiene guardadas sus elecciones de reglas. Completalas para que al subir de nivel se recalculen
+        sus PG y elecciones.
+      </p>
       <div className="upgrade-notice__actions">
         <button type="button" className="button" onClick={onCancel}>
           Cancelar
@@ -35,13 +39,15 @@ interface BodyProps {
   name: string;
   story: string;
   phase: UpgradePhase;
+  /** "Usar esta" is saving: every action waits, so a second tap can't save twice. */
+  saving?: boolean;
   onUse: (choices: CharacterChoices, sheet: CharacterSheet) => void;
   onRetry: () => void;
   onCancel: () => void;
 }
 
 /** What the upgrade dialog shows: the proposed sheet, or why there is none. */
-export function SheetUpgradeBody({ name, story, phase, onUse, onRetry, onCancel }: BodyProps) {
+export function SheetUpgradeBody({ name, story, phase, saving = false, onUse, onRetry, onCancel }: BodyProps) {
   return (
     <div className="sheet-upgrade__content">
       <h2 id="sheet-upgrade-title" className="sheet-upgrade__title">
@@ -53,16 +59,21 @@ export function SheetUpgradeBody({ name, story, phase, onUse, onRetry, onCancel 
         <pre className="sheet-upgrade__sheet">{formatSheetText(phase.sheet, name, story)}</pre>
       )}
       <div className="sheet-upgrade__actions">
-        <button type="button" className="button" onClick={onCancel}>
+        <button type="button" className="button" disabled={saving} onClick={onCancel}>
           Cancelar
         </button>
         {phase.status !== "loading" && (
-          <button type="button" className="button" onClick={onRetry}>
+          <button type="button" className="button" disabled={saving} onClick={onRetry}>
             Otra propuesta
           </button>
         )}
         {phase.status === "proposal" && (
-          <button type="button" className="button button--primary" onClick={() => onUse(phase.choices, phase.sheet)}>
+          <button
+            type="button"
+            className="button button--primary"
+            disabled={saving}
+            onClick={() => onUse(phase.choices, phase.sheet)}
+          >
             Usar esta
           </button>
         )}
@@ -84,6 +95,7 @@ export function SheetUpgradeDialog({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const [phase, setPhase] = useState<UpgradePhase>({ status: "loading" });
+  const [saving, setSaving] = useState(false);
   const story = player.background ?? "";
 
   const propose = useCallback(async () => {
@@ -135,7 +147,14 @@ export function SheetUpgradeDialog({
         name={player.name}
         story={story}
         phase={phase}
-        onUse={(choices, sheet) => void onUse(choices, sheet).then(() => dialogRef.current?.close())}
+        saving={saving}
+        onUse={(choices, sheet) => {
+          if (saving) return;
+          setSaving(true);
+          void onUse(choices, sheet)
+            .then(() => dialogRef.current?.close())
+            .finally(() => setSaving(false));
+        }}
         onRetry={() => void propose()}
         onCancel={() => dialogRef.current?.close()}
       />
