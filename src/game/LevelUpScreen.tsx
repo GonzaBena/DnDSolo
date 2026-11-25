@@ -1,8 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { play } from "../audio/sound";
 import { enterLevelUp } from "../animations/motion";
 import type { BannerQueue } from "./bannerQueue";
 import type { LevelUp } from "./levelUp";
+import { ChoicePicker } from "./ChoicePicker";
+import { lockedPicks, pendingLevelUp, pendingSpecs, previewLevelUp } from "../domain/sheetProgress";
+import type { Character } from "../domain/types";
 
 /** Whether to open the next pending level-up screen: only once the turn's
     banners and toasts have left (the screen would hide them), and never
@@ -17,7 +20,7 @@ export function shouldOpenLevelUp(
 }
 
 /** What the screen says: the new level, then what it brought. */
-export function LevelUpContent({ levelUp }: { levelUp: LevelUp }) {
+export function LevelUpContent({ levelUp, maxHp }: { levelUp: LevelUp; maxHp?: { before: number; after: number } }) {
   return (
     <div className="level-up__content">
       <span className="level-up__star" aria-hidden="true">
@@ -28,6 +31,11 @@ export function LevelUpContent({ levelUp }: { levelUp: LevelUp }) {
       </h2>
       <p className="level-up__name">{levelUp.name}</p>
       {levelUp.subclass !== null && <p className="level-up__subclass">Subclase: {levelUp.subclass}</p>}
+      {maxHp && maxHp.after !== maxHp.before && (
+        <p className="level-up__bonus">
+          PG máx: {maxHp.before} → {maxHp.after}
+        </p>
+      )}
       {levelUp.proficiencyBonus !== null && (
         <p className="level-up__bonus">Bonificador de competencia: +{levelUp.proficiencyBonus}</p>
       )}
@@ -45,9 +53,31 @@ export function LevelUpContent({ levelUp }: { levelUp: LevelUp }) {
   );
 }
 
-/** The hero reached a new level: a full screen that stays until "Seguir". */
-export function LevelUpScreen({ levelUp, onClose }: { levelUp: LevelUp; onClose: () => void }) {
+/** The hero reached a new level: a full screen that stays until "Seguir".
+    With stored choices, it also asks for the level's picks and rebuilds the
+    sheet before closing; "Seguir" waits until the picks are valid. */
+export function LevelUpScreen({
+  levelUp,
+  player,
+  onConfirm,
+  onClose,
+}: {
+  levelUp: LevelUp;
+  player: Character | null;
+  onConfirm: (picks: Record<string, string[]>) => Promise<void>;
+  onClose: () => void;
+}) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const asks = player !== null && pendingLevelUp(player);
+  const [picks, setPicks] = useState(() => (player ? lockedPicks(player) : {}));
+  const [saving, setSaving] = useState(false);
+  // The preview is null until the level's picks build a valid sheet.
+  const preview = asks ? previewLevelUp(player, picks) : null;
+  const specs = asks ? pendingSpecs(player, picks) : [];
+  const maxHp =
+    preview?.ok && player?.stats ? { before: player.stats.maxHp, after: preview.sheet.hitPoints } : undefined;
+  // Errors only once every pick is made: before that, "falta elegir" says nothing new.
+  const errors = preview && !preview.ok && specs.length === 0 ? preview.errors : [];
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -57,10 +87,40 @@ export function LevelUpScreen({ levelUp, onClose }: { levelUp: LevelUp; onClose:
     enterLevelUp(dialog);
   }, []);
 
+  const confirm = async () => {
+    if (asks) {
+      setSaving(true);
+      try {
+        await onConfirm(picks);
+      } finally {
+        setSaving(false);
+      }
+    }
+    dialogRef.current?.close();
+  };
+
   return (
-    <dialog ref={dialogRef} className="level-up" aria-labelledby="level-up-title" onClose={onClose}>
-      <LevelUpContent levelUp={levelUp} />
-      <button type="button" className="button button--primary" autoFocus onClick={() => dialogRef.current?.close()}>
+    <dialog
+      ref={dialogRef}
+      className="level-up"
+      aria-labelledby="level-up-title"
+      onClose={onClose}
+      // Esc would skip the level's choices.
+      onCancel={(event) => {
+        if (asks) event.preventDefault();
+      }}
+    >
+      <LevelUpContent levelUp={levelUp} maxHp={maxHp} />
+      {asks && (
+        <ChoicePicker specs={specs} picks={picks} locked={lockedPicks(player)} errors={errors} onChange={setPicks} />
+      )}
+      <button
+        type="button"
+        className="button button--primary"
+        autoFocus={!asks}
+        disabled={saving || (asks && !preview?.ok)}
+        onClick={() => void confirm()}
+      >
         Seguir
       </button>
     </dialog>

@@ -4,6 +4,7 @@ import { LevelUpContent, shouldOpenLevelUp } from "../src/game/LevelUpScreen";
 import type { LevelUp } from "../src/game/levelUp";
 
 const up: LevelUp = {
+  playerId: "p1",
   name: "Brenna",
   level: 3,
   subclass: "Campeón",
@@ -12,6 +13,13 @@ const up: LevelUp = {
 };
 
 describe("LevelUpContent", () => {
+  it("shows the new maximum HP when it is known", () => {
+    expect(renderToStaticMarkup(<LevelUpContent levelUp={up} maxHp={{ before: 28, after: 36 }} />)).toContain(
+      "PG máx: 28 → 36",
+    );
+    expect(renderToStaticMarkup(<LevelUpContent levelUp={up} />)).not.toContain("PG máx");
+  });
+
   it("shows the level, the name, the subclass and each feature", () => {
     const html = renderToStaticMarkup(<LevelUpContent levelUp={up} />);
     for (const text of ["¡Nivel 3!", "Brenna", "Campeón", "Crítico mejorado", "Crítico con 19 o 20."]) {

@@ -16,7 +16,9 @@ import { QuestBanner } from "./QuestBanner";
 import { RecapScreen } from "./RecapScreen";
 import { recapOf, shouldShowRecap } from "../domain/recap";
 import { LevelUpScreen, shouldOpenLevelUp } from "./LevelUpScreen";
-import type { LevelUp } from "./levelUp";
+import { levelUpFromPlayer, type LevelUp } from "./levelUp";
+import { applyLevelUp, pendingLevelUp } from "../domain/sheetProgress";
+import { usePlayerUpdate } from "./usePlayerUpdate";
 import { InfoDrawer } from "./InfoDrawer";
 import { RollDialog } from "./RollDialog";
 import { RollRequest } from "./RollRequest";
@@ -73,6 +75,8 @@ export default function Game() {
   const gameRef = useRef<HTMLElement>(null);
   const { busy, send, sendFromPlayer } = useSendTurn(session, { setDraft, setToasts, scrollToBottom, gameRef, showBanners, showLevelUp });
   const { hpPending, adjustHp } = useHpAdjust(session, setToasts);
+  const updatePlayer = usePlayerUpdate(session);
+  const pendingLevelCheckedRef = useRef<string | null>(null);
 
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -105,6 +109,14 @@ export default function Game() {
     recapCheckedRef.current = state.id;
     if (shouldShowRecap(state, new Date())) setRecapOpen(true);
   }, [screen]);
+
+  // A level up left without its choices (the game was closed on that screen) opens again.
+  useEffect(() => {
+    if (screen.status !== "playing" || pendingLevelCheckedRef.current === screen.state.id) return;
+    pendingLevelCheckedRef.current = screen.state.id;
+    const player = screen.state.players[0];
+    if (player && pendingLevelUp(player)) showLevelUp(levelUpFromPlayer(player));
+  }, [screen, showLevelUp]);
 
   useEffect(() => {
     if (shouldOpenLevelUp(levelUps.length, banners, toasts.length, levelUpOpen)) setLevelUpOpen(true);
@@ -218,6 +230,13 @@ export default function Game() {
         {levelUpOpen && levelUps[0] && (
           <LevelUpScreen
             levelUp={levelUps[0]}
+            player={state.players.find((p) => p.id === levelUps[0]!.playerId) ?? null}
+            onConfirm={(picks) =>
+              updatePlayer(engine, state, levelUps[0]!.playerId, (p) => {
+                const result = applyLevelUp(p, picks);
+                return result.ok ? result.player : p;
+              })
+            }
             onClose={() => {
               setLevelUps((queue) => queue.slice(1));
               setLevelUpOpen(false);
