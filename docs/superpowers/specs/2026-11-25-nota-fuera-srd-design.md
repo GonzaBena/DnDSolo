@@ -14,8 +14,9 @@ SRD sin que el jugador cargue el personaje entero.
   aplica con lo que sabe del Player's Handbook 2024.
 - La nota del generador ("pediste Ermitaño, te di Sabio") se guarda como valor
   inicial en lugar de perderse.
-- Una casilla "Mi subclase no es la del SRD" que deja de aplicar la subclase
-  del SRD (ficha, subida de nivel y bloque de reglas del DM).
+- Al llegar al nivel de subclase, el jugador elige la del SRD u "Otra de tu
+  manual" con su nombre; con otra, la app deja de aplicar la del SRD (ficha,
+  subida de nivel y bloque de reglas del DM).
 
 ## No objetivos / anti-objetivos
 
@@ -37,28 +38,40 @@ SRD sin que el jugador cargue el personaje entero.
 
 ## Diseño
 
-- `Character.outsideSrd: { note: string; customSubclass: boolean }`
-  (por defecto `{ note: "", customSubclass: false }`), migración v17 → v18.
-  Nota de hasta 1000 caracteres.
-- **Creación:** `CharacterInput` lleva la nota; el generador pasa su
-  `outsideSrdNote` sin la frase fija ("Eso no lo tengo…"), solo lo que se
-  pidió y con qué se reemplazó. El formulario manual suma un campo de texto
-  opcional "Fuera del SRD".
-- **Edición en partida:** sección "Fuera del SRD" en Info, con el texto y la
-  casilla; se guarda con `TurnEngine.updatePlayer`.
+- `Character.outsideSrd: { note: string; subclass: string | null }`
+  (por defecto `{ note: "", subclass: null }`), migración v17 → v18. Nota de
+  hasta 1000 caracteres; `subclass` es el nombre de una subclase fuera del SRD.
+- **Creación:** no se pide subclase. `CharacterInput` lleva la nota; el
+  generador pasa su `outsideSrdNote` sin la frase fija ("Eso no lo tengo…"),
+  solo lo que se pidió y con qué se reemplazó. El formulario manual suma un
+  campo de texto opcional "Fuera del SRD".
+- **Subida de nivel:**
+  - Al llegar al nivel de subclase de la clase, si no hay subclase elegida
+    (`subclassId === null` y `outsideSrd.subclass === null`), la pantalla de
+    nivel pide "Subclase": "<la del SRD> (SRD)" u "Otra de tu manual" con un
+    campo de nombre. "Seguir" espera esa elección. Con la del SRD se guarda
+    `subclassId`; con otra, `outsideSrd.subclass`.
+  - Con subclase fuera del SRD, la pantalla no muestra rasgos de la del SRD y
+    dice "Tu subclase está fuera del SRD: revisá tu manual para este nivel".
+  - La nota "Fuera del SRD" aparece editable (opcional) en la pantalla.
+- **Edición en partida:** sección "Fuera del SRD" en Info con la nota y la
+  subclase (SRD / otra con nombre), para corregir o para personajes que ya
+  pasaron el nivel de subclase. Se guarda con `TurnEngine.updatePlayer`.
 - **DM:** el bloque de reglas (`rulesBlock.ts`) agrega, si hay nota:
   "Fuera del SRD (lo anotó el jugador; aplicalo con lo que sepas del
-  Player's Handbook 2024): …". Con `customSubclass`, no muestra ni ofrece la
-  subclase del SRD ni sus rasgos, y dice "subclase fuera del SRD (ver nota)".
-- **Ficha:** con `customSubclass`, `buildSheet` no aplica rasgos, PG,
+  Player's Handbook 2024): …". Con subclase fuera del SRD dice
+  "Subclase: <nombre> (fuera del SRD)" y no muestra ni ofrece la del SRD.
+  El cambio de estado `subclass` del DM se acepta solo si el jugador no
+  eligió ninguna subclase (partidas viejas); si no, se rechaza.
+- **Ficha:** con subclase fuera del SRD, `buildSheet` no aplica rasgos, PG,
   elecciones ni defensa de la subclase del SRD (también al recalcular en la
-  subida de nivel), y la pantalla de nivel no muestra sus rasgos. El dato
-  tiene que viajar con las elecciones guardadas para que el recálculo lo
-  respete.
+  subida de nivel). El dato viaja con las elecciones guardadas para que el
+  recálculo lo respete.
 
 ## Queda para quien construya
 
 - Cómo llega `customSubclass` a `buildSheet` (campo opcional en
   `CharacterChoices` o parámetro).
-- Qué hace la app si el DM manda el cambio `subclass` del SRD con la casilla
-  marcada (propuesta: rechazarlo).
+- Personajes con elecciones guardadas que ya tienen la subclase del SRD
+  aplicada por nivel sin `subclassId`: cómo se ofrece la elección (Info
+  alcanza).
