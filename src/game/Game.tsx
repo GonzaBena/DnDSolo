@@ -13,6 +13,8 @@ import { EventToasts, type ToastItem } from "./EventToasts";
 import { FailureBanner } from "./FailureBanner";
 import { GameOver } from "./GameOver";
 import { QuestBanner } from "./QuestBanner";
+import { RecapScreen } from "./RecapScreen";
+import { recapOf, shouldShowRecap } from "../domain/recap";
 import { LevelUpScreen, shouldOpenLevelUp } from "./LevelUpScreen";
 import type { LevelUp } from "./levelUp";
 import { InfoDrawer } from "./InfoDrawer";
@@ -58,6 +60,10 @@ export default function Game() {
   const [levelUps, setLevelUps] = useState<LevelUp[]>([]);
   const [levelUpOpen, setLevelUpOpen] = useState(false);
   const showLevelUp = useCallback((levelUp: LevelUp) => setLevelUps((queue) => [...queue, levelUp]), []);
+  // "Anteriormente en…": opens by itself on entering a game left 12 hours
+  // ago (once per game), and from the info drawer whenever asked.
+  const [recapOpen, setRecapOpen] = useState(false);
+  const recapCheckedRef = useRef<string | null>(null);
   const [zenMode, setZenMode] = useState(false);
   const { atBottom, scrollToBottom, follow } = useStickToBottom();
   const startedRef = useRef(false);
@@ -78,7 +84,8 @@ export default function Game() {
   // send waits for "Reintentar" instead of re-rolling in a loop.
   useEffect(() => {
     // Not behind the level-up screen: the turn would play where it can't be seen.
-    if (screen.status !== "playing" || busy || inFlight || hpPending > 0 || paused || levelUpOpen) return;
+    // Nor behind "Anteriormente en…": the player is still catching up.
+    if (screen.status !== "playing" || busy || inFlight || hpPending > 0 || paused || levelUpOpen || recapOpen) return;
     const { engine, state } = screen;
     if (state.turns.length === 0) {
       if (startedRef.current) return;
@@ -87,7 +94,15 @@ export default function Game() {
     } else if (state.pendingEnemyRolls.length > 0) {
       void send(engine, state, { type: "enemy_rolls", results: engine.rollEnemyDice(state) });
     }
-  }, [screen, busy, inFlight, hpPending, paused, levelUpOpen, send]);
+  }, [screen, busy, inFlight, hpPending, paused, levelUpOpen, recapOpen, send]);
+
+  useEffect(() => {
+    if (screen.status !== "playing") return;
+    const { state } = screen;
+    if (state.turns.length !== screen.loadedTurns || recapCheckedRef.current === state.id) return;
+    recapCheckedRef.current = state.id;
+    if (shouldShowRecap(state, new Date())) setRecapOpen(true);
+  }, [screen]);
 
   useEffect(() => {
     if (shouldOpenLevelUp(levelUps.length, banners, toasts.length, levelUpOpen)) setLevelUpOpen(true);
@@ -219,7 +234,16 @@ export default function Game() {
           }}
           hpDisabled={busy || inFlight !== null || paused}
         />
-        <InfoDrawer state={state} open={infoOpen} onClose={() => setInfoOpen(false)} />
+        {recapOpen && <RecapScreen recap={recapOf(state)} onClose={() => setRecapOpen(false)} />}
+        <InfoDrawer
+          state={state}
+          open={infoOpen}
+          onClose={() => setInfoOpen(false)}
+          onOpenRecap={() => {
+            setInfoOpen(false);
+            setRecapOpen(true);
+          }}
+        />
         <SceneDrawer
           state={state}
           dmActing={busy}

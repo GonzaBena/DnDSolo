@@ -1,0 +1,98 @@
+/* "Anteriormente en…": covers the game until "Seguir", like the level-up screen. */
+.recap {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: var(--space-5) var(--space-3);
+  border: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+}
+.recap[open] {
+  display: grid;
+  align-content: safe center;
+  overflow-y: auto;
+  justify-items: center;
+  gap: var(--space-4);
+}
+.recap::backdrop {
+  background: var(--color-bg);
+}
+.recap__content {
+  display: grid;
+  gap: var(--space-4);
+  width: min(36rem, 100%);
+}
+.recap__title {
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-style: italic;
+}
+.recap__summary {
+  display: grid;
+  gap: var(--space-2);
+  line-height: var(--leading);
+}
+.recap__summary p,
+.recap__place,
+.recap__roll {
+  margin: 0;
+}
+.recap__section {
+  display: grid;
+  gap: var(--space-2);
+}
+.recap__section h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+}
+.recap__quests {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.recap__quests li {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+.recap__quests span {
+  color: var(--color-ink-soft);
+  font-size: var(--text-sm);
+}
+.recap__place {
+  font-weight: 800;
+}
+.recap__quote {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 4px solid var(--color-ink-soft);
+  font-style: italic;
+  line-height: var(--leading);
+}
+.recap__quote cite {
+  font-style: normal;
+  font-weight: 800;
+}
+.recap__quote p {
+  margin: 0;
+}
+.recap__roll {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--color-sun);
+  color: var(--color-sun-ink);
+  font-weight: 700;
+}

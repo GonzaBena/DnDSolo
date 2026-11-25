@@ -227,7 +227,8 @@ export function InputEntry({
   }
 }
 
-function Inline({ nodes }: { nodes: InlineNode[] }) {
+/** Inline Markdown (bold, italics) as React nodes. */
+export function Inline({ nodes }: { nodes: InlineNode[] }) {
   return nodes.map((node, index) =>
     typeof node === "string" ? (
       node
