@@ -51,3 +51,36 @@ export function levelUpFromPlayer(player: Character): LevelUp {
     customSubclass,
   };
 }
+
+/** Queues a level up. Two of the same player before the screen opens (the DM raised the level twice) become one
+    screen at the latest level, with every level's features, so the picks and the features shown agree. */
+export function enqueueLevelUp(queue: LevelUp[], next: LevelUp): LevelUp[] {
+  const index = queue.findIndex((q) => q.playerId === next.playerId);
+  if (index < 0) return [...queue, next];
+  const prev = queue[index]!;
+  const merged: LevelUp = {
+    ...next,
+    features: [...prev.features, ...next.features],
+    proficiencyBonus: next.proficiencyBonus ?? prev.proficiencyBonus,
+    subclass: next.subclass ?? prev.subclass,
+  };
+  return queue.map((q, i) => (i === index ? merged : q));
+}
+
+/** The queued level up as the screen shows it while the subclass is being chosen: undecided, no "Subclase: X"
+    yet; with a subclass from the manual, nothing of the SRD one (its features and the class's generic trait). */
+export function viewForSubclass(
+  levelUp: LevelUp,
+  classId: string,
+  subclass: "undecided" | "srd" | { custom: string },
+): LevelUp {
+  if (subclass === "srd") return levelUp;
+  if (subclass === "undecided") return { ...levelUp, subclass: null };
+  const srdNames = new Set(findClass(classId)?.subclass.features.map((f) => f.feature.name) ?? []);
+  return {
+    ...levelUp,
+    subclass: null,
+    customSubclass: subclass.custom,
+    features: levelUp.features.filter((f) => !srdNames.has(f.name) && !f.name.startsWith("Subclase de ")),
+  };
+}

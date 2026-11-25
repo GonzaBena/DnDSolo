@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { LevelUpContent, shouldOpenLevelUp } from "../src/game/LevelUpScreen";
+import { LevelUpContent, levelUpChanges, shouldOpenLevelUp } from "../src/game/LevelUpScreen";
 import type { LevelUp } from "../src/game/levelUp";
 
 const up: LevelUp = {
@@ -59,5 +59,16 @@ describe("shouldOpenLevelUp", () => {
   });
   it("an open screen is not opened again", () => {
     expect(shouldOpenLevelUp(1, null, 0, true)).toBe(false);
+  });
+});
+
+describe("levelUpChanges", () => {
+  it("nothing to save without picks, subclass or a new note", () =>
+    expect(levelUpChanges({ asks: false, asksSubclass: false, note: " Ermitaño ", savedNote: "Ermitaño" })).toBe(false));
+  it("a new note is saved", () =>
+    expect(levelUpChanges({ asks: false, asksSubclass: false, note: "Ermitaño, lobo", savedNote: "Ermitaño" })).toBe(true));
+  it("picks or a subclass are saved", () => {
+    expect(levelUpChanges({ asks: true, asksSubclass: false, note: "", savedNote: "" })).toBe(true);
+    expect(levelUpChanges({ asks: false, asksSubclass: true, note: "", savedNote: "" })).toBe(true);
   });
 });

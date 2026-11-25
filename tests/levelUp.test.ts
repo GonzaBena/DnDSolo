@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GameState } from "../src/domain/types";
-import { levelUpFromPlayer, levelUpOf } from "../src/game/levelUp";
+import { enqueueLevelUp, levelUpFromPlayer, levelUpOf, viewForSubclass } from "../src/game/levelUp";
 import { newGame } from "./helpers";
 
 function withClass(classId: string | null, characterClass: string, level: number): GameState {
@@ -63,4 +63,44 @@ describe("levelUpFromPlayer with a subclass from the manual", () => {
     expect(up.features.some((f) => f.name === "Crítico mejorado")).toBe(false);
     expect(up.features.some((f) => f.name.startsWith("Subclase de "))).toBe(false);
   });
+});
+
+describe("enqueueLevelUp", () => {
+  it("two level ups of the same player before the screen opens become one, with both levels' features", () => {
+    const three = levelUpOf(fighter(2), fighter(3))!;
+    const four = levelUpOf(fighter(3), fighter(4))!;
+    const queue = enqueueLevelUp([three], four);
+    expect(queue).toHaveLength(1);
+    expect(queue[0]!.level).toBe(4);
+    expect(queue[0]!.subclass).toBe("Campeón");
+    const names = queue[0]!.features.map((f) => f.name);
+    expect(names).toContain("Crítico mejorado");
+    expect(names).toContain("Mejora de característica");
+  });
+
+  it("another player's level up queues apart", () => {
+    const three = levelUpOf(fighter(2), fighter(3))!;
+    expect(enqueueLevelUp([three], { ...three, playerId: "other" })).toHaveLength(2);
+  });
+});
+
+describe("viewForSubclass", () => {
+  const three = () => levelUpOf(fighter(2), fighter(3))!;
+
+  it("undecided: no 'Subclase: X' line, features kept to help choose", () => {
+    const view = viewForSubclass(three(), "fighter", "undecided");
+    expect(view.subclass).toBeNull();
+    expect(view.features.map((f) => f.name)).toContain("Crítico mejorado");
+  });
+
+  it("a subclass from the manual: no SRD subclass features nor the generic trait", () => {
+    const view = viewForSubclass(three(), "fighter", { custom: "Maestro de armas" });
+    expect(view.customSubclass).toBe("Maestro de armas");
+    expect(view.subclass).toBeNull();
+    const names = view.features.map((f) => f.name);
+    expect(names).not.toContain("Crítico mejorado");
+    expect(names.some((n) => n.startsWith("Subclase de "))).toBe(false);
+  });
+
+  it("the SRD one: as queued", () => expect(viewForSubclass(three(), "fighter", "srd")).toEqual(three()));
 });

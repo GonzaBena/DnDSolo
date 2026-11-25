@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { play } from "../audio/sound";
 import { enterLevelUp } from "../animations/motion";
 import type { BannerQueue } from "./bannerQueue";
-import { levelUpFromPlayer, type LevelUp } from "./levelUp";
+import { viewForSubclass, type LevelUp } from "./levelUp";
 import { ChoicePicker } from "./ChoicePicker";
 import { hiddenErrors, levelSpecs, lockedPicks, pendingLevelUp, pendingSpecs, previewLevelUp } from "../domain/sheetProgress";
 import { SUBCLASS_NAME_MAX, applySubclassPick, needsSubclassChoice, type SubclassPick } from "../domain/outsideSrd";
@@ -62,6 +62,21 @@ export function LevelUpContent({ levelUp, maxHp }: { levelUp: LevelUp; maxHp?: {
 /** The hero reached a new level: a full screen that stays until "Seguir".
     With stored choices, it also asks for the level's picks and rebuilds the
     sheet before closing; "Seguir" waits until the picks are valid. */
+/** Whether "Seguir" has anything to save: the level's picks, the subclass, or a changed note. */
+export function levelUpChanges({
+  asks,
+  asksSubclass,
+  note,
+  savedNote,
+}: {
+  asks: boolean;
+  asksSubclass: boolean;
+  note: string;
+  savedNote: string;
+}): boolean {
+  return asks || asksSubclass || note.trim() !== savedNote;
+}
+
 export function LevelUpScreen({
   levelUp,
   player,
@@ -97,9 +112,15 @@ export function LevelUpScreen({
   const errors = preview && !preview.ok && missing === 0 ? preview.errors : [];
   // Errors the picker can't fix: listed, and "Más tarde" lets the player out instead of trapping them.
   const stuck = asks ? hiddenErrors(staged, picks) : [];
-  const fromPlayer = staged ? levelUpFromPlayer(staged) : levelUp;
-  // Until the player picks, "Subclase: <SRD>" would announce a choice not made yet.
-  const shown = asksSubclass && subclassKind !== "srd" ? { ...fromPlayer, subclass: null } : fromPlayer;
+  // The queued level up (it may span two levels); the subclass picked here decides what of the SRD one it shows.
+  const classId = player?.classId ?? player?.characterClass ?? "";
+  const shown = !asksSubclass
+    ? levelUp
+    : viewForSubclass(
+        levelUp,
+        classId,
+        subclassKind === "srd" ? "srd" : subclassKind === "custom" && picked?.ok ? { custom: customName.trim() } : "undecided",
+      );
   const srdSubclass = player ? findClass(player.classId ?? player.characterClass)?.subclass : undefined;
 
   useEffect(() => {
@@ -111,7 +132,10 @@ export function LevelUpScreen({
   }, []);
 
   const confirm = async () => {
-    if (player) {
+    const changes =
+      player !== null &&
+      levelUpChanges({ asks, asksSubclass, note, savedNote: player.outsideSrd.note });
+    if (changes) {
       setSaving(true);
       try {
         await onConfirm(picks, asksSubclass ? pick : null, note);
@@ -135,7 +159,7 @@ export function LevelUpScreen({
     >
       <LevelUpContent levelUp={shown} maxHp={maxHp} />
       {asksSubclass && srdSubclass && (
-        <fieldset className="choice-picker choice-picker__group level-up__subclass">
+        <fieldset className="choice-picker choice-picker__group level-up__subclass-pick">
           <legend className="choice-picker__label">Subclase</legend>
           <label className="choice-picker__option">
             <input type="radio" name="subclass" checked={subclassKind === "srd"} onChange={() => setSubclassKind("srd")} />
