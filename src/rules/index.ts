@@ -21,7 +21,7 @@ export const ARMOR: ArmorData[] = ARMOR_DATA;
 export const SPELLS: SpellData[] = SPELLS_DATA;
 
 /** Class data is only loaded up to this level (see the phase 1 design). */
-export const LOADED_MAX_LEVEL = 4;
+export const LOADED_MAX_LEVEL = 10;
 
 export const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8] as const;
 

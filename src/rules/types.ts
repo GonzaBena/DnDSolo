@@ -49,6 +49,8 @@ export interface Option {
   speed?: number;
   /** Can be picked more than once, even across choices (SRD "Repetible", e.g. Agonizing Blast). */
   repeatable?: boolean;
+  /** Another option of a related choice it needs (e.g. Thirsting Blade needs the Pact of the Blade invocation). */
+  prerequisite?: string;
 }
 
 /** A pick that unlocks a choice. A list of them means any one is enough (several sources can grant it). */

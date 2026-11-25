@@ -67,8 +67,10 @@ sacudida de pantalla al recibir daño.
 - Nota "Fuera del SRD" ✓ (hecho 2026-11-25): texto libre que el DM lee
   cada turno (trasfondos, linajes, etc. del Player's Handbook) y subclase de
   tu manual elegida al subir de nivel o desde Info.
-- Reglas, etapa 2: los datos de clase llegan hasta nivel 4. Del 5 en
-  adelante faltan rasgos, competencia (+3 en 5) y hechizos de nivel 3+.
+- Reglas, etapa 2 ✓ (hecho 2026-11-25): las 12 clases y sus subclases
+  del SRD llegan al nivel 10, con los conjuros de nivel 3 a 5.
+- Reglas, etapa 3: niveles 11 a 20 (conjuros de nivel 6 a 9, Arcanum
+  místico del brujo, dones épicos).
 - Tiradas con suspenso: el dado gira un poco más; animación propia para 20 y 1
   naturales.
 - Mostrar la CD después de tirar: "Necesitabas 15, sacaste 17 ✓".

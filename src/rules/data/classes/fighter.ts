@@ -1,6 +1,6 @@
 import type { ClassData, LevelRow } from "../../types";
 import {
-  ASI_TRAIT, SOURCE, fightingStyleChoice, level4FeatChoice, masteryWeapons, subclassTrait, weaponMasteryChoice,
+  ASI_TRAIT, SOURCE, asiFeatChoice, fightingStyleChoice, level4FeatChoice, masteryWeapons, subclassTrait, weaponMasteryChoice,
   weaponMasteryTrait,
 } from "./common";
 
@@ -50,6 +50,47 @@ const levels: LevelRow[] = [
       weaponMasteryChoice("fighter", 1, masteryWeapons.any(), "_level4"),
     ],
   },
+  {
+    level: 5, proficiencyBonus: 3, resources: { "Tomar aliento": 3, "Acción súbita": 1 },
+    features: [
+      { name: "Ataque adicional", summary: "Cuando realizás la acción de atacar en tu turno, hacés dos ataques en lugar de uno." },
+      {
+        name: "Desplazamiento táctico",
+        summary: "Cuando usás Tomar aliento como acción adicional, podés moverte hasta la mitad de tu velocidad sin provocar ataques de oportunidad.",
+      },
+    ],
+    choices: [],
+  },
+  {
+    level: 6, proficiencyBonus: 3, resources: { "Tomar aliento": 3, "Acción súbita": 1 },
+    features: [ASI_TRAIT],
+    choices: [asiFeatChoice("fighter", 6, true)],
+  },
+  { level: 7, proficiencyBonus: 3, resources: { "Tomar aliento": 3, "Acción súbita": 1 }, features: [], choices: [] },
+  {
+    level: 8, proficiencyBonus: 3, resources: { "Tomar aliento": 3, "Acción súbita": 1 },
+    features: [ASI_TRAIT],
+    choices: [asiFeatChoice("fighter", 8, true)],
+  },
+  {
+    level: 9, proficiencyBonus: 4, resources: { "Tomar aliento": 3, "Acción súbita": 1, "Indómito": 1 },
+    features: [
+      {
+        name: "Indómito",
+        summary: "Si fallás una tirada de salvación, podés repetirla sumando tu nivel de guerrero y te quedás con el nuevo resultado. Una vez por descanso largo.",
+      },
+      {
+        name: "Maestro táctico",
+        summary: "Al atacar con un arma cuya maestría puedas usar, podés reemplazar esa propiedad por debilitar, empujar o ralentizar para ese ataque.",
+      },
+    ],
+    choices: [],
+  },
+  {
+    level: 10, proficiencyBonus: 4, resources: { "Tomar aliento": 4, "Acción súbita": 1, "Indómito": 1 },
+    features: [{ name: "Maestría con armas (5 tipos)", summary: "Ahora podés usar la maestría de 5 tipos de armas." }],
+    choices: [weaponMasteryChoice("fighter", 1, masteryWeapons.any(), "_level10")],
+  },
 ];
 
 export const FIGHTER: ClassData = {
@@ -98,6 +139,18 @@ export const FIGHTER: ClassData = {
         feature: {
           name: "Crítico mejorado",
           summary: "Tus ataques con armas y sin armas causan crítico con un 19 o 20 en el d20.",
+        },
+      },
+      {
+        level: 7,
+        feature: { name: "Estilo de combate adicional", summary: "Obtenés otra dote de estilo de combate a elección." },
+        choices: [{ ...fightingStyleChoice("fighter"), id: "class.fighter.additional_fighting_style", label: "Estilo de combate adicional" }],
+      },
+      {
+        level: 10,
+        feature: {
+          name: "Guerrero heroico",
+          summary: "Durante un combate, si empezás tu turno sin inspiración heroica, podés otorgártela.",
         },
       },
     ],

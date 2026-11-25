@@ -1,7 +1,7 @@
 import type { ClassData, LevelRow } from "../../types";
 import { spellOptions } from "../spells";
 import {
-  ASI_TRAIT, SOURCE, expertiseChoice, fightingStyleChoice, languageChoice, level4FeatChoice, masteryWeapons,
+  ASI_TRAIT, SOURCE, asiFeatChoice, expertiseChoice, fightingStyleChoice, languageChoice, level4FeatChoice, masteryWeapons,
   subclassTrait, weaponMasteryChoice, weaponMasteryTrait,
 } from "./common";
 
@@ -61,6 +61,42 @@ const levels: LevelRow[] = [
     features: [ASI_TRAIT],
     choices: [level4FeatChoice("ranger", true)],
   },
+  {
+    level: 5, proficiencyBonus: 3, resources: { "Enemigo predilecto": 3 }, preparedSpells: 6, slots: [4, 2],
+    features: [{ name: "Ataque adicional", summary: "Cuando realizás la acción de atacar en tu turno, hacés dos ataques en lugar de uno." }],
+    choices: [],
+  },
+  {
+    level: 6, proficiencyBonus: 3, resources: { "Enemigo predilecto": 3 }, preparedSpells: 6, slots: [4, 2],
+    features: [
+      {
+        name: "Errante",
+        summary: "Tu velocidad aumenta 3 m (10 pies) mientras no lleves armadura pesada, y tenés velocidad nadando y trepando iguales a tu velocidad.",
+      },
+    ],
+    choices: [],
+  },
+  { level: 7, proficiencyBonus: 3, resources: { "Enemigo predilecto": 3 }, preparedSpells: 7, slots: [4, 3], features: [], choices: [] },
+  {
+    level: 8, proficiencyBonus: 3, resources: { "Enemigo predilecto": 3 }, preparedSpells: 7, slots: [4, 3],
+    features: [ASI_TRAIT],
+    choices: [asiFeatChoice("ranger", 8, true)],
+  },
+  {
+    level: 9, proficiencyBonus: 4, resources: { "Enemigo predilecto": 4 }, preparedSpells: 9, slots: [4, 3, 2],
+    features: [{ name: "Pericia", summary: "Ganás pericia en dos habilidades más en las que seas competente." }],
+    choices: [expertiseChoice("ranger", 2, 9)],
+  },
+  {
+    level: 10, proficiencyBonus: 4, resources: { "Enemigo predilecto": 4 }, preparedSpells: 9, slots: [4, 3, 2],
+    features: [
+      {
+        name: "Infatigable",
+        summary: "Como acción de magia te das 1d8 más tu modificador de Sabiduría (mín. 1) puntos de golpe temporales, tantas veces como tu modificador de Sabiduría (mín. 1) por descanso largo. Tras un descanso corto, tu cansancio baja 1 nivel.",
+      },
+    ],
+    choices: [],
+  },
 ];
 
 export const RANGER: ClassData = {
@@ -119,6 +155,25 @@ export const RANGER: ClassData = {
           name: "Sabiduría del cazador",
           summary: "Mientras una criatura tenga tu marca del cazador, sabés si tiene inmunidades, resistencias o vulnerabilidades y cuáles son.",
         },
+      },
+      {
+        level: 7,
+        feature: {
+          name: "Tácticas defensivas",
+          summary: "Elegís una opción (podés cambiarla tras un descanso corto o largo): Defensa contra ataques múltiples (quien te acierte tiene desventaja en sus demás ataques contra vos ese turno) o Escapar de la horda (los ataques de oportunidad contra vos tienen desventaja).",
+        },
+        choices: [
+          {
+            id: "subclass.hunter.defensive_tactics", label: "Tácticas defensivas", count: 1,
+            options: [
+              {
+                id: "multiattack_defense", name: "Defensa contra ataques múltiples",
+                summary: "Cuando una criatura te acierta, tiene desventaja en sus demás tiradas de ataque contra vos ese turno.",
+              },
+              { id: "escape_the_horde", name: "Escapar de la horda", summary: "Los ataques de oportunidad contra vos tienen desventaja." },
+            ],
+          },
+        ],
       },
     ],
   },

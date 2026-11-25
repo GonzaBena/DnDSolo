@@ -1,5 +1,5 @@
 import type { ClassData, LevelRow, Option } from "../../types";
-import { ASI_TRAIT, SOURCE, level4FeatChoice, subclassTrait } from "./common";
+import { ASI_TRAIT, SOURCE, asiFeatChoice, level4FeatChoice, subclassTrait } from "./common";
 
 // Metamagic options from the SRD "Opciones de metamagia" (cost in Sorcery Points).
 const METAMAGIC: Option[] = [
@@ -88,6 +88,38 @@ const levels: LevelRow[] = [
     features: [ASI_TRAIT],
     choices: [level4FeatChoice("sorcerer")],
   },
+  {
+    level: 5, proficiencyBonus: 3, resources: { ...innate, "Puntos de hechicería": 5 }, cantrips: 5, preparedSpells: 9, slots: [4, 3, 2],
+    features: [
+      {
+        name: "Recuperación mágica",
+        summary: "Tras un descanso corto recuperás puntos de hechicería hasta la mitad de tu nivel de hechicero (redondeando hacia abajo). Una vez por descanso largo.",
+      },
+    ],
+    choices: [],
+  },
+  { level: 6, proficiencyBonus: 3, resources: { ...innate, "Puntos de hechicería": 6 }, cantrips: 5, preparedSpells: 10, slots: [4, 3, 3], features: [], choices: [] },
+  {
+    level: 7, proficiencyBonus: 3, resources: { ...innate, "Puntos de hechicería": 7 }, cantrips: 5, preparedSpells: 11, slots: [4, 3, 3, 1],
+    features: [
+      {
+        name: "Encarnación mágica",
+        summary: "Sin usos de Hechicería innata, podés activarla gastando 2 puntos de hechicería. Mientras está activa, podés usar hasta dos opciones de metamagia en cada conjuro.",
+      },
+    ],
+    choices: [],
+  },
+  {
+    level: 8, proficiencyBonus: 3, resources: { ...innate, "Puntos de hechicería": 8 }, cantrips: 5, preparedSpells: 12, slots: [4, 3, 3, 2],
+    features: [ASI_TRAIT],
+    choices: [asiFeatChoice("sorcerer", 8)],
+  },
+  { level: 9, proficiencyBonus: 4, resources: { ...innate, "Puntos de hechicería": 9 }, cantrips: 5, preparedSpells: 14, slots: [4, 3, 3, 3, 1], features: [], choices: [] },
+  {
+    level: 10, proficiencyBonus: 4, resources: { ...innate, "Puntos de hechicería": 10 }, cantrips: 6, preparedSpells: 15, slots: [4, 3, 3, 3, 2],
+    features: [{ name: "Metamagia (nivel 10)", summary: "Obtenés dos opciones de metamagia más." }],
+    choices: [{ id: "class.sorcerer.metamagic_level10", label: "Metamagia (nivel 10)", count: 2, options: METAMAGIC }],
+  },
 ];
 
 export const SORCERER: ClassData = {
@@ -123,8 +155,43 @@ export const SORCERER: ClassData = {
         level: 3,
         feature: {
           name: "Conjuros dracónicos",
-          summary: "Siempre tenés preparados aliento de dragón, alterar el propio aspecto, orbe cromático y orden imperiosa (nivel 3); terror y volar (nivel 5).",
+          summary: "Siempre tenés preparados aliento de dragón, alterar el propio aspecto, orbe cromático y orden imperiosa; más adelante se suman otros (niveles 5, 7 y 9).",
           spells: ["dragons_breath", "alter_self", "chromatic_orb", "command"],
+        },
+      },
+      {
+        level: 5,
+        feature: { name: "Conjuros dracónicos (nivel 5)", summary: "Siempre tenés preparados terror y volar.", spells: ["fear", "fly"] },
+      },
+      {
+        level: 6,
+        feature: {
+          name: "Afinidad elemental",
+          summary: "Tenés resistencia al tipo de daño elegido y, al lanzar un conjuro que inflija ese daño, sumás tu modificador de Carisma a una de sus tiradas de daño.",
+        },
+        choices: [
+          {
+            id: "subclass.draconic.elemental_affinity", label: "Afinidad elemental", count: 1,
+            options: [
+              ["acid", "Ácido"], ["cold", "Frío"], ["fire", "Fuego"], ["lightning", "Relámpago"], ["poison", "Veneno"],
+            ].map(([id, name]) => ({ id, name, summary: `Resistencia al daño de ${name.toLowerCase()} y +Carisma al daño de ${name.toLowerCase()} de tus conjuros.` })),
+          },
+        ],
+      },
+      {
+        level: 7,
+        feature: {
+          name: "Conjuros dracónicos (nivel 7)",
+          summary: "Siempre tenés preparados hechizar monstruo y ojo arcano.",
+          spells: ["charm_monster", "arcane_eye"],
+        },
+      },
+      {
+        level: 9,
+        feature: {
+          name: "Conjuros dracónicos (nivel 9)",
+          summary: "Siempre tenés preparados conocer las leyendas e invocar dragón.",
+          spells: ["legend_lore", "summon_dragon"],
         },
       },
     ],

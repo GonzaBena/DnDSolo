@@ -13,7 +13,7 @@ export interface Concept {
 
 /** Choices whose option ids are feat ids (fighting styles may also offer non-feat options). */
 export function isFeatChoice(id: string): boolean {
-  return id === "species.human.versatile" || /^class\.\w+\.(level4_feat|fighting_style|lessons_feat)$/.test(id);
+  return id === "species.human.versatile" || /^class\.\w+\.(level\d+_feat|fighting_style|additional_fighting_style|lessons_feat)$/.test(id);
 }
 
 /** Choices whose picks each raise that ability score by 1 (capped at 20). */
@@ -70,14 +70,22 @@ function highestSpellLevel(row: LevelRow): number {
   return row.pactSlots?.slotLevel ?? row.slots?.length ?? 0;
 }
 
+const uniqueOptions = (options: Option[]): Option[] => [...new Map(options.map((o) => [o.id, o])).values()];
+
 function leveledSpellOptions(list: string, maxLevel: number): Option[] {
   return Array.from({ length: maxLevel }, (_, i) => spellOptions(list, i + 1)).flat();
 }
 
+/** Bard 10, Magical Secrets: prepared spells may come from the bard, cleric, druid and wizard lists. */
+const MAGICAL_SECRETS = { classId: "bard", level: 10, lists: ["bard", "cleric", "druid", "wizard"] };
+
 function spellChoices(cls: ClassData, row: LevelRow): ChoiceSpec[] {
   if (!cls.spellcasting) return [];
   const list = cls.spellcasting.spellList;
-  const leveled = leveledSpellOptions(list, highestSpellLevel(row));
+  const secrets = cls.id === MAGICAL_SECRETS.classId && row.level >= MAGICAL_SECRETS.level;
+  const leveled = secrets
+    ? uniqueOptions(MAGICAL_SECRETS.lists.flatMap((l) => leveledSpellOptions(l, highestSpellLevel(row))))
+    : leveledSpellOptions(list, highestSpellLevel(row));
   const specs: ChoiceSpec[] = [];
   if (row.cantrips) {
     specs.push({ id: `class.${cls.id}.cantrips`, label: "Trucos", count: row.cantrips, options: spellOptions(list, 0) });

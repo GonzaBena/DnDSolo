@@ -321,7 +321,7 @@ describe("generateOptions", () => {
 
   it("rejects a level outside the loaded range or an empty story without calling the model", async () => {
     const llm = new FakeLLMClient();
-    await expect(generateOptions(llm, STORY, 5)).rejects.toThrow(/nivel/i);
+    await expect(generateOptions(llm, STORY, 11)).rejects.toThrow(/nivel/i);
     await expect(generateOptions(llm, STORY, 0)).rejects.toThrow(/nivel/i);
     await expect(generateOptions(llm, "   ", 1)).rejects.toThrow(/historia/i);
     expect(llm.structuredRequests).toHaveLength(0);

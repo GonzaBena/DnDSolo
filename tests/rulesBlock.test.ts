@@ -68,8 +68,8 @@ describe("describeCharacterRules", () => {
   });
 
   it("names the next level as not loaded at the cap", () => {
-    const block = describeCharacterRules([hero({ level: 4 })]);
-    expect(block).toMatch(/Sin datos de reglas:.*nivel 5/);
+    const block = describeCharacterRules([hero({ level: 10 })]);
+    expect(block).toMatch(/Sin datos de reglas:.*nivel 11/);
   });
 });
 
@@ -86,8 +86,8 @@ describe("casters and caps", () => {
   });
 
   it("flags both levels when above the loaded cap", () => {
-    const block = describeCharacterRules([hero({ level: 6 })]);
-    expect(block).toContain("nivel 6 y 7");
+    const block = describeCharacterRules([hero({ level: 12 })]);
+    expect(block).toContain("nivel 12 y 13");
   });
 });
 

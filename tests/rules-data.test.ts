@@ -22,7 +22,9 @@ import { SKILLS, requirementsOf } from "../src/rules/types";
 import type { ChoiceSpec } from "../src/rules/types";
 
 const sorted = (xs: string[]) => [...xs].sort();
-const CLASS_LEVELS = [1, 2, 3, 4];
+const CLASS_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+/** Slots by level of the full casters (SRD tables of bard, cleric, druid, sorcerer and wizard). */
+const FULL_CASTER_SLOTS = [[2], [3], [4, 2], [4, 3], [4, 3, 2], [4, 3, 3], [4, 3, 3, 1], [4, 3, 3, 2], [4, 3, 3, 3, 1], [4, 3, 3, 3, 2]];
 
 function allChoices(): ChoiceSpec[] {
   return [...SPECIES.flatMap((s) => s.choices), ...BACKGROUNDS.flatMap((b) => b.choices), ...FEATS.flatMap((f) => f.choices)];
@@ -164,7 +166,7 @@ describe("integrity", () => {
   });
 
   it("exposes the constants", () => {
-    expect(LOADED_MAX_LEVEL).toBe(4);
+    expect(LOADED_MAX_LEVEL).toBe(10);
     expect(STANDARD_ARRAY).toEqual([15, 14, 13, 12, 10, 8]);
   });
 });
@@ -197,7 +199,7 @@ describe("equipment data", () => {
   });
 });
 
-describe("classes (levels 1-4)", () => {
+describe("classes (levels 1-10)", () => {
   const cls = (id: string) => findClass(id)!;
   const row = (id: string, level: number) => cls(id).levels[level - 1];
   const choiceIds = (id: string, level: number) => row(id, level).choices.map((c) => c.id);
@@ -222,11 +224,11 @@ describe("classes (levels 1-4)", () => {
     expect(findClass("nope")).toBeUndefined();
   });
 
-  it.each(CLASSES_DATA.map((c) => [c.id]))("%s has rows 1..LOADED_MAX_LEVEL with proficiency 2", (id) => {
+  it.each(CLASSES_DATA.map((c) => [c.id]))("%s has rows 1..LOADED_MAX_LEVEL with the SRD proficiency bonus", (id) => {
     const c = cls(id);
     expect(c.levels).toHaveLength(LOADED_MAX_LEVEL);
-    expect(c.levels.map((l) => l.level)).toEqual([1, 2, 3, 4]);
-    for (const l of c.levels) expect(l.proficiencyBonus).toBe(2);
+    expect(c.levels.map((l) => l.level)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(c.levels.map((l) => l.proficiencyBonus)).toEqual([2, 2, 2, 2, 3, 3, 3, 3, 4, 4]);
     expect(c.source).toBe("SRD 5.2");
   });
 
@@ -313,16 +315,16 @@ describe("classes (levels 1-4)", () => {
   it("models the paladin as a caster from level 1", () => {
     const p = cls("paladin");
     expect(p).toMatchObject({ hitDie: 10, saves: ["wis", "cha"], spellcasting: { ability: "cha" } });
-    expect(p.levels.map((l) => l.slots)).toEqual([[2], [2], [3], [3]]);
-    expect(p.levels.map((l) => l.preparedSpells)).toEqual([2, 3, 4, 5]);
+    expect(p.levels.map((l) => l.slots)).toEqual([[2], [2], [3], [3], [4, 2], [4, 2], [4, 3], [4, 3], [4, 3, 2], [4, 3, 2]]);
+    expect(p.levels.map((l) => l.preparedSpells)).toEqual([2, 3, 4, 5, 6, 6, 7, 7, 9, 9]);
     expect(choiceIds("paladin", 2)).toContain("class.paladin.fighting_style");
   });
 
   it("models the ranger as a caster from level 1", () => {
     const r = cls("ranger");
     expect(r).toMatchObject({ hitDie: 10, saves: ["str", "dex"], spellcasting: { ability: "wis" } });
-    expect(r.levels.map((l) => l.slots)).toEqual([[2], [2], [3], [3]]);
-    expect(r.levels.map((l) => l.preparedSpells)).toEqual([2, 3, 4, 5]);
+    expect(r.levels.map((l) => l.slots)).toEqual([[2], [2], [3], [3], [4, 2], [4, 2], [4, 3], [4, 3], [4, 3, 2], [4, 3, 2]]);
+    expect(r.levels.map((l) => l.preparedSpells)).toEqual([2, 3, 4, 5, 6, 6, 7, 7, 9, 9]);
     expect(choiceIds("ranger", 2)).toEqual(
       expect.arrayContaining(["class.ranger.fighting_style", "class.ranger.expertise"]),
     );
@@ -332,10 +334,10 @@ describe("classes (levels 1-4)", () => {
     cls(id).levels.flatMap((l) => l.choices).filter((c) => c.id.startsWith(`class.${id}.weapon_mastery`)).reduce((n, c) => n + c.count, 0);
 
   it.each([
-    ["barbarian", 3], ["fighter", 4], ["paladin", 2], ["ranger", 2], ["rogue", 2], ["monk", 0],
+    ["barbarian", 4], ["fighter", 5], ["paladin", 2], ["ranger", 2], ["rogue", 2], ["monk", 0],
     ["bard", 0], ["cleric", 0], ["druid", 0], ["sorcerer", 0], ["warlock", 0], ["wizard", 0],
   ])(
-    "%s has %i weapon mastery picks by level 4", (id, total) => {
+    "%s has %i weapon mastery picks by level 10", (id, total) => {
       expect(masteryTotal(id)).toBe(total);
     },
   );
@@ -382,12 +384,18 @@ describe("classes (levels 1-4)", () => {
   });
 
   it("tracks class resources by level", () => {
-    expect(CLASS_LEVELS.map((n) => row("paladin", n).resources["Imponer las manos"])).toEqual([5, 10, 15, 20]);
-    expect(CLASS_LEVELS.map((n) => row("paladin", n).resources["Canalizar divinidad"])).toEqual([undefined, undefined, 2, 2]);
-    expect(CLASS_LEVELS.map((n) => row("rogue", n).resources["Ataque furtivo (d6)"])).toEqual([1, 1, 2, 2]);
-    expect(CLASS_LEVELS.map((n) => row("barbarian", n).resources.Furias)).toEqual([2, 2, 3, 3]);
-    expect(CLASS_LEVELS.map((n) => row("fighter", n).resources["Tomar aliento"])).toEqual([2, 2, 2, 3]);
-    expect(CLASS_LEVELS.map((n) => row("ranger", n).resources["Enemigo predilecto"])).toEqual([2, 2, 2, 2]);
+    const of = (id: string, resource: string) => CLASS_LEVELS.map((n) => row(id, n).resources[resource]);
+    expect(of("paladin", "Imponer las manos")).toEqual([5, 10, 15, 20, 25, 30, 35, 40, 45, 50]);
+    expect(of("paladin", "Canalizar divinidad")).toEqual([undefined, undefined, 2, 2, 2, 2, 2, 2, 2, 2]);
+    expect(of("rogue", "Ataque furtivo (d6)")).toEqual([1, 1, 2, 2, 3, 3, 4, 4, 5, 5]);
+    expect(of("barbarian", "Furias")).toEqual([2, 2, 3, 3, 3, 4, 4, 4, 4, 4]);
+    expect(of("barbarian", "Daño por furia")).toEqual([2, 2, 2, 2, 2, 2, 2, 2, 3, 3]);
+    expect(of("fighter", "Tomar aliento")).toEqual([2, 2, 2, 3, 3, 3, 3, 3, 3, 4]);
+    expect(of("fighter", "Indómito")).toEqual([undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, 1, 1]);
+    expect(of("ranger", "Enemigo predilecto")).toEqual([2, 2, 2, 2, 3, 3, 3, 3, 4, 4]);
+    expect(of("monk", "Dado de artes marciales")).toEqual([6, 6, 6, 6, 8, 8, 8, 8, 8, 8]);
+    expect(of("monk", "Puntos de concentración")).toEqual([undefined, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(of("monk", "Movimiento sin armadura (m)")).toEqual([undefined, 3, 3, 3, 3, 4.5, 4.5, 4.5, 4.5, 6]);
   });
 
   it("models Hunter's Prey, languages and expertise counts", () => {
@@ -405,9 +413,9 @@ describe("classes (levels 1-4)", () => {
     expect(w).toMatchObject({ hitDie: 6, saves: ["int", "wis"], spellcasting: { ability: "int", spellList: "wizard" } });
     expect(w.levels[0].cantrips).toBe(3);
     expect(w.levels[0].preparedSpells).toBe(4);
-    expect(w.levels.map((l) => l.slots)).toEqual([[2], [3], [4, 2], [4, 3]]);
-    expect(w.levels.map((l) => l.cantrips)).toEqual([3, 3, 3, 4]);
-    expect(w.levels.map((l) => l.preparedSpells)).toEqual([4, 5, 6, 7]);
+    expect(w.levels.map((l) => l.slots)).toEqual(FULL_CASTER_SLOTS);
+    expect(w.levels.map((l) => l.cantrips)).toEqual([3, 3, 3, 4, 4, 4, 4, 4, 4, 5]);
+    expect(w.levels.map((l) => l.preparedSpells)).toEqual([4, 5, 6, 7, 9, 10, 11, 12, 14, 15]);
     expect(w.subclass.id).toBe("evoker");
     const scholar = row("wizard", 2).choices.find((c) => c.id === "class.wizard.scholar");
     expect(scholar?.count).toBe(1);
@@ -419,10 +427,12 @@ describe("classes (levels 1-4)", () => {
     expect(w).toMatchObject({ hitDie: 8, saves: ["wis", "cha"], spellcasting: { ability: "cha", spellList: "warlock" } });
     expect(w.levels.map((l) => l.pactSlots)).toEqual([
       { count: 1, slotLevel: 1 }, { count: 2, slotLevel: 1 }, { count: 2, slotLevel: 2 }, { count: 2, slotLevel: 2 },
+      { count: 2, slotLevel: 3 }, { count: 2, slotLevel: 3 }, { count: 2, slotLevel: 4 }, { count: 2, slotLevel: 4 },
+      { count: 2, slotLevel: 5 }, { count: 2, slotLevel: 5 },
     ]);
     expect(w.levels.every((l) => l.slots === undefined)).toBe(true);
-    expect(w.levels.map((l) => l.cantrips)).toEqual([2, 2, 2, 3]);
-    expect(w.levels.map((l) => l.preparedSpells)).toEqual([2, 3, 4, 5]);
+    expect(w.levels.map((l) => l.cantrips)).toEqual([2, 2, 2, 3, 3, 3, 3, 3, 3, 4]);
+    expect(w.levels.map((l) => l.preparedSpells)).toEqual([2, 3, 4, 5, 6, 7, 8, 9, 10, 10]);
     expect(w.subclass.id).toBe("fiend");
   });
 
@@ -431,6 +441,9 @@ describe("classes (levels 1-4)", () => {
     expect(inv(1).reduce((n, c) => n + c.count, 0)).toBe(1);
     expect(inv(2).reduce((n, c) => n + c.count, 0)).toBe(3);
     expect(inv(4).reduce((n, c) => n + c.count, 0)).toBe(3);
+    expect(inv(5).reduce((n, c) => n + c.count, 0)).toBe(5);
+    expect(inv(7).reduce((n, c) => n + c.count, 0)).toBe(6);
+    expect(inv(10).reduce((n, c) => n + c.count, 0)).toBe(7);
     const first = row("warlock", 1).choices.find((c) => c.id === "class.warlock.invocation")!;
     // Only invocations without a level prerequisite at level 1: the three pacts, Armor of Shadows and Eldritch Mind.
     expect(sorted(first.options.map((o) => o.id))).toEqual(
@@ -447,9 +460,10 @@ describe("classes (levels 1-4)", () => {
   it("models the bard", () => {
     const b = cls("bard");
     expect(b).toMatchObject({ hitDie: 8, saves: ["dex", "cha"], spellcasting: { ability: "cha", spellList: "bard" } });
-    expect(b.levels.map((l) => l.cantrips)).toEqual([2, 2, 2, 3]);
-    expect(b.levels.map((l) => l.preparedSpells)).toEqual([4, 5, 6, 7]);
-    expect(b.levels.map((l) => l.slots)).toEqual([[2], [3], [4, 2], [4, 3]]);
+    expect(b.levels.map((l) => l.cantrips)).toEqual([2, 2, 2, 3, 3, 3, 3, 3, 3, 4]);
+    expect(b.levels.map((l) => l.preparedSpells)).toEqual([4, 5, 6, 7, 9, 10, 11, 12, 14, 15]);
+    expect(b.levels.map((l) => l.slots)).toEqual(FULL_CASTER_SLOTS);
+    expect(b.levels.map((l) => l.resources["Dado de Inspiración bárdica"])).toEqual([6, 6, 6, 6, 8, 8, 8, 8, 8, 10]);
     expect(row("bard", 1).resources["Dado de Inspiración bárdica"]).toBe(6);
     const instruments = row("bard", 1).choices.find((c) => c.id === "class.bard.instruments");
     expect(instruments?.count).toBe(3);
@@ -463,24 +477,24 @@ describe("classes (levels 1-4)", () => {
   it("models the cleric with Divine Order and Channel Divinity", () => {
     const c = cls("cleric");
     expect(c).toMatchObject({ hitDie: 8, saves: ["wis", "cha"], spellcasting: { ability: "wis", spellList: "cleric" } });
-    expect(c.levels.map((l) => l.cantrips)).toEqual([3, 3, 3, 4]);
-    expect(c.levels.map((l) => l.preparedSpells)).toEqual([4, 5, 6, 7]);
-    expect(c.levels.map((l) => l.slots)).toEqual([[2], [3], [4, 2], [4, 3]]);
+    expect(c.levels.map((l) => l.cantrips)).toEqual([3, 3, 3, 4, 4, 4, 4, 4, 4, 5]);
+    expect(c.levels.map((l) => l.preparedSpells)).toEqual([4, 5, 6, 7, 9, 10, 11, 12, 14, 15]);
+    expect(c.levels.map((l) => l.slots)).toEqual(FULL_CASTER_SLOTS);
     const order = row("cleric", 1).choices.find((x) => x.id === "class.cleric.divine_order");
     expect(order?.options.map((o) => o.id)).toEqual(["protector", "thaumaturge"]);
-    expect(CLASS_LEVELS.map((n) => row("cleric", n).resources["Canalizar divinidad"])).toEqual([undefined, 2, 2, 2]);
+    expect(CLASS_LEVELS.map((n) => row("cleric", n).resources["Canalizar divinidad"])).toEqual([undefined, 2, 2, 2, 2, 3, 3, 3, 3, 3]);
     expect(c.subclass.id).toBe("life");
   });
 
   it("models the druid with Primal Order, Wild Shape and the Circle of the Land", () => {
     const d = cls("druid");
     expect(d).toMatchObject({ hitDie: 8, saves: ["int", "wis"], spellcasting: { ability: "wis", spellList: "druid" } });
-    expect(d.levels.map((l) => l.cantrips)).toEqual([2, 2, 2, 3]);
-    expect(d.levels.map((l) => l.preparedSpells)).toEqual([4, 5, 6, 7]);
-    expect(d.levels.map((l) => l.slots)).toEqual([[2], [3], [4, 2], [4, 3]]);
+    expect(d.levels.map((l) => l.cantrips)).toEqual([2, 2, 2, 3, 3, 3, 3, 3, 3, 4]);
+    expect(d.levels.map((l) => l.preparedSpells)).toEqual([4, 5, 6, 7, 9, 10, 11, 12, 14, 15]);
+    expect(d.levels.map((l) => l.slots)).toEqual(FULL_CASTER_SLOTS);
     expect(row("druid", 1).choices.find((x) => x.id === "class.druid.primal_order")?.options.map((o) => o.id)).toEqual(["magician", "warden"]);
-    expect(CLASS_LEVELS.map((n) => row("druid", n).resources["Forma salvaje"])).toEqual([undefined, 2, 2, 2]);
-    expect(CLASS_LEVELS.map((n) => row("druid", n).resources["Formas conocidas"])).toEqual([undefined, 4, 4, 6]);
+    expect(CLASS_LEVELS.map((n) => row("druid", n).resources["Forma salvaje"])).toEqual([undefined, 2, 2, 2, 2, 3, 3, 3, 3, 3]);
+    expect(CLASS_LEVELS.map((n) => row("druid", n).resources["Formas conocidas"])).toEqual([undefined, 4, 4, 6, 6, 6, 6, 8, 8, 8]);
     expect(d.subclass.id).toBe("land");
     const land = d.subclass.features.flatMap((f) => f.choices ?? []).find((x) => x.id === "subclass.land.land_type");
     expect(land?.options.map((o) => o.id)).toEqual(["arid", "polar", "temperate", "tropical"]);
@@ -489,11 +503,11 @@ describe("classes (levels 1-4)", () => {
   it("models the sorcerer with Sorcery Points and Metamagic", () => {
     const s = cls("sorcerer");
     expect(s).toMatchObject({ hitDie: 6, saves: ["con", "cha"], spellcasting: { ability: "cha", spellList: "sorcerer" } });
-    expect(s.levels.map((l) => l.cantrips)).toEqual([4, 4, 4, 5]);
-    expect(s.levels.map((l) => l.preparedSpells)).toEqual([2, 4, 6, 7]);
-    expect(s.levels.map((l) => l.slots)).toEqual([[2], [3], [4, 2], [4, 3]]);
-    expect(CLASS_LEVELS.map((n) => row("sorcerer", n).resources["Puntos de hechicería"])).toEqual([undefined, 2, 3, 4]);
-    expect(CLASS_LEVELS.map((n) => row("sorcerer", n).resources["Hechicería innata"])).toEqual([2, 2, 2, 2]);
+    expect(s.levels.map((l) => l.cantrips)).toEqual([4, 4, 4, 5, 5, 5, 5, 5, 5, 6]);
+    expect(s.levels.map((l) => l.preparedSpells)).toEqual([2, 4, 6, 7, 9, 10, 11, 12, 14, 15]);
+    expect(s.levels.map((l) => l.slots)).toEqual(FULL_CASTER_SLOTS);
+    expect(CLASS_LEVELS.map((n) => row("sorcerer", n).resources["Puntos de hechicería"])).toEqual([undefined, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(CLASS_LEVELS.map((n) => row("sorcerer", n).resources["Hechicería innata"])).toEqual([2, 2, 2, 2, 2, 2, 2, 2, 2, 2]);
     const meta = row("sorcerer", 2).choices.find((x) => x.id === "class.sorcerer.metamagic");
     expect(meta?.count).toBe(2);
     expect(meta?.options).toHaveLength(10);
@@ -598,7 +612,7 @@ describe("spells (cantrips to level 2)", () => {
   it("has unique ids, valid levels, known lists and a non-empty summary", () => {
     expect(new Set(SPELLS.map((s) => s.id)).size).toBe(SPELLS.length);
     for (const s of SPELLS) {
-      expect([0, 1, 2]).toContain(s.level);
+      expect([0, 1, 2, 3, 4, 5]).toContain(s.level);
       expect(s.summary.trim(), s.id).not.toBe("");
       expect(s.name.trim(), s.id).not.toBe("");
       expect(s.school.trim(), s.id).not.toBe("");

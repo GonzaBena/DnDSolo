@@ -1,6 +1,6 @@
 import type { ClassData, LevelRow } from "../../types";
 import { spellOptions } from "../spells";
-import { ASI_TRAIT, SOURCE, level4FeatChoice, subclassTrait } from "./common";
+import { ASI_TRAIT, SOURCE, asiFeatChoice, level4FeatChoice, subclassTrait } from "./common";
 
 // Cantrips, prepared spells, slots and Channel Divinity from the SRD table "Rasgos de clérigo".
 // The extra cantrip of the Thaumaturge order is a conditional choice.
@@ -55,6 +55,49 @@ const levels: LevelRow[] = [
     features: [ASI_TRAIT],
     choices: [level4FeatChoice("cleric")],
   },
+  {
+    level: 5, proficiencyBonus: 3, resources: { "Canalizar divinidad": 2 }, cantrips: 4, preparedSpells: 9, slots: [4, 3, 2],
+    features: [
+      {
+        name: "Abrasar muertos vivientes",
+        summary: "Al usar Expulsar muertos vivientes, tirás tantos d8 como tu modificador de Sabiduría (mín. 1d8): cada muerto viviente que falle la salvación sufre ese daño radiante, sin terminar la expulsión.",
+      },
+    ],
+    choices: [],
+  },
+  { level: 6, proficiencyBonus: 3, resources: { "Canalizar divinidad": 3 }, cantrips: 4, preparedSpells: 10, slots: [4, 3, 3], features: [], choices: [] },
+  {
+    level: 7, proficiencyBonus: 3, resources: { "Canalizar divinidad": 3 }, cantrips: 4, preparedSpells: 11, slots: [4, 3, 3, 1],
+    features: [{ name: "Golpes benditos", summary: "Obtenés Golpe divino o Lanzamiento potente, a tu elección." }],
+    choices: [
+      {
+        id: "class.cleric.blessed_strikes", label: "Golpes benditos", count: 1,
+        options: [
+          {
+            id: "divine_strike", name: "Golpe divino",
+            summary: "Una vez por turno, al acertar con un arma, el objetivo sufre 1d8 de daño necrótico o radiante adicional (a tu elección).",
+          },
+          { id: "potent_spellcasting", name: "Lanzamiento potente", summary: "Sumás tu modificador de Sabiduría al daño de tus trucos de clérigo." },
+        ],
+      },
+    ],
+  },
+  {
+    level: 8, proficiencyBonus: 3, resources: { "Canalizar divinidad": 3 }, cantrips: 4, preparedSpells: 12, slots: [4, 3, 3, 2],
+    features: [ASI_TRAIT],
+    choices: [asiFeatChoice("cleric", 8)],
+  },
+  { level: 9, proficiencyBonus: 4, resources: { "Canalizar divinidad": 3 }, cantrips: 4, preparedSpells: 14, slots: [4, 3, 3, 3, 1], features: [], choices: [] },
+  {
+    level: 10, proficiencyBonus: 4, resources: { "Canalizar divinidad": 3 }, cantrips: 5, preparedSpells: 15, slots: [4, 3, 3, 3, 2],
+    features: [
+      {
+        name: "Intercesión divina",
+        summary: "Como acción de magia, lanzás cualquier conjuro de clérigo de nivel 5 o inferior que no requiera reacción, sin gastar espacio ni componentes materiales. Una vez por descanso largo.",
+      },
+    ],
+    choices: [],
+  },
 ];
 
 export const CLERIC: ClassData = {
@@ -87,8 +130,32 @@ export const CLERIC: ClassData = {
         level: 3,
         feature: {
           name: "Conjuros del dominio de la vida",
-          summary: "Siempre tenés preparados auxilio, bendición, curar heridas y restablecimiento menor (nivel 3); palabra de curación en masa y revivir (nivel 5).",
+          summary: "Siempre tenés preparados auxilio, bendición, curar heridas y restablecimiento menor; más adelante se suman otros (niveles 5, 7 y 9).",
           spells: ["aid", "bless", "cure_wounds", "lesser_restoration"],
+        },
+      },
+      {
+        level: 5,
+        feature: {
+          name: "Conjuros del dominio de la vida (nivel 5)",
+          summary: "Siempre tenés preparados palabra de curación en masa y revivir.",
+          spells: ["mass_healing_word", "revivify"],
+        },
+      },
+      {
+        level: 7,
+        feature: {
+          name: "Conjuros del dominio de la vida (nivel 7)",
+          summary: "Siempre tenés preparados aura de vida y guarda contra la muerte.",
+          spells: ["aura_of_life", "death_ward"],
+        },
+      },
+      {
+        level: 9,
+        feature: {
+          name: "Conjuros del dominio de la vida (nivel 9)",
+          summary: "Siempre tenés preparados curar heridas en masa y restablecimiento mayor.",
+          spells: ["mass_cure_wounds", "greater_restoration"],
         },
       },
       {
@@ -96,6 +163,13 @@ export const CLERIC: ClassData = {
         feature: {
           name: "Preservar vida",
           summary: "Como acción de magia, gastás un uso de Canalizar divinidad y repartís entre criaturas maltrechas a 9 m (podés incluirte) puntos de golpe iguales a cinco veces tu nivel de clérigo, sin superar la mitad de los puntos de golpe máximos de cada una.",
+        },
+      },
+      {
+        level: 6,
+        feature: {
+          name: "Sanador bendito",
+          summary: "Justo después de gastar un espacio de conjuro en curar a otras criaturas, recuperás 2 más el nivel del espacio en puntos de golpe.",
         },
       },
     ],

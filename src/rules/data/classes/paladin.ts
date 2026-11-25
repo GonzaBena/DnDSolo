@@ -1,7 +1,7 @@
 import type { ClassData, LevelRow } from "../../types";
 import { spellOptions } from "../spells";
 import {
-  ASI_TRAIT, SOURCE, fightingStyleChoice, level4FeatChoice, masteryWeapons, subclassTrait, weaponMasteryChoice,
+  ASI_TRAIT, SOURCE, asiFeatChoice, fightingStyleChoice, level4FeatChoice, masteryWeapons, subclassTrait, weaponMasteryChoice,
   weaponMasteryTrait,
 } from "./common";
 
@@ -66,6 +66,54 @@ const levels: LevelRow[] = [
     features: [ASI_TRAIT],
     choices: [level4FeatChoice("paladin", true)],
   },
+  {
+    level: 5, proficiencyBonus: 3, resources: { "Imponer las manos": 25, "Canalizar divinidad": 2 }, preparedSpells: 6, slots: [4, 2],
+    features: [
+      { name: "Ataque adicional", summary: "Cuando realizás la acción de atacar en tu turno, hacés dos ataques en lugar de uno." },
+      {
+        name: "Corcel fiel",
+        summary: "Siempre tenés preparado hallar corcel y podés lanzarlo una vez sin gastar espacio de conjuro; recuperás ese uso en descanso largo.",
+        spells: ["find_steed"],
+      },
+    ],
+    choices: [],
+  },
+  {
+    level: 6, proficiencyBonus: 3, resources: { "Imponer las manos": 30, "Canalizar divinidad": 2 }, preparedSpells: 6, slots: [4, 2],
+    features: [
+      {
+        name: "Aura de protección",
+        summary: "Emanás un aura de 3 m (inactiva si estás incapacitado): vos y tus aliados dentro suman tu modificador de Carisma (mín. +1) a las tiradas de salvación. Ya está sumado a tus salvaciones.",
+      },
+    ],
+    choices: [],
+  },
+  { level: 7, proficiencyBonus: 3, resources: { "Imponer las manos": 35, "Canalizar divinidad": 2 }, preparedSpells: 7, slots: [4, 3], features: [], choices: [] },
+  {
+    level: 8, proficiencyBonus: 3, resources: { "Imponer las manos": 40, "Canalizar divinidad": 2 }, preparedSpells: 7, slots: [4, 3],
+    features: [ASI_TRAIT],
+    choices: [asiFeatChoice("paladin", 8, true)],
+  },
+  {
+    level: 9, proficiencyBonus: 4, resources: { "Imponer las manos": 45, "Canalizar divinidad": 2 }, preparedSpells: 9, slots: [4, 3, 2],
+    features: [
+      {
+        name: "Abjurar de los enemigos",
+        summary: "Como acción de magia gastás un uso de Canalizar divinidad: tantas criaturas a 18 m como tu modificador de Carisma (mín. 1) hacen una salvación de Sabiduría o quedan asustadas 1 minuto o hasta recibir daño; mientras tanto solo pueden moverse, realizar una acción o una acción adicional en su turno.",
+      },
+    ],
+    choices: [],
+  },
+  {
+    level: 10, proficiencyBonus: 4, resources: { "Imponer las manos": 50, "Canalizar divinidad": 2 }, preparedSpells: 9, slots: [4, 3, 2],
+    features: [
+      {
+        name: "Aura de coraje",
+        summary: "Vos y tus aliados tienen inmunidad al estado asustado mientras estén dentro de tu Aura de protección.",
+      },
+    ],
+    choices: [],
+  },
 ];
 
 export const PALADIN: ClassData = {
@@ -104,7 +152,31 @@ export const PALADIN: ClassData = {
         level: 3,
         feature: {
           name: "Conjuros del juramento de entrega",
-          summary: "Siempre tenés preparados escudo de fe y protección contra el bien y el mal (nivel 3); auxilio y zona de la verdad (nivel 5).",
+          summary: "Siempre tenés preparados escudo de fe y protección contra el bien y el mal; más adelante se suman otros (niveles 5 y 9).",
+          spells: ["shield_of_faith", "protection_from_evil_and_good"],
+        },
+      },
+      {
+        level: 5,
+        feature: {
+          name: "Conjuros del juramento de entrega (nivel 5)",
+          summary: "Siempre tenés preparados auxilio y zona de la verdad.",
+          spells: ["aid", "zone_of_truth"],
+        },
+      },
+      {
+        level: 7,
+        feature: {
+          name: "Aura de entrega",
+          summary: "Vos y tus aliados tienen inmunidad al estado hechizado mientras estén dentro de tu Aura de protección.",
+        },
+      },
+      {
+        level: 9,
+        feature: {
+          name: "Conjuros del juramento de entrega (nivel 9)",
+          summary: "Siempre tenés preparados disipar magia y señal de esperanza.",
+          spells: ["dispel_magic", "beacon_of_hope"],
         },
       },
     ],
