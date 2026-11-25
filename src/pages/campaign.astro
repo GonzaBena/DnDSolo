@@ -1,0 +1,12 @@
+---
+import Base from "../layouts/Base.astro";
+import CampaignPage from "../campaign/CampaignPage";
+import DiceLoader from "../game/DiceLoader";
+---
+
+<Base title="Tu campaña" noindex>
+  <!-- client:only: the save lives in this browser's IndexedDB. -->
+  <CampaignPage client:only="react">
+    <DiceLoader slot="fallback" label="Cargando campaña…" />
+  </CampaignPage>
+</Base>

@@ -1,0 +1,162 @@
+/* "Tu campaña": numbers, chronicle and bestiary, one column on phones. */
+.campaign {
+  display: grid;
+  gap: var(--space-5);
+  width: min(56rem, 100%);
+  margin-inline: auto;
+}
+.campaign h1,
+.campaign h2 {
+  margin: 0;
+  font-family: var(--font-display);
+}
+.campaign-header {
+  display: grid;
+  gap: var(--space-2);
+}
+.campaign-header p {
+  margin: 0;
+}
+.campaign-header__kicker {
+  color: var(--color-accent);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: var(--text-sm);
+}
+.campaign-header__hero {
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+.campaign-header__dates,
+.campaign-empty {
+  color: var(--color-ink-soft);
+}
+.campaign-section {
+  display: grid;
+  gap: var(--space-3);
+}
+.campaign-numbers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.campaign-numbers li {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+.campaign-numbers strong {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  line-height: 1;
+}
+.campaign-numbers span {
+  color: var(--color-ink-soft);
+  font-size: var(--text-sm);
+}
+.campaign-summary {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1.5px dashed var(--color-ink-soft);
+  border-radius: var(--radius);
+  line-height: var(--leading);
+}
+.campaign-summary p {
+  margin: 0;
+}
+.timeline {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0 0 0 var(--space-3);
+  border-left: 3px solid var(--color-ink-soft);
+  list-style: none;
+}
+.timeline__entry {
+  display: grid;
+  gap: 0.125rem;
+}
+.timeline__entry[data-kind="place"] {
+  font-family: var(--font-display);
+  font-style: italic;
+}
+.timeline__entry[data-kind="death"] {
+  color: var(--color-primary);
+  font-weight: 800;
+}
+.timeline__turn {
+  color: var(--color-ink-soft);
+  font-family: var(--font-body);
+  font-style: normal;
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+.bestiary {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bestiary-card {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-3);
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+.bestiary-card__body {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.bestiary-card__body p {
+  margin: 0;
+}
+.bestiary-card__name {
+  font-size: var(--text-lg);
+  overflow-wrap: anywhere;
+}
+.bestiary-card__blurb {
+  color: var(--color-ink-soft);
+  font-size: var(--text-sm);
+}
+.bestiary-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.bestiary-card__tag {
+  padding: 0.125rem var(--space-2);
+  border-radius: 999px;
+  background: var(--color-npc-neutral);
+  color: var(--color-npc-ink);
+  font-size: var(--text-xs);
+  font-weight: 800;
+}
+.bestiary-card__tag[data-attitude="hostile"] {
+  background: var(--color-npc-hostile);
+}
+.bestiary-card__tag[data-attitude="friendly"] {
+  background: var(--color-npc-friendly);
+}
+.bestiary-card__tag[data-status] {
+  background: var(--color-bg);
+  outline: 1.5px solid var(--color-ink-soft);
+}
+.bestiary-card__tag[data-status="Derrotado"] {
+  background: var(--color-ink);
+  color: var(--color-bg);
+  outline: none;
+}

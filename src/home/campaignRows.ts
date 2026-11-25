@@ -1,12 +1,11 @@
 // The home's list rows, built as DOM. Names come from the player and the
 // model, so they always go in as text, never as HTML.
-import { campaignHref } from "../campaign/links";
+import { campaignHref, playHref } from "../campaign/links";
 import type { GameState } from "../domain/types";
 import { STATUS_TEXT, type DriveRow } from "../sync/driveImport";
 import { summarizeCampaign } from "./campaignSummary";
 
-export const playHref = (id: string) => `/play?id=${encodeURIComponent(id)}`;
-export { campaignHref };
+export { campaignHref, playHref };
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
