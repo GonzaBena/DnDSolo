@@ -187,6 +187,28 @@ async function generateChoices(
   return failureFor(concept.name, problem);
 }
 
+export interface FixedCharacter {
+  name: string; story: string; speciesId: string; classId: string; backgroundId: string; level: number;
+}
+
+/** Step 2 alone, for a character whose species, class, background and level are already set (an old save being
+    upgraded to stored choices). Aborts and auth errors reject, as in generateOptions. */
+export async function generateChoicesFor(
+  llm: LLMClient,
+  character: FixedCharacter,
+  signal?: AbortSignal,
+): Promise<{ ok: true; choices: CharacterChoices; sheet: CharacterSheet } | { ok: false; failure: string }> {
+  const { level } = character;
+  if (!Number.isInteger(level) || level < 1 || level > LOADED_MAX_LEVEL) {
+    throw new Error(`El nivel debe ser un entero entre 1 y ${LOADED_MAX_LEVEL}.`);
+  }
+  const concept = { ...character, pitch: "", outsideSrdNote: null } as ConceptReply;
+  const outcome = await generateChoices(llm, concept, level, signal);
+  if (outcome.ok) return { ok: true, choices: outcome.option.choices, sheet: outcome.option.sheet };
+  if (outcome.modelError) throw outcome.modelError;
+  return { ok: false, failure: outcome.failure };
+}
+
 /** Two steps: one call proposes three concepts (species, class, background), then one call per concept, in
     parallel, chooses everything else. Code validates and computes; a concept that fails twice (invalid choices,
     malformed JSON or a transient model error) is reported in `failures` and the others go on. An abort or an

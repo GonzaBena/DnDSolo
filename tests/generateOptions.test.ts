@@ -4,7 +4,7 @@ import { LLMError } from "../src/llm/LLMClient";
 import type { LLMClient, StructuredRequest } from "../src/llm/LLMClient";
 import { SPECIES } from "../src/rules";
 import type { CharacterChoices } from "../src/rules/buildSheet";
-import { generateOptions, normalizeOutsideSrdNote } from "../src/rules/generateOptions";
+import { generateChoicesFor, generateOptions, normalizeOutsideSrdNote } from "../src/rules/generateOptions";
 import { OUTSIDE_SRD_PHRASE } from "../src/rules/generatorPrompt";
 import { ABILITIES } from "../src/rules/types";
 import { fighterChoices, greedyChoices } from "./helpers";
@@ -339,4 +339,28 @@ describe("generateOptions", () => {
     expect(llm.requests[0]!.prompt).toContain("CAMPAÑA ELEGIDA: La Campana del Faro Hundido");
     expect(llm.requests[0]!.prompt).toContain("NIVEL: 2");
   });
+});
+
+describe("generateChoicesFor", () => {
+  const vex = { name: "Vex", story: "Explorador perdido.", speciesId: "elf", classId: "rogue", backgroundId: "criminal", level: 3 };
+
+  it("builds the choices and the sheet for the given character", async () => {
+    const llm = new FakeLLMClient().queueStructured(choicesReply(greedyChoices("elf", "rogue", "criminal", 3)));
+    const result = await generateChoicesFor(llm, vex);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.choices).toMatchObject({ speciesId: "elf", classId: "rogue", backgroundId: "criminal", level: 3 });
+    expect(result.sheet.level).toBe(3);
+    expect(llm.structuredRequests[0]!.prompt).toContain("- Nombre: Vex\n");
+  });
+
+  it("two invalid replies: a failure in Spanish", async () => {
+    const bad = { ...choicesReply(greedyChoices("elf", "rogue", "criminal", 3)), picks: [] };
+    const result = await generateChoicesFor(new FakeLLMClient().queueStructured(bad, bad), vex);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.failure).toContain("No se pudo armar a Vex");
+  });
+
+  it("refuses a level without rules data", async () =>
+    expect(generateChoicesFor(new FakeLLMClient(), { ...vex, level: 5 })).rejects.toThrow());
 });
