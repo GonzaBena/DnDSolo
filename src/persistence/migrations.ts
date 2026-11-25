@@ -204,6 +204,14 @@ function fromV16(raw: Raw): Raw {
   return { ...raw, version: 17, players };
 }
 
+/** v17 -> v18: players get the "Fuera del SRD" note and subclass, empty. */
+function fromV17(raw: Raw): Raw {
+  const players = Array.isArray(raw.players)
+    ? raw.players.map((p: unknown) => (isObject(p) ? { ...p, outsideSrd: { note: "", subclass: null } } : p))
+    : raw.players;
+  return { ...raw, version: 18, players };
+}
+
 /** Turns whatever was stored into a GameState of the current version, or
     null if it can't be trusted (unknown version or wrong shape). Loading
     code must go through here so the screens never see a malformed save. */
@@ -226,6 +234,7 @@ export function migrateSave(raw: unknown): GameState | null {
   if (current.version === 14) current = fromV14(current);
   if (current.version === 15) current = fromV15(current);
   if (current.version === 16) current = fromV16(current);
+  if (current.version === 17) current = fromV17(current);
   if (current.version !== GAME_STATE_VERSION) return null;
   const parsed = gameStateSchema.safeParse(current);
   return parsed.success ? normalizeHp(parsed.data) : null;

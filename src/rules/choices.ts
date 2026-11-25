@@ -5,7 +5,11 @@ import { spellOptions } from "./data/spells";
 import { requirementsOf } from "./types";
 import type { ChoiceSpec, ClassData, LevelRow, Option, Requirement } from "./types";
 
-export interface Concept { speciesId: string; classId: string; backgroundId: string; level: number }
+export interface Concept {
+  speciesId: string; classId: string; backgroundId: string; level: number;
+  /** false: the player's subclass is outside the SRD, so the SRD subclass doesn't apply. */
+  srdSubclass?: false;
+}
 
 /** Choices whose option ids are feat ids (fighting styles may also offer non-feat options). */
 export function isFeatChoice(id: string): boolean {

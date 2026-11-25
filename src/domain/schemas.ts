@@ -269,6 +269,7 @@ export const characterChoicesSchema = z.object({
   classEquipment: z.enum(["A", "B", "C"]),
   backgroundEquipment: z.enum(["A", "B"]),
   picks: z.record(z.string(), z.array(z.string())),
+  srdSubclass: z.literal(false).optional(),
 });
 
 export const gameStateSchema = z.object({
@@ -313,6 +314,7 @@ export const gameStateSchema = z.object({
         }),
         milestonesSinceLevel: z.number().int().min(0),
         choices: characterChoicesSchema.nullable(),
+        outsideSrd: z.object({ note: z.string(), subclass: z.string().nullable() }),
       }),
     )
     .min(1),
