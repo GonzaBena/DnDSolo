@@ -36,9 +36,7 @@ function CharacterCard({ values, hp, ac }: Omit<Props, "saving">) {
       <div className="character-card__crest" aria-hidden="true">
         <span className="character-card__die">{values.level}</span>
         {portraitUrl && (
-          <span className="character-card__portrait">
-            <img src={portraitUrl} alt="" decoding="async" />
-          </span>
+          <img className="character-card__portrait" src={portraitUrl} alt="" decoding="async" />
         )}
       </div>
       <div className="character-card__body">
