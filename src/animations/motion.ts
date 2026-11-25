@@ -283,23 +283,219 @@ function tumblePair(dice: Element[], burst: Element | null): number {
   return impact;
 }
 
-/** An enemy roll: the card pops in, the die tumbles where the number will
+/** How a roll card comes to rest. `quick` is the plain tumble; `slowdown`
+    tumbles twice as long with the faces flickering ever slower and a held
+    beat (enemy rolls); `lastTip` nearly stops, rocks and tips one more face
+    (a natural 1). */
+export type RollStyle = "quick" | "slowdown" | "lastTip";
+
+const SLOWDOWN_SPIN_MS = 1500;
+const SLOWDOWN_HOLD_MS = 380;
+const TIP_SPIN_MS = 900;
+const TIP_ROCK_MS = 520;
+const TIP_FALL_MS = 260;
+const TIP_HOLD_MS = 260;
+
+/** Faces flashing on the die while it slows down, each one held longer, ending on `final`. */
+function flickerFaces(face: Element, sides: number, final: number, total: number): void {
+  const randomFace = () => String(1 + Math.floor(Math.random() * sides));
+  let at = 0;
+  let step = 45;
+  while (at + step < total) {
+    at += step;
+    setTimeout(() => { face.textContent = randomFace(); }, at);
+    step *= 1.18;
+  }
+  setTimeout(() => { face.textContent = String(final); }, total);
+}
+
+/** The face and the die fading out together, `at` ms in. */
+function hideFaceAt(face: Element, at: number): void {
+  animate(face, { opacity: [{ from: 1, to: 1, duration: at }, { to: 0, duration: LEAVE_MS }] });
+}
+
+function slowdownDie(die: Element, face: Element | null, sides: number, natural: number): number {
+  const leaveAt = SLOWDOWN_SPIN_MS + SLOWDOWN_HOLD_MS / 2;
+  animate(die, {
+    rotate: { from: 0, to: 1260, duration: SLOWDOWN_SPIN_MS, ease: "outQuart" },
+    scale: [
+      { from: 0.7, to: 1, duration: SLOWDOWN_SPIN_MS, ease: "outCubic" },
+      { to: 1.08, duration: SLOWDOWN_HOLD_MS / 2, ease: "outQuad" },
+      { to: 0.3, duration: LEAVE_MS, ease: "inQuad" },
+    ],
+    opacity: [
+      { from: 1, to: 1, duration: leaveAt },
+      { to: 0, duration: LEAVE_MS, ease: "inQuad" },
+    ],
+  });
+  if (face) {
+    flickerFaces(face, sides, natural, SLOWDOWN_SPIN_MS);
+    hideFaceAt(face, leaveAt);
+  }
+  return SLOWDOWN_SPIN_MS + SLOWDOWN_HOLD_MS;
+}
+
+function lastTipDie(die: Element, face: Element | null, sides: number, natural: number): number {
+  const settled = TIP_SPIN_MS + TIP_ROCK_MS + TIP_FALL_MS;
+  const leaveAt = settled + TIP_HOLD_MS / 2;
+  animate(die, {
+    rotate: [
+      { from: 0, to: 900, duration: TIP_SPIN_MS, ease: "outCubic" },
+      { to: 922, duration: TIP_ROCK_MS / 3, ease: "inOutSine" },
+      { to: 908, duration: TIP_ROCK_MS / 3, ease: "inOutSine" },
+      { to: 918, duration: TIP_ROCK_MS / 3, ease: "inOutSine" },
+      { to: 972, duration: TIP_FALL_MS, ease: "inBack" },
+    ],
+    translateY: [
+      { from: 0, to: 0, duration: TIP_SPIN_MS + TIP_ROCK_MS },
+      { to: -10, duration: TIP_FALL_MS / 2, ease: "outQuad" },
+      { to: 0, duration: TIP_FALL_MS / 2, ease: "outBounce" },
+    ],
+    scale: [
+      { from: 0.7, to: 1, duration: TIP_SPIN_MS, ease: "outCubic" },
+      { to: 1, duration: TIP_ROCK_MS + TIP_FALL_MS + TIP_HOLD_MS / 2 },
+      { to: 0.3, duration: LEAVE_MS, ease: "inQuad" },
+    ],
+    opacity: [
+      { from: 1, to: 1, duration: leaveAt },
+      { to: 0, duration: LEAVE_MS, ease: "inQuad" },
+    ],
+  });
+  if (face) {
+    // While it rocks it shows the face next to the result; the last tip turns it over.
+    const decoy = natural < sides ? natural + 1 : natural - 1;
+    face.textContent = String(1 + Math.floor(Math.random() * sides));
+    setTimeout(() => { face.textContent = String(decoy); }, TIP_SPIN_MS - 80);
+    setTimeout(() => { face.textContent = String(natural); }, TIP_SPIN_MS + TIP_ROCK_MS + TIP_FALL_MS / 2);
+    hideFaceAt(face, leaveAt);
+  }
+  return settled + TIP_HOLD_MS;
+}
+
+/** A natural 20: the card turns gold and glows, the number swells, two rings and a spray of sparks. */
+function criticalBurst(card: Element, at: number): void {
+  setTimeout(() => card.classList.add("roll-card--critical", "roll-card--glow"), at);
+  const value = card.querySelector(".roll-card__value");
+  if (value) {
+    animate(value, {
+      scale: [{ from: 1, to: 1.7, duration: 220, ease: "outQuad" }, { to: 1, duration: 700, ease: "outElastic(1, .45)" }],
+      delay: at + 120,
+    });
+  }
+  card.querySelectorAll(".roll-card__ring").forEach((ring, i) => {
+    animate(ring, {
+      opacity: [{ from: 0, to: 0, duration: 1 }, { to: 0.9, duration: 1 }, { to: 0, duration: 700, ease: "outExpo" }],
+      scale: [{ from: 0.4, to: 0.4, duration: 2 }, { to: 3 + i, duration: 700, ease: "outExpo" }],
+      delay: at + i * 140,
+    });
+  });
+  const sparks = [...card.querySelectorAll(".roll-card__spark")];
+  sparks.forEach((spark, i) => {
+    const angle = (i / sparks.length) * Math.PI * 2;
+    const distance = 70 + (i % 3) * 18;
+    animate(spark, {
+      translateX: [0, Math.cos(angle) * distance],
+      translateY: [0, Math.sin(angle) * distance],
+      scale: [1.2, 0],
+      opacity: [{ from: 0, to: 1, duration: 1 }, { to: 0, duration: 650, ease: "inQuad" }],
+      duration: 650,
+      delay: at + 60,
+      ease: "outCubic",
+    });
+  });
+}
+
+const FUMBLE_DROP_MS = 380;
+
+/** A natural 1: the number falls in heavy, the card shudders, cracks and goes red. */
+function fumbleCrack(card: Element, at: number): void {
+  const hit = at + FUMBLE_DROP_MS;
+  setTimeout(() => card.classList.add("roll-card--fumble"), hit);
+  const value = card.querySelector(".roll-card__value");
+  if (value) {
+    animate(value, {
+      translateY: [
+        { from: -70, to: 0, duration: FUMBLE_DROP_MS, ease: "inQuad" },
+        { to: -8, duration: 90, ease: "outQuad" },
+        { to: 0, duration: 120, ease: "inQuad" },
+      ],
+      scale: { from: 1.2, to: 1, duration: FUMBLE_DROP_MS },
+      delay: at,
+    });
+  }
+  animate(card, {
+    translateX: [{ from: 0, to: -9, duration: 50 }, { to: 8, duration: 60 }, { to: -6, duration: 60 }, { to: 4, duration: 60 }, { to: 0, duration: 70 }],
+    rotate: [{ from: 0, to: -1.5, duration: 120 }, { to: 0, duration: 180 }],
+    delay: hit,
+  });
+  const crack = card.querySelector(".roll-card__crack path");
+  if (crack) {
+    utils.set(crack, { opacity: 0 });
+    animate(crack, {
+      strokeDashoffset: [{ from: 120, to: 120, duration: 1 }, { to: 0, duration: 260, ease: "outQuad" }],
+      opacity: [{ from: 0, to: 0, duration: 1 }, { to: 1, duration: 1 }],
+      delay: hit + 20,
+    });
+  }
+}
+
+/** A roll arriving: the card pops in, the die tumbles where the number will
     be, then gives way to the result. A d100 has two d10s, which get their
     own ending (see tumblePair). The dice only exist for this: they are
-    hidden in CSS, so without the animation the card just shows the number. */
-export function rollIn(card: Element): void {
-  if (!motionAllowed()) return;
+    hidden in CSS, so without the animation the card just shows the number.
+    What would give the result away (a natural's label and colour, the dice
+    line) waits for the die to land. Returns when the result lands, in ms. */
+export function rollIn(
+  card: HTMLElement,
+  { style = "quick", sides = 20, natural = null, kept = 0 }: {
+    style?: RollStyle; sides?: number; natural?: "critical" | "fumble" | null; kept?: number;
+  } = {},
+): number {
+  if (!motionAllowed()) return 0;
   animate(card, { opacity: [0, 1], scale: [0.6, 1], duration: 450, ease: "outBack" });
 
   const dice = [...card.querySelectorAll(".roll-card__die")];
   const value = card.querySelector(".roll-card__value");
-  if (dice.length === 0 || !value) return;
+  if (dice.length === 0 || !value) return 0;
   utils.set(value, { opacity: 0 });
+  const face = card.querySelector(".roll-card__face");
   const landsAt =
     dice.length > 1
       ? tumblePair(dice, card.querySelector(".roll-card__burst"))
-      : tumbleDie(dice[0]!);
-  landValue(value, landsAt);
+      : style === "slowdown"
+        ? slowdownDie(dice[0]!, face, sides, kept)
+        : style === "lastTip"
+          ? lastTipDie(dice[0]!, face, sides, kept)
+          : tumbleDie(dice[0]!);
+  if (natural !== "fumble") landValue(value, landsAt);
+
+  // The label says what kind of roll it is until it lands; the colour of a natural waits too.
+  const label = card.querySelector<HTMLElement>(".roll-card__label");
+  const plain = label?.dataset.plain;
+  if (natural && label && plain) {
+    const final = label.textContent;
+    label.textContent = plain;
+    setTimeout(() => { label.textContent = final; }, landsAt);
+  }
+  card.classList.remove("roll-card--critical", "roll-card--fumble");
+  const meta = card.querySelector(".roll-card__meta");
+  if (meta && style !== "quick") {
+    utils.set(meta, { opacity: 0 });
+    animate(meta, { opacity: [0, 1], duration: 300, delay: landsAt + 200, ease: "outQuad" });
+  }
+  const verdict = card.querySelector(".roll-card__verdict");
+  if (verdict) {
+    utils.set(verdict, { opacity: 0 });
+    animate(verdict, { opacity: [0, 1], translateY: [6, 0], duration: 320, delay: landsAt + 300, ease: "outCubic" });
+  }
+  if (natural === "critical") criticalBurst(card, landsAt);
+  if (natural === "fumble") {
+    // The fumble's number drops in from above instead of popping.
+    utils.set(value, { opacity: 0 });
+    animate(value, { opacity: [{ from: 0, to: 0, duration: landsAt }, { to: 1, duration: 1 }] });
+    fumbleCrack(card, landsAt);
+  }
+  return natural === "fumble" ? landsAt + FUMBLE_DROP_MS : landsAt;
 }
 
 /** Where `origin` sits relative to the centre of the screen, which is where

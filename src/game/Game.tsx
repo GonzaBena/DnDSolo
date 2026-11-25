@@ -202,7 +202,7 @@ export default function Game() {
       type: "action",
       text: raw === "" ? "" : expandSlashCommands(raw),
       playerId: state.players[0]?.id,
-      roll: { ...roll, reason: playerRoll?.reason },
+      roll: { ...roll, reason: playerRoll?.reason, difficulty: playerRoll?.difficulty ?? undefined },
     });
   };
 

@@ -106,6 +106,8 @@ export interface PlayerRoll {
   mode?: RollMode | undefined;
   /** Both d20 of an advantage or disadvantage roll. */
   rolls?: [number, number] | undefined;
+  /** The DC the DM asked for, when it had one: the card then says whether the total reached it. */
+  difficulty?: number | undefined;
 }
 
 /** A roll for an enemy or NPC. These are the only dice the app rolls. */

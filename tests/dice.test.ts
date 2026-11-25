@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describePlayerRoll, formatDice, naturalResult, resolveRollMode, rollDie, rollForEnemy } from "../src/domain/dice";
+import { describePlayerRoll, enemyNaturalResult, formatDice, naturalResult, resolveRollMode, rollDie, rollForEnemy } from "../src/domain/dice";
 import { DICE } from "../src/domain/types";
 
 describe("rollDie", () => {
@@ -130,5 +130,25 @@ describe("advantage and disadvantage", () => {
     expect(describePlayerRoll({ die: "d20", count: 1, value: 4, modifier: 0, mode: "disadvantage", rolls: [4, 18] })).toBe(
       "1d20 con desventaja (4 y 18, queda 4): 4",
     );
+  });
+});
+
+describe("enemyNaturalResult", () => {
+  const enemy = (values: number[], total: number, mode: "normal" | "advantage" = "normal", count = 1) =>
+    ({ die: "d20" as const, count, modifier: 4, reason: "Ataque", mode, values, total });
+
+  it("reads the kept d20 without the modifier", () => {
+    expect(enemyNaturalResult(enemy([20], 24))).toBe("critical");
+    expect(enemyNaturalResult(enemy([1], 5))).toBe("fumble");
+    expect(enemyNaturalResult(enemy([12], 16))).toBeNull();
+  });
+
+  it("uses the kept die with advantage", () => {
+    expect(enemyNaturalResult(enemy([3, 20], 24, "advantage"))).toBe("critical");
+  });
+
+  it("not for several dice or another die", () => {
+    expect(enemyNaturalResult(enemy([10, 10], 24, "normal", 2))).toBeNull();
+    expect(enemyNaturalResult({ ...enemy([6], 10), die: "d6" })).toBeNull();
   });
 });
