@@ -1,5 +1,6 @@
 import { arrivalsOf } from "../domain/arrivals";
 import { chapterOf } from "../domain/chapters";
+import { momentsOf } from "../domain/moments";
 import { applyStateChanges, type RejectedChange } from "../domain/applyChanges";
 import { applyDeathSave } from "../domain/deathSaves";
 import { diceRolled, rollForEnemy } from "../domain/dice";
@@ -239,6 +240,7 @@ export class TurnEngine {
     const applied = applyStateChanges(resolveInput(base, input), response.stateChanges);
     const arrivals = arrivalsOf(base, applied.state);
     const chapter = chapterOf(base, applied.state);
+    const moments = momentsOf(base, applied.state);
     const turn: Turn = {
       number: state.turns.length + 1,
       input,
@@ -246,6 +248,7 @@ export class TurnEngine {
       events: response.events,
       ...(arrivals.length > 0 ? { arrivals } : {}),
       ...(chapter ? { chapter } : {}),
+      ...(moments.length > 0 ? { moments } : {}),
     };
     // Nobody can answer a roll while unconscious or dead: death saves are asked by the system.
     const canRoll = applied.state.players.some((p) => p.condition === "ok");

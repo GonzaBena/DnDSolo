@@ -336,6 +336,15 @@ export const gameStateSchema = z.object({
       events: z.array(z.string()),
       arrivals: z.array(arrivalSchema).optional(),
       chapter: z.object({ name: z.string(), description: z.string(), firstVisit: z.boolean() }).optional(),
+      moments: z
+        .array(
+          z.discriminatedUnion("kind", [
+            z.object({ kind: z.literal("quest"), title: z.string(), status: questStatus }),
+            z.object({ kind: z.literal("level"), level: z.number().int() }),
+            z.object({ kind: z.literal("death") }),
+          ]),
+        )
+        .optional(),
     }),
   ),
   pendingPlayerRoll: playerRollRequest.nullable(),

@@ -233,6 +233,13 @@ describe("saved turns", () => {
     expect(gameStateSchema.parse(withTurn({ chapter })).turns[0]!.chapter).toEqual(chapter);
   });
 
+  it("a saved turn with moments parses, and one without them too", () => {
+    const moments = [{ kind: "quest", title: "Ruta", status: "completed" }, { kind: "level", level: 4 }, { kind: "death" }];
+    expect(gameStateSchema.parse(withTurn({ moments })).turns[0]!.moments).toEqual(moments);
+    expect("moments" in gameStateSchema.parse(withTurn({})).turns[0]!).toBe(false);
+    expect(gameStateSchema.safeParse(withTurn({ moments: [{ kind: "level" }] })).success).toBe(false);
+  });
+
   it("rejects a malformed chapter", () => {
     expect(
       gameStateSchema.safeParse(withTurn({ chapter: { name: "X", description: "", firstVisit: "yes" } })).success,
