@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import type { GameState } from "../domain/types";
 import DiceLoader from "../game/DiceLoader";
 import { createGameRepo } from "../sync/runtime";
-import { CampaignMissing, CampaignView } from "./CampaignView";
-import "../game/styles/avatar.css";
+import { CampaignMissing, CampaignView, tabFromHash, type CampaignTab } from "./CampaignView";
 import "./campaign.css";
 
 type View = { status: "loading" } | { status: "missing" } | { status: "ready"; state: GameState };
@@ -12,6 +11,17 @@ type View = { status: "loading" } | { status: "missing" } | { status: "ready"; s
     only, so it doesn't sync with Drive first. */
 export default function CampaignPage() {
   const [view, setView] = useState<View>({ status: "loading" });
+  // The open tab lives in the hash, so reloading or sharing keeps it.
+  const [tab, setTab] = useState<CampaignTab>(() => tabFromHash(window.location.hash));
+  useEffect(() => {
+    const onHash = () => setTab(tabFromHash(window.location.hash));
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  const openTab = (next: CampaignTab) => {
+    setTab(next);
+    history.replaceState(null, "", `${window.location.pathname}${window.location.search}#${next}`);
+  };
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("id");
     if (!id) {
@@ -27,5 +37,5 @@ export default function CampaignPage() {
   }, []);
   if (view.status === "loading") return <DiceLoader label="Cargando campaña…" />;
   if (view.status === "missing") return <CampaignMissing />;
-  return <CampaignView state={view.state} />;
+  return <CampaignView state={view.state} tab={tab} onTab={openTab} />;
 }
