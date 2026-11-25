@@ -6,6 +6,7 @@ import { buildSheet } from "../src/rules/buildSheet";
 import { findClass } from "../src/rules";
 import type { GeneratedOption } from "../src/rules/generateOptions";
 import { fighterChoices } from "./helpers";
+import { OUTSIDE_SRD_PHRASE } from "../src/rules/generatorPrompt";
 
 function optionAt(level: number): GeneratedOption {
   const choices = fighterChoices({ level });
@@ -27,6 +28,7 @@ describe("formValuesFromOption", () => {
       stats: statsFromSheet(optionAt(1).sheet),
       startingInventory: inventoryFromSheet(optionAt(1).sheet),
       choices: fighterChoices({ level: 1 }),
+      outsideSrdNote: "",
     });
   });
 
@@ -56,4 +58,12 @@ describe("copyText", () => {
     expect(result).toBe("copied");
     expect(written).toBe("hola");
   });
+});
+
+describe("formValuesFromOption: the generator's outside-SRD note", () => {
+  it("keeps what was asked and replaced, without the fixed phrase", () =>
+    expect(
+      formValuesFromOption({ ...optionAt(1), outsideSrdNote: `${OUTSIDE_SRD_PHRASE} Pediste Ermitaño; te di Sabio.` })
+        .outsideSrdNote,
+    ).toBe("Pediste Ermitaño; te di Sabio."));
 });
