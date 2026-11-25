@@ -175,3 +175,11 @@ export function describeArchetypes(): string {
     .map(([base, ids]) => `  * ${ids.map((id) => `"${id}"`).join(" / ")}: ${ARCHETYPE_GUIDE[base] ?? base}`)
     .join("\n");
 }
+
+/** Archetypes that are creatures rather than people, for the bestiary. */
+const MONSTER_ARCHETYPES: ReadonlySet<string> = new Set(["goblin", "kobold", "wolf", "skeleton", "zombie", "drowned", "dragon"]);
+
+/** Whether an NPC with this portrait is a monster; no portrait means a person. */
+export function isMonsterPortrait(portrait: string | null): boolean {
+  return portrait !== null && MONSTER_ARCHETYPES.has(portrait.replace(/-(male|female)$/, ""));
+}
