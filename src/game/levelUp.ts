@@ -12,8 +12,10 @@ export interface LevelUp {
   features: { name: string; summary: string }[];
   /** The new proficiency bonus, only when it went up. */
   proficiencyBonus: number | null;
-  /** The subclass name, only on the level that grants it. */
+  /** The SRD subclass name, only on the level that grants it. */
   subclass: string | null;
+  /** A subclass from the player's manual: the screen points there instead of listing SRD features. */
+  customSubclass: string | null;
 }
 
 /** The first player's level up between two states, or null without one. */
@@ -30,7 +32,8 @@ export function levelUpFromPlayer(player: Character): LevelUp {
   const data = findClass(player.classId ?? player.characterClass);
   const row = data?.levels.find((r) => r.level === level);
   const previousRow = data?.levels.find((r) => r.level === level - 1);
-  const subclass = data?.subclass;
+  const customSubclass = player.outsideSrd.subclass;
+  const subclass = customSubclass === null ? data?.subclass : undefined;
   const subclassFeatures =
     subclass && level >= subclass.level
       ? subclass.features.filter((f) => f.level === level).map((f) => f.feature)
@@ -43,5 +46,6 @@ export function levelUpFromPlayer(player: Character): LevelUp {
     proficiencyBonus:
       row && previousRow && row.proficiencyBonus > previousRow.proficiencyBonus ? row.proficiencyBonus : null,
     subclass: subclass && subclass.level === level ? subclass.name : null,
+    customSubclass,
   };
 }

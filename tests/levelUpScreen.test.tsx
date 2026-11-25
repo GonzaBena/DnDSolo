@@ -5,6 +5,7 @@ import type { LevelUp } from "../src/game/levelUp";
 
 const up: LevelUp = {
   playerId: "p1",
+  customSubclass: null,
   name: "Brenna",
   level: 3,
   subclass: "Campeón",

@@ -36,6 +36,7 @@ describe("levelUpOf", () => {
       features: [],
       proficiencyBonus: null,
       subclass: null,
+      customSubclass: null,
     }));
 
   it("an unknown class still levels up", () =>
@@ -50,5 +51,15 @@ describe("levelUpFromPlayer", () => {
     const player = fighter(4).players[0]!;
     expect(levelUpFromPlayer(player)).toEqual(levelUpOf(fighter(3), fighter(4)));
     expect(levelUpFromPlayer(player).playerId).toBe(player.id);
+  });
+});
+
+describe("levelUpFromPlayer with a subclass from the manual", () => {
+  it("no SRD subclass name or features, and the manual's name", () => {
+    const player = { ...fighter(3).players[0]!, outsideSrd: { note: "", subclass: "Maestro de armas" } };
+    const up = levelUpFromPlayer(player);
+    expect(up.subclass).toBeNull();
+    expect(up.customSubclass).toBe("Maestro de armas");
+    expect(up.features.some((f) => f.name === "Crítico mejorado")).toBe(false);
   });
 });

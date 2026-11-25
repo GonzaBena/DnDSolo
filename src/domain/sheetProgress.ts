@@ -68,6 +68,21 @@ export function hiddenErrors(player: Character, picks: Picks): ChoiceError[] {
   return built.errors.filter((e) => !shown.has(e.field));
 }
 
+/** The player with a sheet built from `sheet` and `choices`. Current HP moves as much as the maximum (0 stays 0). */
+function withSheet(player: Character, choices: CharacterChoices, sheet: CharacterSheet): Character {
+  const stats = statsFromSheet(sheet);
+  const oldMax = player.stats?.maxHp ?? stats.maxHp;
+  const current = player.currentHp ?? stats.maxHp;
+  const currentHp = current > 0 ? Math.max(1, Math.min(stats.maxHp, current + (stats.maxHp - oldMax))) : current;
+  return { ...player, stats, currentHp, choices };
+}
+
+/** Rebuilds the sheet from `choices` (e.g. the subclass changed). When they don't build, the player stays as is. */
+export function rebuildSheet(player: Character, choices: CharacterChoices): Character {
+  const built = buildSheet(choices);
+  return built.ok ? withSheet(player, choices, built.sheet) : player;
+}
+
 /** Rebuilds the sheet at the new level. Current HP rises as much as the maximum (it stays at 0 while down). */
 export function applyLevelUp(
   player: Character,
@@ -75,14 +90,8 @@ export function applyLevelUp(
 ): { ok: true; player: Character } | { ok: false; errors: ChoiceError[] } {
   const built = previewLevelUp(player, picks);
   if (!built.ok) return built;
-  const stats = statsFromSheet(built.sheet);
-  const oldMax = player.stats?.maxHp ?? stats.maxHp;
-  const current = player.currentHp ?? stats.maxHp;
-  const currentHp = current > 0 ? Math.min(stats.maxHp, current + (stats.maxHp - oldMax)) : current;
-  return {
-    ok: true,
-    player: { ...player, stats, currentHp, choices: { ...player.choices!, level: player.level, picks: activePicks(player, picks) } },
-  };
+  const choices = { ...player.choices!, level: player.level, picks: activePicks(player, picks) };
+  return { ok: true, player: withSheet(player, choices, built.sheet) };
 }
 
 /** An old save (no choices) whose species, class and background the rules data knows, at a level it covers. */
