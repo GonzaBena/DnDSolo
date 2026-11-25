@@ -37,6 +37,7 @@ export function ScenePanel({
                 npc={npc}
                 size="lg"
                 kind={member.kind}
+                playerPortrait={member.portraitUrl}
                 speaking={npc !== undefined && npc.name === speaking}
               />
               <span className="scene-panel__name">

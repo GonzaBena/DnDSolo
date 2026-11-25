@@ -4,6 +4,7 @@ import { OutsideSrdSection, type OutsideSrdEdit } from "./OutsideSrdSection";
 import { findCampaign } from "../campaigns";
 import type { Attitude, GameState, QuestStatus, StoryItem, ThreadKind } from "../domain/types";
 import { useDrawer } from "./useDrawer";
+import { PortraitChooser } from "../character/PortraitPicker";
 
 const ATTITUDE_LABEL: Record<Attitude, string> = {
   friendly: "Amistoso",
@@ -67,13 +68,15 @@ interface Props {
   turnRunning?: boolean;
   /** Saves the first player's "Fuera del SRD" note and subclass; without it the section is not shown. */
   onSaveOutsideSrd?: (edit: OutsideSrdEdit) => Promise<void>;
+  /** Saves the first player's portrait (null: their initials); without it the portrait can't be changed. */
+  onSavePortrait?: (portrait: string | null) => Promise<void>;
   /** Opens the screen that completes the first player's rules choices (shown only when they can be completed). */
   onUpgradeSheet?: () => void;
 }
 
 /** Everything the campaign knows: characters, place, quests, story items
     and the NPCs met so far. */
-export function InfoDrawer({ state, open, onClose, onOpenRecap, turnRunning = false, onSaveOutsideSrd, onUpgradeSheet }: Props) {
+export function InfoDrawer({ state, open, onClose, onOpenRecap, turnRunning = false, onSaveOutsideSrd, onSavePortrait, onUpgradeSheet }: Props) {
   const { dialogProps, panelRef } = useDrawer(open, onClose);
   const campaign = findCampaign(state.campaignId);
   const players = state.players ?? [];
@@ -158,6 +161,15 @@ export function InfoDrawer({ state, open, onClose, onOpenRecap, turnRunning = fa
               </li>
             ))}
           </ul>
+          {/* Outside the list: its styles would reach into the picker. */}
+          {onSavePortrait && players[0] && (
+            <PortraitChooser
+              classId={players[0].classId}
+              name={players[0].name}
+              value={players[0].portrait}
+              onPick={(portrait) => void onSavePortrait(portrait)}
+            />
+          )}
         </section>
 
         {onSaveOutsideSrd && players[0] && (

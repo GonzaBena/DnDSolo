@@ -291,9 +291,9 @@ describe("createCharacter keeps the generator's choices", () => {
 describe("v17 -> v18", () => {
   it("every player gets an empty outsideSrd; choices stay", () => {
     const game = newGame();
-    const players = game.players.map(({ outsideSrd: _o, ...rest }) => ({ ...rest, choices: fighterChoices() }));
+    const players = game.players.map(({ outsideSrd: _o, portrait: _p, ...rest }) => ({ ...rest, choices: fighterChoices() }));
     const migrated = migrateSave({ ...game, version: 17, players });
-    expect(migrated?.version).toBe(18);
+    expect(migrated?.version).toBe(GAME_STATE_VERSION);
     expect(migrated?.players[0]!.outsideSrd).toEqual({ note: "", subclass: null });
     expect(migrated?.players[0]!.choices).toEqual(fighterChoices());
   });
@@ -310,4 +310,26 @@ describe("createCharacter keeps the note", () => {
     }));
   it("cut to 1000 characters", () =>
     expect(createCharacter({ ...base, outsideSrdNote: "a".repeat(1200) }, () => "x").outsideSrd.note).toHaveLength(1000));
+});
+
+describe("v18 -> v19", () => {
+  it("every player gets no portrait", () => {
+    const game = newGame();
+    const players = game.players.map(({ portrait: _p, ...rest }) => rest);
+    const migrated = migrateSave({ ...game, version: 18, players });
+    expect(migrated?.version).toBe(19);
+    expect(migrated?.players[0]!.portrait).toBeNull();
+  });
+});
+
+describe("createCharacter portrait", () => {
+  const input = { name: "Brisa", speciesId: "human", classId: "fighter", subclassId: null, srdBackgroundId: null, level: 1, background: "" };
+
+  it("keeps a portrait of the class", () =>
+    expect(createCharacter({ ...input, portrait: "fighter-female" }, () => "x").portrait).toBe("fighter-female"));
+
+  it("drops one of another class, and defaults to none", () => {
+    expect(createCharacter({ ...input, portrait: "bard-female" }, () => "x").portrait).toBeNull();
+    expect(createCharacter(input, () => "x").portrait).toBeNull();
+  });
 });

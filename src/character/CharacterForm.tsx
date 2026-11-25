@@ -6,6 +6,8 @@ import { applyBuildChange, levelTextFor, mergeReviewedStats, parseLevel, parseWh
 import { createGameRepo } from "../sync/runtime";
 import { findClass } from "../rules";
 import { CharacterPreview } from "./CharacterPreview";
+import { PortraitChooser } from "./PortraitPicker";
+import { portraitForClass } from "../domain/heroPortraits";
 
 interface Props {
   values: CharacterInput;
@@ -119,6 +121,12 @@ export function CharacterForm({ values, onChange, onNext }: Props) {
             />
           </label>
         </div>
+        <PortraitChooser
+          classId={values.classId}
+          name={values.name}
+          value={values.portrait ?? null}
+          onPick={(portrait) => set({ portrait })}
+        />
         <div className="form-row form-row--3">
           <label className="field">
             <span>Especie</span>
@@ -132,7 +140,14 @@ export function CharacterForm({ values, onChange, onNext }: Props) {
           </label>
           <label className="field">
             <span>Clase</span>
-            <select value={values.classId} onChange={(e) => setBuild({ classId: e.target.value, subclassId: null })}>
+            <select value={values.classId} onChange={(e) =>
+                setBuild({
+                  classId: e.target.value,
+                  subclassId: null,
+                  // The portraits are the class's: another class keeps none.
+                  portrait: portraitForClass(values.portrait, e.target.value),
+                })
+              }>
               {CLASSES.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.label}

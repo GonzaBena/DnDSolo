@@ -1,0 +1,111 @@
+/* The player's portrait: a round face and the modal to pick it. Shared by
+   the character form and the game's Info drawer, so it brings its own
+   styles. Tokens only. */
+.portrait-chooser {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.portrait-face {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  overflow: hidden;
+  width: 3rem;
+  height: 3rem;
+  border: 2px solid var(--color-dialog);
+  border-radius: 50%;
+  background: var(--color-dialog);
+  color: var(--color-dialog-ink);
+  font-weight: 800;
+  line-height: 1;
+}
+.portrait-face--lg {
+  width: 5.5rem;
+  height: 5.5rem;
+  font-size: var(--text-xl);
+}
+/* Busts on white with room around them, as the NPCs' (avatar.css). */
+.portrait-face:has(img) {
+  background: #fff;
+}
+.portrait-face img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.3);
+  transform-origin: 50% 25%;
+}
+
+.portrait-picker {
+  width: min(30rem, calc(100% - 2 * var(--space-3)));
+  padding: 0;
+  border: var(--border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-flat);
+}
+.portrait-picker::backdrop {
+  background: rgb(0 0 0 / 0.4);
+}
+.portrait-picker__panel {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+.portrait-picker__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.portrait-picker__header h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+}
+.portrait-picker__close {
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: var(--text-xl);
+  line-height: 1;
+  cursor: pointer;
+}
+.portrait-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.portrait-picker__tile {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3) var(--space-2);
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.portrait-picker__tile:hover {
+  border-color: var(--color-ink-soft);
+}
+.portrait-picker__tile[aria-pressed="true"] {
+  border-color: var(--color-primary);
+  font-weight: 700;
+}
+.portrait-picker__tile:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}

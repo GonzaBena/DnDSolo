@@ -212,6 +212,14 @@ function fromV17(raw: Raw): Raw {
   return { ...raw, version: 18, players };
 }
 
+/** v18 -> v19: players get a portrait, none (their initials). */
+function fromV18(raw: Raw): Raw {
+  const players = Array.isArray(raw.players)
+    ? raw.players.map((p: unknown) => (isObject(p) ? { ...p, portrait: null } : p))
+    : raw.players;
+  return { ...raw, version: 19, players };
+}
+
 /** Turns whatever was stored into a GameState of the current version, or
     null if it can't be trusted (unknown version or wrong shape). Loading
     code must go through here so the screens never see a malformed save. */
@@ -235,6 +243,7 @@ export function migrateSave(raw: unknown): GameState | null {
   if (current.version === 15) current = fromV15(current);
   if (current.version === 16) current = fromV16(current);
   if (current.version === 17) current = fromV17(current);
+  if (current.version === 18) current = fromV18(current);
   if (current.version !== GAME_STATE_VERSION) return null;
   const parsed = gameStateSchema.safeParse(current);
   return parsed.success ? normalizeHp(parsed.data) : null;
