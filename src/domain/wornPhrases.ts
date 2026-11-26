@@ -20,6 +20,11 @@ const STOPWORDS = new Set(
   ).split(" "),
 );
 
+/** Rules talk the DM has to repeat to ask for a roll ("tirá 1d20 + tu modificador"). */
+const MECHANICS = new Set(
+  "tirá tira tirada tiradas tirar tirás hacé dado dados modificador modificadores salvación cd ventaja desventaja iniciativa pg".split(" "),
+);
+
 /** Lowercase words, accents kept so the DM reads them as it wrote them. */
 function words(text: string): string[] {
   return text.toLowerCase().split(/[^\p{L}]+/u).filter(Boolean);
@@ -46,8 +51,23 @@ function storyNames(state: GameState): Set<string> {
   return new Set(names.flatMap(words).filter((w) => !STOPWORDS.has(w)));
 }
 
+/** Words for what is in the scene or carried: naming the waterfall or the
+    studded leather again is describing, not a tic. */
+function sceneWords(state: GameState): Set<string> {
+  const texts = [
+    state.location.description,
+    ...state.npcs.filter((n) => n.present).map((n) => n.description),
+    ...state.storyItems.map((i) => `${i.name} ${i.description}`),
+    ...state.players.flatMap((p) => [
+      ...p.inventory.map((i) => i.name),
+      ...(p.stats?.attacks.map((a) => a.name) ?? []),
+    ]),
+  ];
+  return new Set(texts.flatMap(words).filter((w) => !STOPWORDS.has(w)));
+}
+
 /** Every phrase of 3 to 6 words in a text, once each. */
-function phrasesOf(text: string, names: Set<string>): Set<string> {
+function phrasesOf(text: string, names: Set<string>, scene: Set<string>): Set<string> {
   const found = new Set<string>();
   // Per sentence, so a phrase never spans two of them.
   for (const sentence of text.split(/[.!?;:…—\n]+/)) {
@@ -55,9 +75,11 @@ function phrasesOf(text: string, names: Set<string>): Set<string> {
     for (let n = MIN_WORDS; n <= MAX_WORDS; n += 1) {
       for (let i = 0; i + n <= tokens.length; i += 1) {
         const slice = tokens.slice(i, i + n);
-        if (slice.some((w) => names.has(w))) continue;
+        // A lone letter is what is left of dice notation ("1d20" -> "d").
+        if (slice.some((w) => names.has(w) || MECHANICS.has(w) || w.length === 1)) continue;
         const content = slice.filter((w) => !STOPWORDS.has(w));
-        if (content.length < 2) continue;
+        // Mostly naming what is there ("la armadura de cuero tachonado cruje").
+        if (content.length < 2 || content.filter((w) => scene.has(w)).length * 2 > content.length) continue;
         // A phrase that starts or ends on a filler word is a fragment of another.
         if (STOPWORDS.has(slice[0]!) && STOPWORDS.has(slice[slice.length - 1]!)) continue;
         found.add(slice.join(" "));
@@ -70,10 +92,11 @@ function phrasesOf(text: string, names: Set<string>): Set<string> {
 /** The expressions the DM keeps repeating, most worn first. */
 export function wornPhrases(state: GameState, limit = 8): string[] {
   const names = storyNames(state);
+  const scene = sceneWords(state);
   const turns: Turn[] = state.turns.slice(-WINDOW);
   const counts = new Map<string, number>();
   for (const turn of turns) {
-    for (const phrase of phrasesOf(narratorText(turn.narration), names)) {
+    for (const phrase of phrasesOf(narratorText(turn.narration), names, scene)) {
       counts.set(phrase, (counts.get(phrase) ?? 0) + 1);
     }
   }
@@ -83,8 +106,30 @@ export function wornPhrases(state: GameState, limit = 8): string[] {
     ([phrase, count]) =>
       !worn.some(([other, otherCount]) => other !== phrase && otherCount >= count && ` ${other} `.includes(` ${phrase} `)),
   );
-  return kept
-    .sort((a, b) => b[1] * b[0].split(" ").length - a[1] * a[0].split(" ").length)
-    .slice(0, limit)
-    .map(([phrase]) => phrase);
+  const score = ([phrase, count]: [string, number]) => count * phrase.split(" ").length;
+  // Most worn first, and one entry per habit: a phrase that overlaps one
+  // already chosen ("la cascada" / "de la cascada") is left out.
+  const chosen: string[] = [];
+  for (const [phrase] of kept.sort((a, b) => score(b) - score(a))) {
+    if (chosen.some((c) => overlaps(c, phrase))) continue;
+    chosen.push(phrase);
+    if (chosen.length === limit) break;
+  }
+  return chosen;
+}
+
+/** Whether two phrases share two words in a row, not both filler ("de la"). */
+function overlaps(a: string, b: string): boolean {
+  const pairs = (text: string) => {
+    const tokens = text.split(" ");
+    return new Set(
+      tokens
+        .slice(1)
+        .map((w, i) => [tokens[i]!, w] as const)
+        .filter(([x, y]) => !STOPWORDS.has(x) || !STOPWORDS.has(y))
+        .map(([x, y]) => `${x} ${y}`),
+    );
+  };
+  const first = pairs(a);
+  return [...pairs(b)].some((pair) => first.has(pair));
 }

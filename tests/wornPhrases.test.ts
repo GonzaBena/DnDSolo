@@ -55,6 +55,31 @@ describe("wornPhrases", () => {
     expect(wornPhrases(state)).toEqual([]);
   });
 
+  it("ignores roll requests, which the DM has to repeat", () => {
+    const line = "Hacé una tirada de 1d20 + tu modificador de destreza.";
+    expect(wornPhrases(withNarrations(line, line, line))).toEqual([]);
+  });
+
+  it("ignores what is carried or in the scene", () => {
+    const line = "La armadura de cuero tachonado cruje.";
+    const game = newGame();
+    const state = {
+      ...withNarrations(line, line, line),
+      players: game.players.map((p) => ({ ...p, inventory: [{ name: "Armadura de cuero tachonado", quantity: 1 }] })),
+    };
+    expect(wornPhrases(state)).toEqual([]);
+  });
+
+  it("lists each habit once, not its overlapping variants", () => {
+    const state = withNarrations(
+      "Sentís el aire húmedo del pozo.",
+      "El aire húmedo te envuelve.",
+      "Respirás el aire húmedo de la cripta.",
+      "Todo es aire húmedo y silencio.",
+    );
+    expect(wornPhrases(state)).toEqual(["el aire húmedo"]);
+  });
+
   it("reaches the DM as its own block before the current turn", () => {
     const line = "Un escalofrío te recorre la espalda.";
     const prompt = buildTurnPrompt(withNarrations(line, line, line), { type: "action", text: "Sigo" }, 6);
