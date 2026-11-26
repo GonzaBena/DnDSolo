@@ -31,3 +31,34 @@ export function usePlayerUpdate(session: GameSession) {
     if (applied.saveError) setWarning(SAVE_WARNING);
   };
 }
+
+/** The shown state with the saved NPCs and scene, after a rename. */
+export function withNpcsFrom(shown: GameState, saved: GameState): GameState {
+  return { ...shown, npcs: saved.npcs, scene: saved.scene, updatedAt: saved.updatedAt };
+}
+
+/** Renames an NPC outside a turn, saves, and shows the result. Resolves to
+    the reason it couldn't, or null. */
+export function useNpcRename(session: GameSession) {
+  const { setScreen, setWarning, latestStateRef, changedRef, track } = session;
+
+  return async (engine: TurnEngine, state: GameState, currentName: string, name: string, label: string) => {
+    const held = latestStateRef.current ?? state;
+    const applied = await track(engine.renameNpc(held, currentName, name, label));
+    if ("error" in applied) return applied.error;
+    changedRef.current = true;
+    const current = latestStateRef.current;
+    if (!current || (current.id === applied.state.id && current.turns.length <= applied.state.turns.length)) {
+      latestStateRef.current = applied.state;
+    }
+    setScreen((previous) =>
+      previous.status === "playing" &&
+      previous.state.id === applied.state.id &&
+      previous.state.turns.length <= applied.state.turns.length
+        ? { ...previous, state: withNpcsFrom(previous.state, applied.state) }
+        : previous,
+    );
+    if (applied.saveError) setWarning(SAVE_WARNING);
+    return null;
+  };
+}

@@ -3,6 +3,7 @@ import { addFailures } from "./deathSaves";
 import { npcNameFromArchetype } from "./portraits";
 import { MILESTONES_PER_LEVEL, type Character, type GameState, type StateChange, type StoryItem } from "./types";
 import { sameName, samePlace } from "./names";
+import { findNpc } from "./dialogue";
 
 export interface RejectedChange {
   change: StateChange;
@@ -151,7 +152,7 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
       case "hp": {
         // An NPC by name first: with a lone player any unknown target would be them.
         const npcName = npcNameFromArchetype(change.target);
-        const npc = next.npcs.find((n) => sameName(n.name, npcName));
+        const npc = findNpc(next.npcs, npcName);
         const isPlayer = next.players.some((p) => p.id === change.target || sameName(p.name, change.target));
         if (npc && !isPlayer) {
           if (npc.maxHp === null || npc.hp === null) {
@@ -247,9 +248,10 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
         break;
       case "npc": {
         const name = npcNameFromArchetype(change.name);
-        const existing = next.npcs.find((n) => sameName(n.name, name));
+        // A renamed NPC answers to their old names and keeps the player's one.
+        const existing = findNpc(next.npcs, name);
         const npc = {
-          name,
+          name: existing?.name ?? name,
           // Like voice: an empty description keeps the stored one (absent NPCs reach the model without it).
           description: change.description.trim() || existing?.description || "",
           attitude: change.attitude,
@@ -263,8 +265,10 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
             : { hp: change.maxHp, maxHp: change.maxHp }),
           // Once in the scene, always seen; an older NPC without the flag keeps none.
           ...(change.present ? { seen: true } : existing ? (existing.seen === undefined ? {} : { seen: existing.seen }) : { seen: false }),
+          ...(existing?.formerNames ? { formerNames: existing.formerNames } : {}),
+          ...(existing?.label ? { label: existing.label } : {}),
         };
-        next = { ...next, npcs: upsert(next.npcs, npc, (n) => sameName(n.name, name)) };
+        next = { ...next, npcs: upsert(next.npcs, npc, (n) => n === existing) };
         break;
       }
       case "scene":
@@ -375,22 +379,16 @@ function syncStoryItems(state: GameState): GameState {
     matches nobody (or someone who just left) hands it back to the player
     instead of leaving the drawer with no one highlighted. */
 function settleTurn(given: GameState, changes: StateChange[], rejected: RejectedChange[]): GameState {
-  const inScene = [
-    ...given.players.map((p) => p.name),
-    ...given.npcs.filter((n) => n.present).map((n) => n.name),
-  ];
+  // A known character as stored: a player, or an NPC also by a former name.
+  const resolve = (name: string, npcs = given.npcs): string | undefined =>
+    given.players.find((p) => sameName(p.name, name))?.name ?? findNpc(npcs, name)?.name;
   // The initiative order names known characters, as stored, once each. Someone
   // who steps out keeps their place; the scene only shows who is here.
-  const known = [...given.players.map((p) => p.name), ...given.npcs.map((n) => n.name)];
-  const order = [
-    ...new Set(
-      given.scene.order.flatMap((name) => known.find((member) => sameName(member, name)) ?? []),
-    ),
-  ];
+  const order = [...new Set(given.scene.order.flatMap((name) => resolve(name) ?? []))];
   const state = { ...given, scene: { ...given.scene, order } };
   const { turnOf } = state.scene;
   if (turnOf === null) return state;
-  const match = inScene.find((name) => sameName(name, turnOf));
+  const match = resolve(turnOf, given.npcs.filter((n) => n.present));
   if (match !== undefined) return { ...state, scene: { ...state.scene, turnOf: match } };
   const change = changes.findLast((c) => c.type === "scene");
   if (change) rejected.push({ change, reason: "Nobody by that name is in the scene." });

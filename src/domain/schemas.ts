@@ -332,6 +332,8 @@ export const gameStateSchema = z.object({
       hp: z.number().int().nullable(),
       maxHp: z.number().int().nullable(),
       seen: z.boolean().optional(),
+      formerNames: z.array(z.string()).optional(),
+      label: z.string().optional(),
     }),
   ),
   scene: z.object({ inCombat: z.boolean(), turnOf: z.string().nullable(), order: z.array(z.string()) }),

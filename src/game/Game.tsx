@@ -18,7 +18,8 @@ import { recapOf, shouldShowRecap } from "../domain/recap";
 import { LevelUpScreen, shouldOpenLevelUp } from "./LevelUpScreen";
 import { enqueueLevelUp, levelUpFromPlayer, type LevelUp } from "./levelUp";
 import { pendingLevelUp } from "../domain/sheetProgress";
-import { usePlayerUpdate } from "./usePlayerUpdate";
+import { useNpcRename, usePlayerUpdate } from "./usePlayerUpdate";
+import { NpcRenameDialog } from "./NpcRenameDialog";
 import { offersSheetUpgradeNotice, upgradeSheet } from "../domain/sheetProgress";
 import { confirmLevelUp, setOutsideSrd } from "../domain/outsideSrd";
 import { SheetUpgradeDialog, UpgradeNotice } from "./SheetUpgrade";
@@ -79,6 +80,9 @@ export default function Game() {
   const { busy, send, sendFromPlayer } = useSendTurn(session, { setDraft, setToasts, scrollToBottom, gameRef, showBanners, showLevelUp });
   const { hpPending, adjustHp } = useHpAdjust(session, setToasts);
   const updatePlayer = usePlayerUpdate(session);
+  const renameNpc = useNpcRename(session);
+  // The NPC whose name and label are being edited, by their stored name.
+  const [renaming, setRenaming] = useState<string | null>(null);
   const pendingLevelCheckedRef = useRef<string | null>(null);
   // Old saves without stored choices: a notice until "Cancelar" (for this visit) or the upgrade.
   const [upgradeDismissed, setUpgradeDismissed] = useState(false);
@@ -284,12 +288,20 @@ export default function Game() {
             setInfoOpen(false);
             setRecapOpen(true);
           }}
+          onEditNpc={setRenaming}
         />
         <SceneDrawer
           state={state}
           dmActing={busy}
           open={sceneOpen}
           onClose={() => setSceneOpen(false)}
+          onEditNpc={setRenaming}
+        />
+        <NpcRenameDialog
+          npc={renaming === null ? null : (state.npcs.find((n) => n.name === renaming) ?? null)}
+          onClose={() => setRenaming(null)}
+          onSubmit={(name, label) => renameNpc(engine, state, renaming ?? "", name, label)}
+          disabled={busy || inFlight !== null}
         />
 
         <p className="sr-only" role="status">{announcement}</p>
@@ -378,7 +390,7 @@ export default function Game() {
           />
         )}
       </div>
-      <ScenePanel state={state} dmActing={busy} speaking={speaking} />
+      <ScenePanel state={state} dmActing={busy} speaking={speaking} onEditNpc={setRenaming} />
     </section>
   );
 }
