@@ -81,7 +81,6 @@ describe("TurnEngine.playTurn", () => {
         stateChanges: [
           { type: "inventory_add", playerId: PLAYER_ID, item: "Llave", quantity: 1 },
         ],
-        events: ["item_gained"],
       }),
     );
 
@@ -109,7 +108,6 @@ describe("TurnEngine.playTurn", () => {
             attitude: "hostile",
             present: true,
             voice: "",
-            portrait: null,
             maxHp: 7,
           },
         ],
@@ -118,7 +116,7 @@ describe("TurnEngine.playTurn", () => {
     const outcome = await ctx.engine.playTurn(game, { type: "action", text: "Miro" });
     if (!outcome.ok) throw new Error("turn failed");
     expect(outcome.state.turns[1]!.arrivals).toEqual([
-      { name: "Goblin 1", attitude: "hostile", portrait: null, blurb: "Flaco.", returning: false, health: null },
+      { name: "Goblin 1", attitude: "hostile", portrait: "goblin", blurb: "Flaco.", returning: false, health: null },
     ]);
   });
 
@@ -439,7 +437,7 @@ describe("TurnEngine.playTurn", () => {
   describe("scene when the enemy-roll chain hits its limit", () => {
     const npc = {
       type: "npc" as const, name: "Goblin", description: "Un goblin", attitude: "hostile" as const,
-      present: true, voice: "", portrait: null, maxHp: null,
+      present: true, voice: "", maxHp: null,
     };
     const fight = reply({
       enemyRolls: [{ die: "d20", count: 1, modifier: 0, reason: "Otro", mode: "normal" }],
@@ -1237,6 +1235,19 @@ describe("suggested actions", () => {
     );
     const outcome = await ctx.engine.playTurn(game, { type: "action", text: "Me escondo" });
     expect(outcome.ok && outcome.state.suggestedActions).toEqual([]);
+  });
+
+  it("are not asked for when the player hides them", async () => {
+    const llm = new FakeLLMClient();
+    const engine = new TurnEngine({ llm, repo: new InMemoryGameRepo(), config: { suggestions: false } });
+    const { suggestions: _s, ...withoutSuggestions } = reply();
+    llm.queueStructured(withoutSuggestions);
+    const outcome = await engine.playTurn(newGame(), { type: "start" });
+    expect(outcome.ok && outcome.state.suggestedActions).toEqual([]);
+    const request = llm.structuredRequests[0]!;
+    expect(request.system).not.toContain('"suggestions"');
+    expect((request.jsonSchema as { properties: object }).properties).not.toHaveProperty("suggestions");
+    expect(request.creative).toBe(true);
   });
 });
 

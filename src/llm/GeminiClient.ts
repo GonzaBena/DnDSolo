@@ -1,7 +1,7 @@
 // Gemini over its REST API with plain fetch. The official SDK weighed ~400 KB
 // in the browser for the three calls used here (stream a turn, write the
 // summary, list models).
-import { thinkingConfigFor } from "./thinking";
+import { temperatureFor, thinkingConfigFor } from "./thinking";
 import { LLMError, type LLMClient, type StructuredRequest, type TextRequest } from "./LLMClient";
 
 const API = "https://generativelanguage.googleapis.com/v1beta";
@@ -133,6 +133,7 @@ export class GeminiClient implements LLMClient {
     try {
       // Only the turn call: the summary keeps the model's default thinking.
       const thinkingConfig = thinkingConfigFor(this.model, this.fastNarration);
+      const temperature = temperatureFor(this.model, request.creative ?? false);
       const response = await send(this.fetchFn, `${API}/${this.model}:streamGenerateContent?alt=sse`, this.apiKey, {
         method: "POST",
         signal: request.signal,
@@ -143,6 +144,7 @@ export class GeminiClient implements LLMClient {
             responseMimeType: "application/json",
             responseJsonSchema: request.jsonSchema,
             ...(thinkingConfig ? { thinkingConfig } : {}),
+            ...(temperature !== undefined ? { temperature } : {}),
           },
         }),
       });

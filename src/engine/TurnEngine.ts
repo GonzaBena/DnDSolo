@@ -2,16 +2,21 @@ import { renameNpc } from "../domain/npcRename";
 import { arrivalsOf } from "../domain/arrivals";
 import { chapterOf } from "../domain/chapters";
 import { momentsOf } from "../domain/moments";
+import { deriveEvents } from "../domain/turnEvents";
 import { applyStateChanges, type RejectedChange } from "../domain/applyChanges";
 import { applyDeathSave } from "../domain/deathSaves";
 import { diceRolled, rollForEnemy } from "../domain/dice";
-import { dmResponseJsonSchema, parseDMResponse, parseSuggestions, suggestionsJsonSchema } from "../domain/schemas";
+import {
+  dmResponseJsonSchema,
+  dmResponseJsonSchemaNoSuggestions,
+  parseDMResponse, parseSuggestions, suggestionsJsonSchema } from "../domain/schemas";
 import type {
   DMResponse,
   EnemyRollResult,
   Character,
   GameState,
   Turn,
+  TurnEvent,
   TurnInput,
 } from "../domain/types";
 import { LLMError, type LLMClient } from "../llm/LLMClient";
@@ -20,7 +25,7 @@ import {
   buildSummaryPrompt,
   buildCorrection,
   buildTurnPrompt,
-  DM_SYSTEM_PROMPT,
+  buildDmSystemPrompt,
   SUMMARY_SYSTEM_PROMPT,
   SUGGESTIONS_SYSTEM_PROMPT,
   buildSuggestionsPrompt,
@@ -32,6 +37,8 @@ export interface EngineConfig {
   recentTurns: number;
   /** The running summary is regenerated every this many turns. */
   summaryEveryTurns: number;
+  /** Whether the DM writes suggestions: false when the player hides them. */
+  suggestions: boolean;
 }
 
 /** After a failed summary, how many more turns to wait before trying again. */
@@ -42,7 +49,7 @@ export interface SummaryPatch {
   summarizedThroughTurn: number;
 }
 
-export const DEFAULT_ENGINE_CONFIG: EngineConfig = { recentTurns: 6, summaryEveryTurns: 10 };
+export const DEFAULT_ENGINE_CONFIG: EngineConfig = { recentTurns: 6, summaryEveryTurns: 10, suggestions: true };
 
 /** Enemy-roll turns are sent without the player doing anything, so a DM
     that kept asking for more would loop forever. After this many in a row
@@ -72,6 +79,8 @@ export type TurnOutcome =
       ok: true;
       state: GameState;
       response: DMResponse;
+      /** What happened this turn, derived from the state (see deriveEvents). */
+      events: TurnEvent[];
       rejectedChanges: RejectedChange[];
       /** The turn happened but couldn't be written; the UI should warn. */
       saveError: unknown | null;
@@ -148,9 +157,10 @@ export class TurnEngine {
       if (attempt > 0) onNarration?.("");
       try {
         raw = await this.llm.generateStructured({
-          system: DM_SYSTEM_PROMPT,
+          system: buildDmSystemPrompt({ suggestions: this.config.suggestions }),
           prompt: attempt > 0 ? `${prompt}\n\n${buildCorrection(lastReason)}` : prompt,
-          jsonSchema: dmResponseJsonSchema,
+          jsonSchema: this.config.suggestions ? dmResponseJsonSchema : dmResponseJsonSchemaNoSuggestions,
+          creative: true,
           signal,
           onChunk: (fragment) => {
             raw += fragment;
@@ -243,11 +253,12 @@ export class TurnEngine {
     const arrivals = arrivalsOf(base, applied.state);
     const chapter = chapterOf(base, applied.state);
     const moments = momentsOf(base, applied.state);
+    const events = deriveEvents(base, applied.state, response.stateChanges);
     const turn: Turn = {
       number: state.turns.length + 1,
       input,
       narration: response.narration,
-      events: response.events,
+      events,
       ...(arrivals.length > 0 ? { arrivals } : {}),
       ...(chapter ? { chapter } : {}),
       ...(moments.length > 0 ? { moments } : {}),
@@ -283,7 +294,7 @@ export class TurnEngine {
     this.latestByGame.set(next.id, next);
 
     const saveError = await this.enqueueSave(next);
-    return { ok: true, state: next, response, rejectedChanges: applied.rejected, saveError };
+    return { ok: true, state: next, response, events, rejectedChanges: applied.rejected, saveError };
   }
 
   /** Manual hit point fix from the sheet panel. It is not a turn, so nothing
@@ -379,6 +390,7 @@ export class TurnEngine {
         system: SUGGESTIONS_SYSTEM_PROMPT,
         prompt: buildSuggestionsPrompt(state, this.config.recentTurns),
         jsonSchema: suggestionsJsonSchema,
+        creative: true,
         signal,
       });
       return parseSuggestions(raw);

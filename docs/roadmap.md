@@ -59,7 +59,11 @@ sacudida de pantalla al recibir daño.
   resumen.
 
 ## Ideas sueltas (sin prioridad)
-- El DM repite algunas frases a lo largo de la partida.
+- El DM repite algunas frases a lo largo de la partida ✓ (hecho 2026-11-26):
+  la app detecta las frases gastadas y se las pasa al DM para que las evite;
+  temperatura 1.2 en Gemini 2.x (Gemini 3 queda en 1.0, como recomienda
+  Google). De paso, el código deduce los eventos del turno, elige el retrato
+  de cada NPC y el DM no escribe sugerencias si están ocultas.
 - Reglas: subida de nivel con elecciones y ficha recalculada ✓ (hecho
   2026-11-25, etapa 1): la partida guarda las elecciones, la pantalla de
   nivel pide las del nivel nuevo y las partidas viejas se actualizan desde

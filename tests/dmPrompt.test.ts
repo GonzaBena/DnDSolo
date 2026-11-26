@@ -1,20 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { TURN_EVENTS } from "../src/domain/types";
 import { buildTurnPrompt, describeInput, DM_SYSTEM_PROMPT, stateForModel } from "../src/engine/dmPrompt";
 import { COMBAT_RULES } from "../src/engine/combatRules";
 import type { GameState } from "../src/domain/types";
 import { newGame } from "./helpers";
 
 describe("DM_SYSTEM_PROMPT", () => {
-  it("distinguishes damage taken from damage dealt", () => {
-    const line = DM_SYSTEM_PROMPT.split("\n").find((l) => l.includes("solo de esta lista:"));
-    const tags = (line ?? "")
-      .split("solo de esta lista:")[1]!
-      .replace(/\([^)]*\)/g, "")
-      .replace(/\.$/, "")
-      .split(",")
-      .map((t) => t.trim());
-    expect(tags).toEqual([...TURN_EVENTS]);
+  it("leaves the event tags to the code", () => {
+    expect(DM_SYSTEM_PROMPT).not.toContain('"events"');
   });
   it("tells the DM how to mark what each NPC says", () => {
     expect(DM_SYSTEM_PROMPT).toContain("[[Nombre]]");
@@ -24,12 +16,9 @@ describe("DM_SYSTEM_PROMPT", () => {
     expect(DM_SYSTEM_PROMPT).toContain('"voice"');
   });
 
-  it("asks for each NPC's portrait", () => {
-    expect(DM_SYSTEM_PROMPT).toContain('"portrait"');
-  });
-
-  it("asks for a portrait for NPCs that still have none", () => {
-    expect(DM_SYSTEM_PROMPT).toContain('"portrait": null y le queda');
+  it("leaves the portrait to the app, from what the description says the NPC is", () => {
+    expect(DM_SYSTEM_PROMPT).not.toContain('"portrait"');
+    expect(DM_SYSTEM_PROMPT).toContain("arranca diciendo qué es");
   });
 });
 
@@ -56,14 +45,7 @@ describe("buildTurnPrompt", () => {
 describe("NPC names", () => {
   it("asks for Spanish names, never the portrait archetype", () => {
     expect(DM_SYSTEM_PROMPT).toContain('"Tabernero"');
-    expect(DM_SYSTEM_PROMPT).toContain('"innkeeper-male"');
-  });
-});
-
-describe("portraits", () => {
-  it("tells the DM what each archetype shows", () => {
-    expect(DM_SYSTEM_PROMPT).toContain('"guard-male" / "guard-female": con armadura');
-    expect(DM_SYSTEM_PROMPT).toContain("una vendedora no es una guardia");
+    expect(DM_SYSTEM_PROMPT).toContain("Nunca uses palabras en inglés");
   });
 });
 
@@ -132,7 +114,8 @@ describe("stateForModel", () => {
 
   it("sends present NPCs in full and absent NPCs as name and attitude only", () => {
     const state = stateForModel({ ...newGame(), npcs: [present, absent] }) as { npcs: unknown[] };
-    expect(state.npcs).toEqual([present, { name: "Corvo", attitude: "neutral", present: false }]);
+    const { portrait: _portrait, ...withoutPortrait } = present;
+    expect(state.npcs).toEqual([withoutPortrait, { name: "Corvo", attitude: "neutral", present: false }]);
   });
 
   it("leaves out story items that are gone", () => {

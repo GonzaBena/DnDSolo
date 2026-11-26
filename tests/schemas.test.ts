@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { MAX_SUGGESTION_LENGTH, dmResponseJsonSchema, gameStateSchema, parseDMResponse } from "../src/domain/schemas";
-import { TURN_EVENTS } from "../src/domain/types";
 import { extractPartialNarration } from "../src/engine/narrationStream";
 import { newGame, reply } from "./helpers";
 
@@ -67,27 +66,11 @@ describe("parseDMResponse", () => {
   });
 });
 
-describe("event tags", () => {
-  it("drops unknown event tags instead of rejecting the reply", () => {
-    const parsed = parseDMResponse(JSON.stringify({ ...reply(), events: ["damage_taken", "explosion", "damage"] }));
-    expect(parsed.ok && parsed.response.events).toEqual(["damage_taken"]);
-  });
-  it("yields an empty list when every tag is unknown", () => {
-    const parsed = parseDMResponse(JSON.stringify({ ...reply(), events: ["foo"] }));
-    expect(parsed.ok && parsed.response.events).toEqual([]);
-  });
-  it("still rejects events that are not an array", () => {
-    expect(parseDMResponse(JSON.stringify({ ...reply(), events: "damage_taken" })).ok).toBe(false);
-  });
-});
-
 describe("dmResponseJsonSchema", () => {
   const text = JSON.stringify(dmResponseJsonSchema);
-  it("offers the model only the known tags", () => {
-    const schema = dmResponseJsonSchema as { properties: { events: { items: { enum: string[] } } } };
-    const tags = schema.properties.events.items.enum;
-    expect(tags).toEqual([...TURN_EVENTS]);
-    expect(tags).not.toContain("damage");
+  it("leaves the event tags to the code", () => {
+    const schema = dmResponseJsonSchema as { properties: Record<string, unknown> };
+    expect(schema.properties).not.toHaveProperty("events");
   });
 
   it("only uses keywords the provider documents", () => {

@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { DM_PORTRAIT_URL, PORTRAIT_FOLDERS, PORTRAIT_IDS, portraitUrl, npcNameFromArchetype, describeArchetypes, isMonsterPortrait } from "../src/domain/portraits";
+import { DM_PORTRAIT_URL, PORTRAIT_FOLDERS, PORTRAIT_IDS, portraitUrl, npcNameFromArchetype, isMonsterPortrait } from "../src/domain/portraits";
 
 const ROOT = join(__dirname, "..", "public", "portraits");
 
@@ -72,20 +72,6 @@ describe("npcNameFromArchetype", () => {
     expect(npcNameFromArchetype("Brena")).toBe("Brena");
     expect(npcNameFromArchetype("Goblin 1")).toBe("Goblin 1");
     expect(npcNameFromArchetype("Guardia del portón")).toBe("Guardia del portón");
-  });
-});
-
-describe("describeArchetypes", () => {
-  it("lists every archetype the DM can pick, with who it suits", () => {
-    const guide = describeArchetypes();
-    for (const id of PORTRAIT_IDS) expect(guide).toContain(`"${id}"`);
-    for (const line of guide.split("\n")) expect(line).toMatch(/: \S/);
-  });
-
-  it("points merchants to the townsfolk faces, not the guards", () => {
-    const line = describeArchetypes().split("\n").find((l) => l.includes("vendedores"));
-    expect(line).toContain('"innkeeper-female"');
-    expect(line).not.toContain("guard");
   });
 });
 

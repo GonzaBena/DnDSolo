@@ -1,6 +1,8 @@
 import { findClass } from "../rules";
 import { addFailures } from "./deathSaves";
+import { campaignPortrait } from "../campaigns";
 import { npcNameFromArchetype } from "./portraits";
+import { guessPortrait } from "./portraitGuess";
 import { MILESTONES_PER_LEVEL, type Character, type GameState, type StateChange, type StoryItem } from "./types";
 import { sameName, samePlace } from "./names";
 import { findNpc } from "./dialogue";
@@ -250,15 +252,21 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
         const name = npcNameFromArchetype(change.name);
         // A renamed NPC answers to their old names and keeps the player's one.
         const existing = findNpc(next.npcs, name);
+        const finalName = existing?.name ?? name;
+        // Like voice: an empty description keeps the stored one (absent NPCs reach the model without it).
+        const description = change.description.trim() || existing?.description || "";
         const npc = {
-          name: existing?.name ?? name,
-          // Like voice: an empty description keeps the stored one (absent NPCs reach the model without it).
-          description: change.description.trim() || existing?.description || "",
+          name: finalName,
+          description,
           attitude: change.attitude,
           present: change.present,
           voice: change.voice.trim() || existing?.voice || "",
           // The first portrait sticks: an NPC keeps their face for the whole game.
-          portrait: existing?.portrait ?? change.portrait ?? null,
+          // Chosen by the app: the campaign's own pick, else what the NPC is.
+          portrait:
+            existing?.portrait ??
+            campaignPortrait(next.campaignId, finalName) ??
+            guessPortrait(finalName, description),
           // Hit points too: set once, then only "hp" changes move them.
           ...(existing && existing.maxHp !== null
             ? { hp: existing.hp, maxHp: existing.maxHp }

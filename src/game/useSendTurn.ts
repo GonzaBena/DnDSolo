@@ -150,17 +150,17 @@ export function useSendTurn(session: GameSession, { setDraft, setToasts, scrollT
         return;
       }
       setInFlight(null);
-      const turnToasts = buildTurnToasts(state, outcome.state, outcome.response.events, Date.now());
+      const turnToasts = buildTurnToasts(state, outcome.state, outcome.events, Date.now());
       if (turnToasts.length > 0) setToasts((prev) => [...prev, ...turnToasts]);
       const lastTurn = outcome.state.turns.at(-1);
       if (lastTurn) {
-        const raised = [...turnBanners(lastTurn, outcome.response.events), ...questBanners(state, outcome.state)];
+        const raised = [...turnBanners(lastTurn, outcome.events), ...questBanners(state, outcome.state)];
         if (raised.length > 0) showBanners(raised);
       }
-      for (const sound of turnSounds(state, outcome.state, outcome.response.events)) play(sound);
+      for (const sound of turnSounds(state, outcome.state, outcome.events)) play(sound);
       const levelUp = levelUpOf(state, outcome.state);
       if (levelUp) showLevelUp(levelUp);
-      if (tookDamage(outcome.response.events, state, outcome.state) && gameRef.current) {
+      if (tookDamage(outcome.events, state, outcome.state) && gameRef.current) {
         const el = gameRef.current;
         shakeScreen(el);
         el.classList.add("game--damage-flash");

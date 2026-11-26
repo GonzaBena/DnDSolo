@@ -1,12 +1,17 @@
 import { buildCampaignPromptBlock, describeCampaignStart } from "../campaigns";
 import { describePlayerRoll as describeRolledDie, formatDice, resolveRollMode, rollModeLabel } from "../domain/dice";
-import { describeArchetypes } from "../domain/portraits";
 import { COMBAT_RULES } from "./combatRules";
 import { describeCharacterRules } from "./rulesBlock";
+import { wornPhrases } from "../domain/wornPhrases";
 import type { Character, GameState, PlayerRollRequest, Turn, TurnInput } from "../domain/types";
 
 // The prompt is in Spanish because it is content, not code: it sets the
 // language and voice the DM narrates in. Field names match the schema.
+const DM_SUGGESTIONS_SECTION = `SUGERENCIAS
+- En "suggestions", hasta tres acciones cortas y distintas que el personaje podría hacer ahora (en primera persona, 60 caracteres como máximo: "Interrogo al guardia"). Ninguna obvia ni que decida por él. Si pedís una tirada, mandá [].
+
+`;
+
 export const DM_SYSTEM_PROMPT = `Sos el Dungeon Master de una partida de D&D en solitario. Narrás en español rioplatense, en segunda persona, con tono de aventura clásica, atmósfera palpable y buen ritmo de mesa de rol.
 
 CÓMO NARRAR
@@ -17,6 +22,7 @@ CÓMO NARRAR
   * Los NPCs tienen vida: dales lenguaje corporal, gestos involuntarios, manías y reacciones reales (desconfianza, cansancio, una mirada a tus armas) mientras hablan o actúan. No son simples pantallas de diálogo.
   * Cada NPC quiere algo: persigue sus propios objetivos en la conversación (sacarte información, venderte algo, que te vayas, protegerse).
   * Poné voz de DM de mesa: sumá breves comentarios atmosféricos o notas de color sobre el peligro o la tensión del momento para enriquecer la escena.
+- Variá el vocabulario y la forma de arrancar cada turno. Si llega FRASES GASTADAS, no uses esas expresiones ni variantes cercanas.
 - Mantené la coherencia con ESTADO, RESUMEN y TURNOS RECIENTES. Reutilizá los nombres de personas, lugares y objetos exactamente como figuran ahí.
 - El ESTADO es la verdad: si un objeto no está en el inventario, el personaje no lo tiene, diga lo que diga el jugador.
 
@@ -60,9 +66,8 @@ OBJETOS
 
 ESCENA
 - Cada NPC tiene "present": si está en la escena actual. Cuando un NPC aparece, se acerca o se va, mandá su cambio "npc" con "present" actualizado. Al cambiar de lugar, el sistema saca a todos de la escena: volvé a marcar con "present": true a los que estén en el nuevo lugar. Los NPCs ausentes figuran solo con nombre y actitud; si vuelven, mandá su cambio "npc" completo (si no sabés su descripción, mandala vacía y el sistema conserva la que tenía; lo mismo vale para "voice"). Los enemigos con los que se pelea también son NPCs (con actitud "hostile"); si son varios iguales, numeralos ("Goblin 1", "Goblin 2"). En el cambio "npc", "maxHp" son los PG máximos de alguien con quien se puede pelear (el sistema lleva sus PG en "hp" desde ahí; solo cuenta la primera vez); para los demás, null.
-- El "name" de un NPC va siempre en español. Si no tiene nombre propio (o el jugador todavía no lo sabe), usá lo que es, en español y con mayúscula: "Tabernero", "Anciana", "Guardia del portón". Nunca uses como nombre un arquetipo de "portrait" ni palabras en inglés ("innkeeper-male", "oldman"). Si más adelante el jugador se entera de su nombre propio, seguí usando el nombre que tiene en ESTADO.
-- Cuando aparece un NPC nuevo, elegí en "portrait" el arquetipo que corresponda a lo que el NPC ES (su oficio y su aspecto), con su género cuando la opción lo tiene; es el retrato que ve el jugador. El género solo no alcanza: una vendedora no es una guardia. Si ningún arquetipo corresponde de verdad, mandá null y el jugador ve sus iniciales. En cambios posteriores mandá null: el retrato no cambia nunca. Si un NPC del ESTADO tiene "portrait": null y le queda algún arquetipo, elegíselo en su próximo cambio "npc". Arquetipos y a quién representan:
-${describeArchetypes()}
+- El "name" de un NPC va siempre en español. Si no tiene nombre propio (o el jugador todavía no lo sabe), usá lo que es, en español y con mayúscula: "Tabernero", "Anciana", "Guardia del portón". Nunca uses palabras en inglés. Si más adelante el jugador se entera de su nombre propio, seguí usando el nombre que tiene en ESTADO.
+- La "description" de un NPC nuevo arranca diciendo qué es (oficio, raza o criatura, y si es hombre o mujer): "Posadera robusta…", "Un monje joven…", "Lobo flaco…". De ahí sale el retrato que ve el jugador.
 - "scene" dice si hay combate ("inCombat") y quién tiene el turno ("turnOf": el nombre exacto de un jugador o de un NPC presente; null es el jugador). Mandá un cambio "scene" cuando empiece o termine un combate y cada vez que el turno pase a otro personaje: por ejemplo, cuando un enemigo actúa y pedís sus tiradas, el turno es suyo; cuando le toca de nuevo al jugador, volvé a poner su nombre o null.
 - En combate seguí el orden de iniciativa y anunciá en la narración de quién es el turno. Cuando tengas todas las iniciativas, mandá "scene" con "order": los nombres exactos de mayor a menor, jugadores incluidos. Después mandá "order": [] salvo que cambie (alguien se suma a la pelea); al terminar el combate el sistema lo borra.
 
@@ -72,20 +77,20 @@ REGLAS
 - Para subir de nivel hacen falta 2 hitos desde el último nivel; los hitos se ven en "milestonesSinceLevel". Completar una misión suma uno solo. Por un logro grande (vencer a un jefe, resolver un misterio central) mandá un cambio "milestone" con el motivo, como mucho uno por respuesta. Con los hitos completos, subí al personaje un nivel con un cambio "level" (de a uno: como mucho un nivel por respuesta). Que el jugador lo pida no alcanza: si pregunta, decile cuánto le falta.
 - Cuando un personaje tiene el nivel de su subclase y el jugador la elige, mandá un cambio "subclass" con el id que figura en REGLAS DE LOS PERSONAJES ("Si elige la subclase SRD"). Si el jugador quiere una subclase que no está en el SRD, respondé con la frase fija de arriba.
 
-EVENTOS
-- En "events" poné etiquetas de lo que pasó, solo de esta lista: damage_taken (un jugador recibe daño), damage_dealt (un enemigo o NPC recibe daño), healing, scene_change, combat_start, combat_end, item_gained, new_npc, new_quest, quest_completed, level_up, death.
-
 HILOS
 - "threads" del ESTADO son los hilos de la campaña: "goal" (lo que mueve al personaje), "threat" (alguien o algo que avanza en contra) y "mystery" (lo que todavía no se explica). Se crean y actualizan con un cambio "thread" (por título; si mandás la descripción vacía, el sistema conserva la que tenía).
 - En el primer turno creá un hilo "goal" (lo que mueve al personaje) y uno "threat" (alguien o algo que avanza en contra), este último con "secret": true. Si "threads" está vacío en una partida ya empezada, creálos en esta respuesta a partir de lo que ya pasó.
 - Cada tanto, sin que el jugador lo vea, la amenaza avanza: mostrá sus consecuencias en el mundo (rumores, rastros, víctimas). Revelala ("secret": false) cuando el jugador la descubra. Lo que es "secret" el jugador no lo sabe: no lo nombres ni en la narración, ni en sugerencias, misiones o NPCs hasta revelarlo.
 - Al resolver un hilo, mandalo con "status": "resolved"; resolver un "threat" o un "mystery" central justifica un "milestone".
 
-SUGERENCIAS
-- En "suggestions", hasta tres acciones cortas y distintas que el personaje podría hacer ahora (en primera persona, 60 caracteres como máximo: "Interrogo al guardia"). Ninguna obvia ni que decida por él. Si pedís una tirada, mandá [].
-
-FORMATO
+${DM_SUGGESTIONS_SECTION}FORMATO
 - Respondé únicamente con el JSON del esquema indicado, sin texto afuera. Los textos de "narration", "reason" y las descripciones van en español.`;
+
+/** The system prompt for a turn: without the suggestions section when the
+    player hides them, since the schema then has no such field. */
+export function buildDmSystemPrompt(options: { suggestions: boolean }): string {
+  return options.suggestions ? DM_SYSTEM_PROMPT : DM_SYSTEM_PROMPT.replace(DM_SUGGESTIONS_SECTION, "");
+}
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -159,7 +164,8 @@ export function stateForModel(state: GameState): unknown {
     location: state.location,
     // Absent NPCs shrink to name and attitude; the full record stays in the save.
     // Former names stay out: the DM uses the current one.
-    npcs: state.npcs.map(({ formerNames: _former, ...n }) =>
+    // The portrait is the app's business, not the DM's.
+    npcs: state.npcs.map(({ formerNames: _former, portrait: _portrait, ...n }) =>
       n.present ? n : { name: n.name, attitude: n.attitude, present: false },
     ),
     scene: state.scene,
@@ -203,6 +209,7 @@ export function buildTurnPrompt(
 ): string {
   const recent = turnsForPrompt(state, recentTurns);
   const campaignBlock = buildCampaignPromptBlock(state);
+  const worn = wornPhrases(state);
   return [
     `ESTADO\n${JSON.stringify(stateForModel(state))}`,
     `REGLAS DE LOS PERSONAJES\n${describeCharacterRules(state.players)}`,
@@ -220,6 +227,8 @@ export function buildTurnPrompt(
       : [
           "LÍMITE DE TIRADAS\nEn esta respuesta no pidas tiradas de enemigos: resolvé lo que quede con las tiradas que ya tenés y devolvele el turno al jugador.",
         ]),
+    // Found by the app in what the DM already narrated.
+    ...(worn.length > 0 ? [`FRASES GASTADAS\n${worn.map((p) => `"${p}"`).join(", ")}`] : []),
     `TURNO ACTUAL\n${describeInput(input, state)}`,
   ].join("\n\n");
 }

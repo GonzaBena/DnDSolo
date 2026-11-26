@@ -1,6 +1,5 @@
 import { z } from "./zod";
-import { PORTRAIT_IDS } from "./portraits";
-import { DICE, ROLL_MODES, TURN_EVENTS, type DMResponse, type GameState } from "./types";
+import { DICE, ROLL_MODES, type DMResponse, type GameState } from "./types";
 
 const attitude = z.enum(["friendly", "neutral", "hostile"]);
 const questStatus = z.enum(["active", "completed", "failed"]);
@@ -75,7 +74,6 @@ const stateChange = z.discriminatedUnion("type", [
     attitude,
     present: z.boolean(),
     voice: z.string(),
-    portrait: z.enum(PORTRAIT_IDS).nullable(),
     maxHp: z.number().int().min(1).nullable(),
   }),
   z.object({
@@ -113,7 +111,6 @@ export const dmResponseSchema = z.object({
   playerRoll: playerRollRequest.nullable(),
   enemyRolls: z.array(enemyRollRequest),
   stateChanges: z.array(stateChange),
-  events: z.array(z.enum(TURN_EVENTS)),
   // The limits are hints for the model; parseDMResponse enforces them by cleaning.
   suggestions: z.array(z.string().min(1).max(MAX_SUGGESTION_LENGTH)).max(MAX_SUGGESTIONS),
 });
@@ -148,6 +145,12 @@ export function toProviderSchema(node: unknown): unknown {
 
 export const dmResponseJsonSchema: unknown = toProviderSchema(z.toJSONSchema(dmResponseSchema));
 
+/** The same reply without suggestions, for a player who hides them: the DM
+    doesn't write what nobody reads (parseDMResponse fills in []). */
+export const dmResponseJsonSchemaNoSuggestions: unknown = toProviderSchema(
+  z.toJSONSchema(dmResponseSchema.omit({ suggestions: true })),
+);
+
 export type ParseResult = { ok: true; response: DMResponse } | { ok: false; reason: string };
 
 export function parseDMResponse(raw: string): ParseResult {
@@ -156,11 +159,6 @@ export function parseDMResponse(raw: string): ParseResult {
     json = JSON.parse(raw);
   } catch {
     return { ok: false, reason: "The response is not valid JSON." };
-  }
-  // Unknown tags are dropped rather than failing the whole reply.
-  if (typeof json === "object" && json !== null && "events" in json && Array.isArray(json.events)) {
-    const known: readonly unknown[] = TURN_EVENTS;
-    json = { ...json, events: json.events.filter((tag: unknown) => known.includes(tag)) };
   }
   // Suggestions are an extra: a long, empty or repeated one is fixed here
   // instead of failing (and retrying) a reply that is otherwise fine.

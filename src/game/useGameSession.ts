@@ -100,6 +100,7 @@ export function useGameSession() {
           fastNarration: settings.fastNarration,
         }),
         repo,
+        config: { suggestions: settings.showSuggestions },
       });
     // /play?id=... opens a specific campaign; without it, the latest one.
     const id = new URLSearchParams(location.search).get("id");

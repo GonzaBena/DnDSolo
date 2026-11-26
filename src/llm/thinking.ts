@@ -10,3 +10,13 @@ export function thinkingConfigFor(model: string, fast: boolean): ThinkingConfig 
   if (model.includes("gemini-3")) return { thinkingLevel: "LOW" };
   return undefined;
 }
+
+/** A creative call's temperature, above the default 1.0 so the narration
+    repeats itself less. Gemini 3 is left at its default: Google strongly
+    advises against changing it there (it can loop or degrade). */
+export const CREATIVE_TEMPERATURE = 1.2;
+
+export function temperatureFor(model: string, creative: boolean): number | undefined {
+  if (!creative || model.includes("gemini-3")) return undefined;
+  return CREATIVE_TEMPERATURE;
+}
