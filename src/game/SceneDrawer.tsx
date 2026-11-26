@@ -1,14 +1,10 @@
 import { healthLabel, type HealthLabel } from "../domain/health";
 import type { Attitude, GameState } from "../domain/types";
+import { npcTag } from "../domain/npcRename";
+import { NpcEditButton } from "./NpcRenameDialog";
 import { heroPortraitUrl } from "../domain/heroPortraits";
 import { initials } from "./NpcAvatar";
 import { useDrawer } from "./useDrawer";
-
-const ATTITUDE_LABEL: Record<Attitude, string> = {
-  friendly: "Amistoso",
-  neutral: "Neutral",
-  hostile: "Hostil",
-};
 
 export const DM_NAME = "Dungeon Master";
 
@@ -74,7 +70,7 @@ function tableMembers(state: GameState, dmActing: boolean): SceneMember[] {
       .map((n) => ({
         name: n.name,
         detail: n.description,
-        tag: ATTITUDE_LABEL[n.attitude],
+        tag: npcTag(n),
         kind: n.attitude,
         hasTurn: n.name === turnOf,
         health: n.attitude === "hostile" ? healthLabel(n) : null,
@@ -90,13 +86,15 @@ interface Props {
   dmActing: boolean;
   open: boolean;
   onClose: () => void;
+  /** Opens the rename dialog for an NPC; without it they can't be renamed. */
+  onEditNpc?: (name: string) => void;
 }
 
 /** Side panel with who is at the table. The DM runs everyone but the
     player; the panel only shows whose turn it is (orange border in combat,
     green otherwise) and dims the rest. A native modal <dialog> gives focus
     trapping and Escape-to-close for free. */
-export function SceneDrawer({ state, dmActing, open, onClose }: Props) {
+export function SceneDrawer({ state, dmActing, open, onClose, onEditNpc }: Props) {
   const { dialogProps, panelRef } = useDrawer(open, onClose);
 
   const members = sceneMembers(state, dmActing);
@@ -153,7 +151,12 @@ export function SceneDrawer({ state, dmActing, open, onClose }: Props) {
                   )}
                   {member.name}
                 </strong>
-                <span className="scene-card__tag">{member.tag}</span>
+                <span className="scene-card__tag">
+                  {member.tag}
+                  {onEditNpc && member.kind !== "player" && member.kind !== "dm" && (
+                    <NpcEditButton name={member.name} onClick={() => onEditNpc(member.name)} />
+                  )}
+                </span>
                 {member.health && <HealthTag label={member.health} />}
                 <p className="scene-card__detail">{member.detail}</p>
               </div>

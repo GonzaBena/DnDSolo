@@ -158,7 +158,10 @@ export function stateForModel(state: GameState): unknown {
     players: state.players,
     location: state.location,
     // Absent NPCs shrink to name and attitude; the full record stays in the save.
-    npcs: state.npcs.map((n) => (n.present ? n : { name: n.name, attitude: n.attitude, present: false })),
+    // Former names stay out: the DM uses the current one.
+    npcs: state.npcs.map(({ formerNames: _former, ...n }) =>
+      n.present ? n : { name: n.name, attitude: n.attitude, present: false },
+    ),
     scene: state.scene,
     // Closed quests keep only title and status.
     quests: state.quests.map((q) => (q.status === "active" ? q : { title: q.title, status: q.status })),

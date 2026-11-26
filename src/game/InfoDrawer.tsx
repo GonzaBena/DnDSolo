@@ -2,15 +2,11 @@ import { campaignHref } from "../campaign/links";
 import { canUpgradeSheet } from "../domain/sheetProgress";
 import { OutsideSrdSection, type OutsideSrdEdit } from "./OutsideSrdSection";
 import { findCampaign } from "../campaigns";
-import type { Attitude, GameState, QuestStatus, StoryItem, ThreadKind } from "../domain/types";
+import { npcTag } from "../domain/npcRename";
+import { NpcEditButton } from "./NpcRenameDialog";
+import type { GameState, QuestStatus, StoryItem, ThreadKind } from "../domain/types";
 import { useDrawer } from "./useDrawer";
 import { PortraitChooser } from "../character/PortraitPicker";
-
-const ATTITUDE_LABEL: Record<Attitude, string> = {
-  friendly: "Amistoso",
-  neutral: "Neutral",
-  hostile: "Hostil",
-};
 
 const QUEST_LABEL: Record<QuestStatus, string> = {
   active: "Activa",
@@ -72,11 +68,13 @@ interface Props {
   onSavePortrait?: (portrait: string | null) => Promise<void>;
   /** Opens the screen that completes the first player's rules choices (shown only when they can be completed). */
   onUpgradeSheet?: () => void;
+  /** Opens the rename dialog for an NPC; without it they can't be renamed. */
+  onEditNpc?: (name: string) => void;
 }
 
 /** Everything the campaign knows: characters, place, quests, story items
     and the NPCs met so far. */
-export function InfoDrawer({ state, open, onClose, onOpenRecap, turnRunning = false, onSaveOutsideSrd, onSavePortrait, onUpgradeSheet }: Props) {
+export function InfoDrawer({ state, open, onClose, onOpenRecap, turnRunning = false, onSaveOutsideSrd, onSavePortrait, onUpgradeSheet, onEditNpc }: Props) {
   const { dialogProps, panelRef } = useDrawer(open, onClose);
   const campaign = findCampaign(state.campaignId);
   const players = state.players ?? [];
@@ -271,9 +269,12 @@ export function InfoDrawer({ state, open, onClose, onOpenRecap, turnRunning = fa
             <ul className="info-list">
               {state.npcs.map((n) => (
                 <li key={n.name}>
-                  <strong>{n.name}</strong>
+                  <strong>
+                    {n.name}
+                    {onEditNpc && <NpcEditButton name={n.name} onClick={() => onEditNpc(n.name)} />}
+                  </strong>
                   <span>
-                    {ATTITUDE_LABEL[n.attitude]}
+                    {npcTag(n)}
                     {n.present ? " · En escena" : ""}
                   </span>
                   <p>{n.description}</p>

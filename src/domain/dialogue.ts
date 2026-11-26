@@ -29,8 +29,12 @@ const MARKER = /^\s*\[\[([^\]]+)\]\]\s*/;
 const INLINE_MARKER = /([.!?…:;»"”)—-])[ \t]+(?=\[\[)/g;
 
 
+/** The NPC by their name, or by one the player renamed them from. */
 export function findNpc(npcs: Npc[], name: string): Npc | undefined {
-  return npcs.find((n) => sameName(n.name, name));
+  return (
+    npcs.find((n) => sameName(n.name, name)) ??
+    npcs.find((n) => n.formerNames?.some((former) => sameName(former, name)))
+  );
 }
 
 export function castOf(state: GameState): Cast {

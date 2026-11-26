@@ -1,3 +1,4 @@
+import { renameNpc } from "../domain/npcRename";
 import { arrivalsOf } from "../domain/arrivals";
 import { chapterOf } from "../domain/chapters";
 import { momentsOf } from "../domain/moments";
@@ -322,6 +323,23 @@ export class TurnEngine {
       players: base.players.map((p) => (p.id === playerId ? update(p) : p)),
       updatedAt: this.now().toISOString(),
     };
+    this.latestByGame.set(next.id, next);
+    return { state: next, saveError: await this.enqueueSave(next) };
+  }
+
+  /** Renames an NPC and sets their label (see renameNpc), saving without a
+      turn, on top of the newest known state like updatePlayer. */
+  async renameNpc(
+    given: GameState,
+    currentName: string,
+    newName: string,
+    label: string,
+  ): Promise<{ state: GameState; saveError: unknown | null } | { error: string }> {
+    const tracked = this.latestByGame.get(given.id);
+    const base = tracked && tracked.turns.length >= given.turns.length ? tracked : given;
+    const result = renameNpc(base, currentName, newName, label);
+    if (!result.ok) return { error: result.message };
+    const next: GameState = { ...result.state, updatedAt: this.now().toISOString() };
     this.latestByGame.set(next.id, next);
     return { state: next, saveError: await this.enqueueSave(next) };
   }

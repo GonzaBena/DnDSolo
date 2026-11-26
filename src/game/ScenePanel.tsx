@@ -1,6 +1,7 @@
 import { findNpc } from "../domain/dialogue";
 import type { GameState } from "../domain/types";
 import { NpcAvatar } from "./NpcAvatar";
+import { NpcEditButton } from "./NpcRenameDialog";
 import { HealthTag, sceneMembers } from "./SceneDrawer";
 
 /** The table at a glance, beside the log on wide screens: everyone in the
@@ -10,11 +11,14 @@ export function ScenePanel({
   state,
   dmActing,
   speaking,
+  onEditNpc,
 }: {
   state: GameState;
   dmActing: boolean;
   /** The NPC whose line is being written, if any. */
   speaking: string | null;
+  /** Opens the rename dialog for an NPC; without it they can't be renamed. */
+  onEditNpc?: (name: string) => void;
 }) {
   const members = sceneMembers(state, dmActing);
   return (
@@ -51,6 +55,7 @@ export function ScenePanel({
               {/* Inside the tag: the card has two rows beside the face. */}
               <span className="scene-panel__tag">
                 {member.tag}
+                {onEditNpc && npc && <NpcEditButton name={member.name} onClick={() => onEditNpc(member.name)} />}
                 {member.health && <> <HealthTag label={member.health} /></>}
               </span>
             </li>

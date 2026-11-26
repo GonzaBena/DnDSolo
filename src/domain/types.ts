@@ -157,6 +157,12 @@ export interface Npc {
   /** Whether they have ever been in the scene (false while only mentioned).
       Absent in saves from before it was tracked: treat as seen. */
   seen?: boolean;
+  /** Names the player replaced (see renameNpc): the DM may still use them,
+      and they keep pointing at this NPC. Absent until a rename. */
+  formerNames?: string[];
+  /** The player's own label ("Domesticado") shown instead of the attitude,
+      except when hostile. Absent or "" shows the attitude. */
+  label?: string;
 }
 
 /** What is happening right now, for the scene drawer. */
