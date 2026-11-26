@@ -1,6 +1,6 @@
 // NPC portraits live in public/portraits/<folder>/<n>.webp. A folder is an
 // archetype, with its gender when it has one ("guard-female") or without it
-// ("goblin", "soldier"). The DM picks an archetype; the app picks which of
+// ("goblin", "soldier"). The app picks the archetype (see portraitGuess) and which of
 // the folder's images, from the NPC's name, so an NPC keeps the same face.
 
 /** Archetypes the DM picks with a gender. */
@@ -133,47 +133,6 @@ export function npcNameFromArchetype(name: string): string {
   if (!match || !names) return name;
   const spanish = names[match[2] === "female" ? 1 : 0];
   return match[3] ? `${spanish} ${match[3]}` : spanish;
-}
-
-/** What each archetype's images show and who they suit, for the DM: the
-    bare ids say too little ("guard" for a merchant just because she is a
-    woman). Folders without images are left out by PORTRAIT_IDS. */
-const ARCHETYPE_GUIDE: Readonly<Record<string, string>> = {
-  innkeeper: "gente de pueblo con delantal y ropa gastada: taberneros, posaderos, vendedores, tenderos, comerciantes, artesanos, granjeros, cocineros, sirvientes",
-  guard: "con armadura y casco: solo guardias, centinelas y milicianos armados",
-  soldier: "soldado con armadura de campaña: soldados, mercenarios, caballeros de guerra",
-  bandit: "rufián armado y desaliñado: bandidos, salteadores, matones",
-  thief: "pícaro con capucha ligera: ladrones, carteristas, espías, contrabandistas",
-  cleric: "religioso con vestiduras: sacerdotes, monjes, acólitos, curanderos de templo",
-  cultist: "fanático con túnica oscura: cultistas, sectarios",
-  noble: "ropa fina y porte altivo: nobles, mercaderes ricos, funcionarios, magistrados",
-  wizard: "mago con túnica: magos, hechiceros, eruditos, alquimistas",
-  elder: "persona muy mayor: ancianos, ermitaños, sabios de aldea",
-  sailor: "marinero: marineros, pescadores, capitanes, piratas",
-  dwarf: "enano",
-  elf: "elfo",
-  orc: "orco",
-  child: "niño o niña",
-  hooded: "figura encapuchada sin rostro visible: desconocidos misteriosos, informantes",
-  goblin: "goblin",
-  kobold: "kobold",
-  dragon: "dragón",
-  drowned: "ahogado, espectro de agua",
-  skeleton: "esqueleto, no muerto",
-  zombie: "zombi",
-  wolf: "lobo, perro salvaje",
-};
-
-/** One line per archetype the DM can pick: its ids and who it suits. */
-export function describeArchetypes(): string {
-  const byBase = new Map<string, string[]>();
-  for (const id of PORTRAIT_IDS) {
-    const base = id.replace(/-(male|female)$/, "");
-    byBase.set(base, [...(byBase.get(base) ?? []), id]);
-  }
-  return [...byBase]
-    .map(([base, ids]) => `  * ${ids.map((id) => `"${id}"`).join(" / ")}: ${ARCHETYPE_GUIDE[base] ?? base}`)
-    .join("\n");
 }
 
 /** Archetypes that are creatures rather than people, in the order the

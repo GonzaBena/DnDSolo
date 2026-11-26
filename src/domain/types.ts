@@ -233,7 +233,7 @@ export type StateChange =
   /** The SRD subclass of the player's class, once its level is reached. */
   | { type: "subclass"; playerId: string; subclassId: string }
   | { type: "location"; name: string; description: string }
-  /** An empty `voice` keeps the NPC's voice; their first portrait is kept for good. */
+  /** An empty `voice` keeps the NPC's voice. The app picks the portrait (see portraitGuess). */
   | {
       type: "npc";
       name: string;
@@ -241,7 +241,6 @@ export type StateChange =
       attitude: Attitude;
       present: boolean;
       voice: string;
-      portrait: PortraitId | null;
       /** Only counts the first time it is set; null means it has no hit points. */
       maxHp: number | null;
     }

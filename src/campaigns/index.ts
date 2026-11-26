@@ -20,6 +20,36 @@ export function findCampaign(id: string | null | undefined): OfficialCampaign | 
   return OFFICIAL_CAMPAIGNS.find((c) => c.id === id);
 }
 
+/** The portraits an official campaign gives its NPCs in its DM notes
+    ("'Capitán Ahogado' (portrait: 'drowned', ..."), by normalized name. */
+const campaignPortraits = new Map<string, Map<string, string>>();
+
+function portraitsOf(campaign: OfficialCampaign): Map<string, string> {
+  let found = campaignPortraits.get(campaign.id);
+  if (found) return found;
+  found = new Map();
+  const notes = [
+    campaign.startPrompt,
+    ...campaign.acts.map((a) => a.dmGuidance),
+    ...campaign.locations.map((l) => l.dmDetails),
+  ].join("\n");
+  for (const match of notes.matchAll(/'([^']+)' \(portrait: '([a-z-]+)'/g)) {
+    found.set(normalize(match[1]!), match[2]!);
+  }
+  campaignPortraits.set(campaign.id, found);
+  return found;
+}
+
+/** The portrait the campaign set for an NPC, also for a numbered copy
+    ("Esqueleto de Coral 2"); null when it sets none. */
+export function campaignPortrait(campaignId: string | null, npcName: string): string | null {
+  const campaign = findCampaign(campaignId);
+  if (!campaign) return null;
+  const portraits = portraitsOf(campaign);
+  const name = normalize(npcName);
+  return portraits.get(name) ?? portraits.get(name.replace(/ \d+$/, "")) ?? null;
+}
+
 /** Determines which act of the campaign is currently active (1, 2 or 3), or
     null once Act 3's quest or central threat thread has been completed/resolved. */
 export function activeAct(campaign: OfficialCampaign, state: GameState): CampaignAct | null {

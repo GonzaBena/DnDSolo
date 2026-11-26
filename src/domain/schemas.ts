@@ -1,5 +1,4 @@
 import { z } from "./zod";
-import { PORTRAIT_IDS } from "./portraits";
 import { DICE, ROLL_MODES, type DMResponse, type GameState } from "./types";
 
 const attitude = z.enum(["friendly", "neutral", "hostile"]);
@@ -75,7 +74,6 @@ const stateChange = z.discriminatedUnion("type", [
     attitude,
     present: z.boolean(),
     voice: z.string(),
-    portrait: z.enum(PORTRAIT_IDS).nullable(),
     maxHp: z.number().int().min(1).nullable(),
   }),
   z.object({

@@ -108,7 +108,6 @@ describe("TurnEngine.playTurn", () => {
             attitude: "hostile",
             present: true,
             voice: "",
-            portrait: null,
             maxHp: 7,
           },
         ],
@@ -117,7 +116,7 @@ describe("TurnEngine.playTurn", () => {
     const outcome = await ctx.engine.playTurn(game, { type: "action", text: "Miro" });
     if (!outcome.ok) throw new Error("turn failed");
     expect(outcome.state.turns[1]!.arrivals).toEqual([
-      { name: "Goblin 1", attitude: "hostile", portrait: null, blurb: "Flaco.", returning: false, health: null },
+      { name: "Goblin 1", attitude: "hostile", portrait: "goblin", blurb: "Flaco.", returning: false, health: null },
     ]);
   });
 
@@ -438,7 +437,7 @@ describe("TurnEngine.playTurn", () => {
   describe("scene when the enemy-roll chain hits its limit", () => {
     const npc = {
       type: "npc" as const, name: "Goblin", description: "Un goblin", attitude: "hostile" as const,
-      present: true, voice: "", portrait: null, maxHp: null,
+      present: true, voice: "", maxHp: null,
     };
     const fight = reply({
       enemyRolls: [{ die: "d20", count: 1, modifier: 0, reason: "Otro", mode: "normal" }],

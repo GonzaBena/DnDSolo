@@ -10,7 +10,7 @@ function events(prev: GameState, changes: StateChange[]) {
 
 const goblin: StateChange = {
   type: "npc", name: "Goblin 1", description: "Flaco.", attitude: "hostile",
-  present: true, voice: "", portrait: null, maxHp: 7,
+  present: true, voice: "", maxHp: 7,
 };
 
 describe("deriveEvents", () => {
