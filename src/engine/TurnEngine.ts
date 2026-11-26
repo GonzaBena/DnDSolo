@@ -2,6 +2,7 @@ import { renameNpc } from "../domain/npcRename";
 import { arrivalsOf } from "../domain/arrivals";
 import { chapterOf } from "../domain/chapters";
 import { momentsOf } from "../domain/moments";
+import { deriveEvents } from "../domain/turnEvents";
 import { applyStateChanges, type RejectedChange } from "../domain/applyChanges";
 import { applyDeathSave } from "../domain/deathSaves";
 import { diceRolled, rollForEnemy } from "../domain/dice";
@@ -12,6 +13,7 @@ import type {
   Character,
   GameState,
   Turn,
+  TurnEvent,
   TurnInput,
 } from "../domain/types";
 import { LLMError, type LLMClient } from "../llm/LLMClient";
@@ -72,6 +74,8 @@ export type TurnOutcome =
       ok: true;
       state: GameState;
       response: DMResponse;
+      /** What happened this turn, derived from the state (see deriveEvents). */
+      events: TurnEvent[];
       rejectedChanges: RejectedChange[];
       /** The turn happened but couldn't be written; the UI should warn. */
       saveError: unknown | null;
@@ -243,11 +247,12 @@ export class TurnEngine {
     const arrivals = arrivalsOf(base, applied.state);
     const chapter = chapterOf(base, applied.state);
     const moments = momentsOf(base, applied.state);
+    const events = deriveEvents(base, applied.state, response.stateChanges);
     const turn: Turn = {
       number: state.turns.length + 1,
       input,
       narration: response.narration,
-      events: response.events,
+      events,
       ...(arrivals.length > 0 ? { arrivals } : {}),
       ...(chapter ? { chapter } : {}),
       ...(moments.length > 0 ? { moments } : {}),
@@ -283,7 +288,7 @@ export class TurnEngine {
     this.latestByGame.set(next.id, next);
 
     const saveError = await this.enqueueSave(next);
-    return { ok: true, state: next, response, rejectedChanges: applied.rejected, saveError };
+    return { ok: true, state: next, response, events, rejectedChanges: applied.rejected, saveError };
   }
 
   /** Manual hit point fix from the sheet panel. It is not a turn, so nothing

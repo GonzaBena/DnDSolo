@@ -1,6 +1,6 @@
 import { z } from "./zod";
 import { PORTRAIT_IDS } from "./portraits";
-import { DICE, ROLL_MODES, TURN_EVENTS, type DMResponse, type GameState } from "./types";
+import { DICE, ROLL_MODES, type DMResponse, type GameState } from "./types";
 
 const attitude = z.enum(["friendly", "neutral", "hostile"]);
 const questStatus = z.enum(["active", "completed", "failed"]);
@@ -113,7 +113,6 @@ export const dmResponseSchema = z.object({
   playerRoll: playerRollRequest.nullable(),
   enemyRolls: z.array(enemyRollRequest),
   stateChanges: z.array(stateChange),
-  events: z.array(z.enum(TURN_EVENTS)),
   // The limits are hints for the model; parseDMResponse enforces them by cleaning.
   suggestions: z.array(z.string().min(1).max(MAX_SUGGESTION_LENGTH)).max(MAX_SUGGESTIONS),
 });
@@ -156,11 +155,6 @@ export function parseDMResponse(raw: string): ParseResult {
     json = JSON.parse(raw);
   } catch {
     return { ok: false, reason: "The response is not valid JSON." };
-  }
-  // Unknown tags are dropped rather than failing the whole reply.
-  if (typeof json === "object" && json !== null && "events" in json && Array.isArray(json.events)) {
-    const known: readonly unknown[] = TURN_EVENTS;
-    json = { ...json, events: json.events.filter((tag: unknown) => known.includes(tag)) };
   }
   // Suggestions are an extra: a long, empty or repeated one is fixed here
   // instead of failing (and retrying) a reply that is otherwise fine.

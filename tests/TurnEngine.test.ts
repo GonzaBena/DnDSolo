@@ -81,7 +81,6 @@ describe("TurnEngine.playTurn", () => {
         stateChanges: [
           { type: "inventory_add", playerId: PLAYER_ID, item: "Llave", quantity: 1 },
         ],
-        events: ["item_gained"],
       }),
     );
 
