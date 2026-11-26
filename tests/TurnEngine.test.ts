@@ -1237,6 +1237,18 @@ describe("suggested actions", () => {
     const outcome = await ctx.engine.playTurn(game, { type: "action", text: "Me escondo" });
     expect(outcome.ok && outcome.state.suggestedActions).toEqual([]);
   });
+
+  it("are not asked for when the player hides them", async () => {
+    const llm = new FakeLLMClient();
+    const engine = new TurnEngine({ llm, repo: new InMemoryGameRepo(), config: { suggestions: false } });
+    const { suggestions: _s, ...withoutSuggestions } = reply();
+    llm.queueStructured(withoutSuggestions);
+    const outcome = await engine.playTurn(newGame(), { type: "start" });
+    expect(outcome.ok && outcome.state.suggestedActions).toEqual([]);
+    const request = llm.structuredRequests[0]!;
+    expect(request.system).not.toContain('"suggestions"');
+    expect((request.jsonSchema as { properties: object }).properties).not.toHaveProperty("suggestions");
+  });
 });
 
 describe("suggestFor", () => {

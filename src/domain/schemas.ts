@@ -147,6 +147,12 @@ export function toProviderSchema(node: unknown): unknown {
 
 export const dmResponseJsonSchema: unknown = toProviderSchema(z.toJSONSchema(dmResponseSchema));
 
+/** The same reply without suggestions, for a player who hides them: the DM
+    doesn't write what nobody reads (parseDMResponse fills in []). */
+export const dmResponseJsonSchemaNoSuggestions: unknown = toProviderSchema(
+  z.toJSONSchema(dmResponseSchema.omit({ suggestions: true })),
+);
+
 export type ParseResult = { ok: true; response: DMResponse } | { ok: false; reason: string };
 
 export function parseDMResponse(raw: string): ParseResult {

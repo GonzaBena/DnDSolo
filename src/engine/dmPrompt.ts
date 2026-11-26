@@ -7,6 +7,11 @@ import type { Character, GameState, PlayerRollRequest, Turn, TurnInput } from ".
 
 // The prompt is in Spanish because it is content, not code: it sets the
 // language and voice the DM narrates in. Field names match the schema.
+const DM_SUGGESTIONS_SECTION = `SUGERENCIAS
+- En "suggestions", hasta tres acciones cortas y distintas que el personaje podría hacer ahora (en primera persona, 60 caracteres como máximo: "Interrogo al guardia"). Ninguna obvia ni que decida por él. Si pedís una tirada, mandá [].
+
+`;
+
 export const DM_SYSTEM_PROMPT = `Sos el Dungeon Master de una partida de D&D en solitario. Narrás en español rioplatense, en segunda persona, con tono de aventura clásica, atmósfera palpable y buen ritmo de mesa de rol.
 
 CÓMO NARRAR
@@ -78,11 +83,14 @@ HILOS
 - Cada tanto, sin que el jugador lo vea, la amenaza avanza: mostrá sus consecuencias en el mundo (rumores, rastros, víctimas). Revelala ("secret": false) cuando el jugador la descubra. Lo que es "secret" el jugador no lo sabe: no lo nombres ni en la narración, ni en sugerencias, misiones o NPCs hasta revelarlo.
 - Al resolver un hilo, mandalo con "status": "resolved"; resolver un "threat" o un "mystery" central justifica un "milestone".
 
-SUGERENCIAS
-- En "suggestions", hasta tres acciones cortas y distintas que el personaje podría hacer ahora (en primera persona, 60 caracteres como máximo: "Interrogo al guardia"). Ninguna obvia ni que decida por él. Si pedís una tirada, mandá [].
-
-FORMATO
+${DM_SUGGESTIONS_SECTION}FORMATO
 - Respondé únicamente con el JSON del esquema indicado, sin texto afuera. Los textos de "narration", "reason" y las descripciones van en español.`;
+
+/** The system prompt for a turn: without the suggestions section when the
+    player hides them, since the schema then has no such field. */
+export function buildDmSystemPrompt(options: { suggestions: boolean }): string {
+  return options.suggestions ? DM_SYSTEM_PROMPT : DM_SYSTEM_PROMPT.replace(DM_SUGGESTIONS_SECTION, "");
+}
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
