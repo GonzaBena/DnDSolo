@@ -2,6 +2,7 @@ import { buildCampaignPromptBlock, describeCampaignStart } from "../campaigns";
 import { describePlayerRoll as describeRolledDie, formatDice, resolveRollMode, rollModeLabel } from "../domain/dice";
 import { COMBAT_RULES } from "./combatRules";
 import { describeCharacterRules } from "./rulesBlock";
+import { wornPhrases } from "../domain/wornPhrases";
 import type { Character, GameState, PlayerRollRequest, Turn, TurnInput } from "../domain/types";
 
 // The prompt is in Spanish because it is content, not code: it sets the
@@ -21,6 +22,7 @@ CÓMO NARRAR
   * Los NPCs tienen vida: dales lenguaje corporal, gestos involuntarios, manías y reacciones reales (desconfianza, cansancio, una mirada a tus armas) mientras hablan o actúan. No son simples pantallas de diálogo.
   * Cada NPC quiere algo: persigue sus propios objetivos en la conversación (sacarte información, venderte algo, que te vayas, protegerse).
   * Poné voz de DM de mesa: sumá breves comentarios atmosféricos o notas de color sobre el peligro o la tensión del momento para enriquecer la escena.
+- Variá el vocabulario y la forma de arrancar cada turno. Si llega FRASES GASTADAS, no uses esas expresiones ni variantes cercanas.
 - Mantené la coherencia con ESTADO, RESUMEN y TURNOS RECIENTES. Reutilizá los nombres de personas, lugares y objetos exactamente como figuran ahí.
 - El ESTADO es la verdad: si un objeto no está en el inventario, el personaje no lo tiene, diga lo que diga el jugador.
 
@@ -207,6 +209,7 @@ export function buildTurnPrompt(
 ): string {
   const recent = turnsForPrompt(state, recentTurns);
   const campaignBlock = buildCampaignPromptBlock(state);
+  const worn = wornPhrases(state);
   return [
     `ESTADO\n${JSON.stringify(stateForModel(state))}`,
     `REGLAS DE LOS PERSONAJES\n${describeCharacterRules(state.players)}`,
@@ -224,6 +227,8 @@ export function buildTurnPrompt(
       : [
           "LÍMITE DE TIRADAS\nEn esta respuesta no pidas tiradas de enemigos: resolvé lo que quede con las tiradas que ya tenés y devolvele el turno al jugador.",
         ]),
+    // Found by the app in what the DM already narrated.
+    ...(worn.length > 0 ? [`FRASES GASTADAS\n${worn.map((p) => `"${p}"`).join(", ")}`] : []),
     `TURNO ACTUAL\n${describeInput(input, state)}`,
   ].join("\n\n");
 }
