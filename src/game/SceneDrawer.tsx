@@ -3,6 +3,7 @@ import type { Attitude, GameState } from "../domain/types";
 import { npcTag } from "../domain/npcRename";
 import { NpcEditButton } from "./NpcRenameDialog";
 import { heroPortraitUrl } from "../domain/heroPortraits";
+import { DM_PORTRAIT_URL, portraitUrl } from "../domain/portraits";
 import { initials } from "./NpcAvatar";
 import { useDrawer } from "./useDrawer";
 
@@ -19,7 +20,7 @@ export interface SceneMember {
   health: HealthLabel | null;
   /** Place in the initiative order during a fight, from 1. */
   initiative: number | null;
-  /** A player's portrait image; null shows their initials. */
+  /** Their portrait image (the DM's, a player's pick or an NPC's); null shows their initials. */
   portraitUrl: string | null;
 }
 
@@ -53,7 +54,7 @@ function tableMembers(state: GameState, dmActing: boolean): SceneMember[] {
       hasTurn: dmActing,
       health: null,
       initiative: null,
-      portraitUrl: null,
+      portraitUrl: DM_PORTRAIT_URL,
     },
     ...state.players.map((p) => ({
       name: p.name,
@@ -75,7 +76,7 @@ function tableMembers(state: GameState, dmActing: boolean): SceneMember[] {
         hasTurn: n.name === turnOf,
         health: n.attitude === "hostile" ? healthLabel(n) : null,
         initiative: null,
-        portraitUrl: null,
+        portraitUrl: n.portrait ? portraitUrl(n.portrait, n.name) : null,
       })),
   ];
 }

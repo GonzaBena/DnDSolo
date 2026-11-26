@@ -48,3 +48,17 @@ describe("initiative numbers with someone away", () => {
     ]);
   });
 });
+
+describe("faces in the scene drawer", () => {
+  it("the DM and NPCs with a portrait get their image; the rest none", () => {
+    const { state: played } = applyStateChanges(newGame(), [npc("Grik"), npc("Sin cara")]);
+    const state = {
+      ...played,
+      npcs: played.npcs.map((n) => ({ ...n, portrait: n.name === "Grik" ? "goblin" : null })),
+    };
+    const urls = Object.fromEntries(sceneMembers(state, false).map((m) => [m.name, m.portraitUrl]));
+    expect(urls["Dungeon Master"]).toBe("/portraits/dm.webp");
+    expect(urls["Grik"]).toMatch(/^\/portraits\/goblin\/\d+\.webp$/);
+    expect(urls["Sin cara"]).toBeNull();
+  });
+});
