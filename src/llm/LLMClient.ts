@@ -7,6 +7,9 @@ export interface StructuredRequest {
   prompt: string;
   /** Plain JSON Schema the response must conform to. */
   jsonSchema: unknown;
+  /** Asks for livelier, less repetitive text. The client may ignore it on
+      models where changing the default is advised against. */
+  creative?: boolean;
   /** Called with each raw text fragment as it streams in. */
   onChunk?: (fragment: string) => void;
   signal?: AbortSignal;

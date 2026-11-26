@@ -1247,6 +1247,7 @@ describe("suggested actions", () => {
     const request = llm.structuredRequests[0]!;
     expect(request.system).not.toContain('"suggestions"');
     expect((request.jsonSchema as { properties: object }).properties).not.toHaveProperty("suggestions");
+    expect(request.creative).toBe(true);
   });
 });
 

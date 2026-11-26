@@ -99,6 +99,15 @@ describe("GeminiClient.generateStructured", () => {
     expect(requestOf(fetchFn).body.generationConfig).not.toHaveProperty("thinkingConfig");
   });
 
+  it("raises the temperature only for creative calls", async () => {
+    const creative = fakeFetch(sseResponse(["{}"]));
+    await new GeminiClient("k", "gemini-2.5-flash", { fetchFn: creative }).generateStructured({ ...structured, creative: true });
+    expect(requestOf(creative).body.generationConfig.temperature).toBe(1.2);
+    const plain = fakeFetch(sseResponse(["{}"]));
+    await new GeminiClient("k", "gemini-2.5-flash", { fetchFn: plain }).generateStructured(structured);
+    expect(requestOf(plain).body.generationConfig).not.toHaveProperty("temperature");
+  });
+
   it("fails as empty when the stream brings no text", async () => {
     const fetchFn = fakeFetch(sseResponse([]));
     await expect(new GeminiClient("k", "m", { fetchFn }).generateStructured(structured)).rejects.toMatchObject({

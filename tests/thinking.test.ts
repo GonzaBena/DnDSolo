@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { thinkingConfigFor } from "../src/llm/thinking";
+import { temperatureFor, thinkingConfigFor } from "../src/llm/thinking";
 
 describe("thinkingConfigFor", () => {
   it("turns thinking off on 2.5 flash", () => {
@@ -20,5 +20,15 @@ describe("thinkingConfigFor", () => {
     for (const m of ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-pro", "other"]) {
       expect(thinkingConfigFor(m, false)).toBeUndefined();
     }
+  });
+});
+
+describe("temperatureFor", () => {
+  it("raises it for creative calls on Gemini 2.x", () => {
+    expect(temperatureFor("models/gemini-2.5-flash", true)).toBe(1.2);
+    expect(temperatureFor("models/gemini-2.5-flash", false)).toBeUndefined();
+  });
+  it("leaves Gemini 3 at its default, as Google advises", () => {
+    expect(temperatureFor("models/gemini-3-flash", true)).toBeUndefined();
   });
 });

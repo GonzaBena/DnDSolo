@@ -160,6 +160,7 @@ export class TurnEngine {
           system: buildDmSystemPrompt({ suggestions: this.config.suggestions }),
           prompt: attempt > 0 ? `${prompt}\n\n${buildCorrection(lastReason)}` : prompt,
           jsonSchema: this.config.suggestions ? dmResponseJsonSchema : dmResponseJsonSchemaNoSuggestions,
+          creative: true,
           signal,
           onChunk: (fragment) => {
             raw += fragment;
@@ -389,6 +390,7 @@ export class TurnEngine {
         system: SUGGESTIONS_SYSTEM_PROMPT,
         prompt: buildSuggestionsPrompt(state, this.config.recentTurns),
         jsonSchema: suggestionsJsonSchema,
+        creative: true,
         signal,
       });
       return parseSuggestions(raw);
