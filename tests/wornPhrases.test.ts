@@ -70,6 +70,17 @@ describe("wornPhrases", () => {
     expect(wornPhrases(state)).toEqual([]);
   });
 
+  it("ignores names of spells and gear, even when not carried", () => {
+    const state = withNarrations(
+      "La marca del cazador brilla sobre el lobo.",
+      "Movés la marca del cazador al siguiente.",
+      "La armadura de cuero tachonado del bandido cruje. La marca del cazador sigue ahí.",
+      "Ves una armadura de cuero tachonado colgada.",
+      "Otra armadura de cuero tachonado, rota.",
+    );
+    expect(wornPhrases(state)).toEqual([]);
+  });
+
   it("lists each habit once, not its overlapping variants", () => {
     const state = withNarrations(
       "Sentís el aire húmedo del pozo.",

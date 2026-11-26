@@ -1,6 +1,12 @@
 // The DM leans on the same expressions turn after turn ("el aire se vuelve
 // denso", "un escalofrío te recorre"). The app spots them in what it already
 // narrated and hands the DM a short list to steer away from.
+import { BACKGROUNDS_DATA } from "../rules/data/backgrounds";
+import { CLASSES_DATA } from "../rules/data/classes";
+import { ARMOR, WEAPONS } from "../rules/data/equipment";
+import { FEATS_DATA } from "../rules/data/feats";
+import { SPECIES_DATA } from "../rules/data/species";
+import { SPELLS } from "../rules/data/spells";
 import type { GameState, Turn } from "./types";
 
 /** Only this many of the latest turns count: an old habit already gone doesn't matter. */
@@ -24,6 +30,23 @@ const STOPWORDS = new Set(
 const MECHANICS = new Set(
   "tirá tira tirada tiradas tirar tirás hacé dado dados modificador modificadores salvación cd ventaja desventaja iniciativa pg".split(" "),
 );
+
+/** Names of rules the DM has to say as they are ("marca del cazador",
+    "armadura de cuero tachonado"), multi-word ones only, as " word word ". */
+const RULE_NAMES: string[] = [
+  ...SPELLS, ...WEAPONS, ...ARMOR, ...FEATS_DATA, ...BACKGROUNDS_DATA, ...SPECIES_DATA, ...CLASSES_DATA,
+  ...CLASSES_DATA.map((c) => c.subclass),
+  ...CLASSES_DATA.flatMap((c) => [...c.levels.flatMap((l) => l.features), ...c.subclass.features.map((f) => f.feature)]),
+]
+  .map((r) => words(r.name.replace(/\(.*?\)/g, "")))
+  .filter((ws) => ws.length >= 2)
+  .map((ws) => ` ${ws.join(" ")} `);
+
+/** Whether a phrase names a rule or is a piece of one. */
+function isRuleName(phrase: string): boolean {
+  const padded = ` ${phrase} `;
+  return RULE_NAMES.some((name) => padded.includes(name) || name.includes(padded));
+}
 
 /** Lowercase words, accents kept so the DM reads them as it wrote them. */
 function words(text: string): string[] {
@@ -82,7 +105,9 @@ function phrasesOf(text: string, names: Set<string>, scene: Set<string>): Set<st
         if (content.length < 2 || content.filter((w) => scene.has(w)).length * 2 > content.length) continue;
         // A phrase that starts or ends on a filler word is a fragment of another.
         if (STOPWORDS.has(slice[0]!) && STOPWORDS.has(slice[slice.length - 1]!)) continue;
-        found.add(slice.join(" "));
+        const phrase = slice.join(" ");
+        if (isRuleName(phrase)) continue;
+        found.add(phrase);
       }
     }
   }
