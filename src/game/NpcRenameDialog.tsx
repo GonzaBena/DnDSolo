@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { useAnimatedDialog } from "../animations/useAnimatedDialog";
 import { NPC_LABEL_MAX, NPC_NAME_MAX } from "../domain/npcRename";
 import type { Npc } from "../domain/types";
 
@@ -15,37 +16,23 @@ interface Props {
 /** The player's own name and label for an NPC (a tamed wolf becomes
     "Colmillo", "Domesticado"). */
 export function NpcRenameDialog({ npc, onClose, onSubmit, disabled = false }: Props) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const [name, setName] = useState("");
   const [label, setLabel] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const dialogProps = useAnimatedDialog(npc !== null, onClose);
 
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (npc && !dialog.open) {
-      setName(npc.name);
-      setLabel(npc.label ?? "");
-      setError(null);
-      dialog.showModal();
-    } else if (!npc && dialog.open) {
-      dialog.close();
-    }
+    if (!npc) return;
+    setName(npc.name);
+    setLabel(npc.label ?? "");
+    setError(null);
   }, [npc]);
 
   const valid = name.trim() !== "";
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="roll-dialog"
-      aria-labelledby="npc-rename-title"
-      onClose={onClose}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
+    <dialog {...dialogProps} className="roll-dialog" aria-labelledby="npc-rename-title">
       <form
         className="roll-dialog__panel"
         onSubmit={async (event) => {

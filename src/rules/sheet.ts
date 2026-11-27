@@ -26,6 +26,18 @@ interface Context {
   items: string[];
   armor: ArmorData | undefined; shield: boolean;
   feats: FeatData[];
+  overrides: SheetOverrides;
+}
+
+/** Where the player's own sheet says otherwise than their rules choices
+    (rolled scores, a magic item, training from a book outside the SRD).
+    The sheet is computed with them, so everything that follows from a
+    score or a proficiency follows the rules. */
+export interface SheetOverrides {
+  /** Added to the final scores (after the usual cap of 20); kept within 1 to 30. */
+  abilities?: Partial<Record<Ability, number>>;
+  saves?: Partial<Record<Ability, boolean>>;
+  skills?: Partial<Record<SkillId, "none" | "proficient" | "expertise">>;
 }
 
 const MAX_SCORE = 20;
@@ -100,13 +112,17 @@ function ownedFeats(background: BackgroundData, specs: ChoiceSpec[], picks: Reco
   return ids.flatMap((id) => findFeat(id) ?? []);
 }
 
-function context(c: CharacterChoices): Context {
+function context(c: CharacterChoices, overrides: SheetOverrides): Context {
   const species = SPECIES.find((s) => s.id === c.speciesId)!;
   const cls = CLASSES_DATA.find((x) => x.id === c.classId)!;
   const background = findBackground(c.backgroundId)!;
   const row = cls.levels.find((r) => r.level === c.level)!;
   const specs = activeChoices(requiredChoices(c), c.picks);
   const scores = abilityScores(c, specs);
+  for (const a of ABILITIES) {
+    const delta = overrides.abilities?.[a];
+    if (delta) scores[a] = Math.min(30, Math.max(1, scores[a] + delta));
+  }
   const items = [...(cls.equipment[c.classEquipment]?.items ?? []), ...background.equipment[c.backgroundEquipment]];
   const armors = items.flatMap((id) => armorOf(id) ?? []);
   return {
@@ -118,6 +134,7 @@ function context(c: CharacterChoices): Context {
     armor: armors.find((a) => a.type !== "shield"), // the first armor listed is the one worn
     shield: armors.some((a) => a.type === "shield"),
     feats: ownedFeats(background, specs, c.picks),
+    overrides,
   };
 }
 
@@ -178,8 +195,9 @@ function skills(ctx: Context): Sheet["skills"] {
   const jackOfAllTrades = classFeatures(ctx).some(({ feature }) => feature.name === JACK_OF_ALL_TRADES);
   const byName = [...SKILLS].sort((a, b) => a.name.localeCompare(b.name, "es"));
   return byName.map((s) => {
-    const isProficient = proficient.has(s.id);
-    const isExpert = isProficient && expertise.has(s.id);
+    const tier = ctx.overrides.skills?.[s.id];
+    const isProficient = tier ? tier !== "none" : proficient.has(s.id);
+    const isExpert = tier ? tier === "expertise" : isProficient && expertise.has(s.id);
     const profPart = isExpert ? 2 * ctx.prof : isProficient ? ctx.prof : jackOfAllTrades ? Math.floor(ctx.prof / 2) : 0;
     return {
       id: s.id, name: s.name, proficient: isProficient, expertise: isExpert,
@@ -456,8 +474,8 @@ function spellcasting(ctx: Context): Sheet["spellcasting"] {
 // ── Sheet ─────────────────────────────────────────────────────────────────
 
 /** Computes every number of the sheet from choices that already passed validateChoices. */
-export function computeSheet(c: CharacterChoices): CharacterSheet {
-  const ctx = context(c);
+export function computeSheet(c: CharacterChoices, overrides: SheetOverrides = {}): CharacterSheet {
+  const ctx = context(c, overrides);
   const { cls, mods, prof } = ctx;
   const sheetSkills = skills(ctx);
   const { armor, weapons } = armorAndWeapons(ctx);
@@ -470,7 +488,7 @@ export function computeSheet(c: CharacterChoices): CharacterSheet {
     level: c.level,
     background: ctx.background.name,
     abilities: Object.fromEntries(ABILITIES.map((a) => {
-      const proficientSave = cls.saves.includes(a);
+      const proficientSave = ctx.overrides.saves?.[a] ?? cls.saves.includes(a);
       const save = mods[a] + (proficientSave ? prof : 0) + aura;
       return [a, { score: ctx.scores[a], modifier: mods[a], save, proficientSave }];
     })) as Sheet["abilities"],

@@ -168,7 +168,8 @@ function describeTurn(turn: Turn): string {
     already covered by the other layers or are bookkeeping. */
 export function stateForModel(state: GameState): unknown {
   return {
-    players: state.players,
+    // The corrections are already inside "stats": the DM reads the result.
+    players: state.players.map(({ statAdjustments: _adjustments, ...p }) => p),
     location: state.location,
     // Absent NPCs shrink to name and attitude; the full record stays in the save.
     // Former names stay out: the DM uses the current one.

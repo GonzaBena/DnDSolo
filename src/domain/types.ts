@@ -3,6 +3,7 @@
 
 import type { HealthLabel } from "./health";
 import type { CharacterChoices } from "../rules/buildSheet";
+import type { Ability, SkillId } from "../rules/types";
 
 export const DICE = ["d4", "d6", "d8", "d10", "d12", "d20", "d100"] as const;
 export type Die = (typeof DICE)[number];
@@ -31,6 +32,35 @@ export interface DeathSaves {
   successes: number;
   failures: number;
 }
+
+/** What the player's own sheet says differently from the sheet the app
+    builds, kept as differences so they survive a level up (a +1 shield is
+    still +1 at the next level). Only for characters with rules choices;
+    a manual sheet's stats are the player's numbers already. */
+export interface StatAdjustments {
+  maxHp?: number;
+  armorClass?: number;
+  initiative?: number;
+  speed?: number;
+  /** A difference when the class casts; the value itself when the built
+      sheet has none (a non-caster with a magic item). */
+  spellSaveDc?: number;
+  spellAttackBonus?: number;
+  /** Per built attack, by name: bonus difference and the damage to show instead. */
+  attacks?: Record<string, { bonus?: number; damage?: string }>;
+  /** Attacks only the player's sheet has (a magic weapon found on the road). */
+  extraAttacks?: { name: string; attackBonus: number; damage: string }[];
+  /** Built attacks the player's sheet doesn't have. */
+  removedAttacks?: string[];
+  /** Ability score differences (rolled scores, a magic item, a different build). */
+  abilities?: Partial<Record<Ability, number>>;
+  /** Saving throw proficiency, where the player's sheet says otherwise. */
+  saves?: Partial<Record<Ability, boolean>>;
+  /** Skill training, where the player's sheet says otherwise. */
+  skills?: Partial<Record<SkillId, SkillTier>>;
+}
+
+export type SkillTier = "none" | "proficient" | "expertise";
 
 export interface Character {
   id: string;
@@ -72,6 +102,9 @@ export interface Character {
   spentResources?: Record<string, number> | undefined;
   /** Hit dice spent since the last long rest. Absent means 0 spent. */
   spentHitDice?: number | undefined;
+  /** Where the player's own sheet differs from the built one (see
+      statCorrections.ts). Absent when they match or there are no choices. */
+  statAdjustments?: StatAdjustments | undefined;
 }
 
 export interface OutsideSrd {

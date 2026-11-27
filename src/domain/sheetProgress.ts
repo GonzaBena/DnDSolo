@@ -4,6 +4,7 @@ import {
 } from "../rules/buildSheet";
 import { activeChoices, requiredChoices } from "../rules/choices";
 import type { CharacterSheet, ChoiceSpec } from "../rules/types";
+import { applyAdjustments, sheetOverridesOf } from "./statCorrections";
 import { statsFromSheet } from "./stats";
 import type { Character, GameState } from "./types";
 
@@ -55,7 +56,10 @@ function activePicks(player: Character, picks: Picks): Picks {
 
 export function previewLevelUp(player: Character, picks: Picks): BuildResult {
   if (!player.choices) return { ok: false, errors: [{ field: "choices", message: "Sin elecciones guardadas." }] };
-  return buildSheet({ ...player.choices, level: player.level, picks: activePicks(player, picks) });
+  return buildSheet(
+    { ...player.choices, level: player.level, picks: activePicks(player, picks) },
+    sheetOverridesOf(player.statAdjustments),
+  );
 }
 
 /** Once every pick is made, the sheet's errors on choices the picker doesn't show: the player can't fix them there,
@@ -70,7 +74,8 @@ export function hiddenErrors(player: Character, picks: Picks): ChoiceError[] {
 
 /** The player with a sheet built from `sheet` and `choices`. Current HP moves as much as the maximum (0 stays 0). */
 export function withSheet(player: Character, choices: CharacterChoices, sheet: CharacterSheet): Character {
-  const stats = statsFromSheet(sheet);
+  // The player's own corrections (a +1 shield, rolled HP) carry over.
+  const stats = applyAdjustments(statsFromSheet(sheet), player.statAdjustments);
   const oldMax = player.stats?.maxHp ?? stats.maxHp;
   const current = player.currentHp ?? stats.maxHp;
   const currentHp = current > 0 ? Math.max(1, Math.min(stats.maxHp, current + (stats.maxHp - oldMax))) : current;
@@ -102,7 +107,7 @@ export function canUpgradeSheet(player: Character): boolean {
 
 /** The new sheet replaces the old numbers; life keeps its proportion (0 stays 0, alive stays at least 1). */
 export function upgradeSheet(player: Character, choices: CharacterChoices, sheet: CharacterSheet): Character {
-  const stats = statsFromSheet(sheet);
+  const stats = applyAdjustments(statsFromSheet(sheet), player.statAdjustments);
   const oldMax = player.stats?.maxHp ?? null;
   const current = player.currentHp;
   const currentHp =

@@ -570,3 +570,50 @@ export function leaveRollDialog(
   });
   return () => animation.cancel();
 }
+
+/** A page inside a drawer (the full sheet) sliding in from the right. */
+export function enterSubpage(element: Element): void {
+  if (!motionAllowed()) return;
+  animate(element, { opacity: [0, 1], translateX: [32, 0], duration: 300, ease: "outCubic" });
+}
+
+/** That page sliding back out to the right; `onDone` runs once it has left.
+    Returns a function that stops the animation. */
+export function leaveSubpage(element: Element, onDone: () => void): () => void {
+  if (!motionAllowed()) {
+    onDone();
+    return () => {};
+  }
+  const animation = animate(element, {
+    opacity: [1, 0],
+    translateX: [0, 32],
+    duration: 200,
+    ease: "inCubic",
+    onComplete: onDone,
+  });
+  return () => animation.cancel();
+}
+
+/** A small menu popping out of the button that opened it (transform-origin
+    in CSS points at the button). */
+export function enterMenu(element: Element): void {
+  if (!motionAllowed()) return;
+  animate(element, { opacity: [0, 1], scale: [0.85, 1], translateY: [8, 0], duration: 220, ease: "outBack" });
+}
+
+/** That menu folding back into its button. Returns a cancel function. */
+export function leaveMenu(element: Element, onDone: () => void): () => void {
+  if (!motionAllowed()) {
+    onDone();
+    return () => {};
+  }
+  const animation = animate(element, {
+    opacity: [1, 0],
+    scale: [1, 0.85],
+    translateY: [0, 8],
+    duration: 150,
+    ease: "inQuad",
+    onComplete: onDone,
+  });
+  return () => animation.cancel();
+}

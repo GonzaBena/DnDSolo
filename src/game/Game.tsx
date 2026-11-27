@@ -20,6 +20,7 @@ import { enqueueLevelUp, levelUpFromPlayer, type LevelUp } from "./levelUp";
 import { pendingLevelUp } from "../domain/sheetProgress";
 import { useNpcRename, usePlayerUpdate, useStateEdit } from "./usePlayerUpdate";
 import { editPlayerInventory, editSceneState } from "../domain/manualEdits";
+import { correctAbilities, correctStats, resetAbilities, resetStats } from "../domain/statCorrections";
 import { applyResourceChange } from "../domain/resources";
 import { NpcRenameDialog } from "./NpcRenameDialog";
 import { offersSheetUpgradeNotice, upgradeSheet } from "../domain/sheetProgress";
@@ -327,6 +328,38 @@ export default function Game() {
             const playerId = state.players[0]?.id;
             if (!playerId) return;
             await editState(engine, state, (s) => editPlayerInventory(s, playerId, edit));
+          }}
+          onCorrectStats={async (values) => {
+            // Checked first on the shown player, so the dialog can say what is wrong.
+            const check = correctStats(state.players[0]!, values);
+            if (!check.ok) return check.message;
+            await updatePlayer(engine, state, state.players[0]!.id, (p) => {
+              const result = correctStats(p, values);
+              return result.ok ? result.player : p;
+            });
+            return null;
+          }}
+          onCorrectAbilities={async (values) => {
+            const check = correctAbilities(state.players[0]!, values);
+            if (!check.ok) return check.message;
+            await updatePlayer(engine, state, state.players[0]!.id, (p) => {
+              const result = correctAbilities(p, values);
+              return result.ok ? result.player : p;
+            });
+            return null;
+          }}
+          onResetAbilities={async () => {
+            await updatePlayer(engine, state, state.players[0]!.id, resetAbilities);
+            return null;
+          }}
+          onResetStats={async () => {
+            const check = resetStats(state.players[0]!);
+            if (!check.ok) return check.message;
+            await updatePlayer(engine, state, state.players[0]!.id, (p) => {
+              const result = resetStats(p);
+              return result.ok ? result.player : p;
+            });
+            return null;
           }}
           onOpenRecap={() => {
             setInfoOpen(false);

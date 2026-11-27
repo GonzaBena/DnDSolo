@@ -25,10 +25,15 @@ export function useDrawer(open: boolean, onClose: () => void) {
   const dialogProps = {
     ref: dialogRef,
     className: "drawer",
-    onClose,
+    // React passes a nested dialog's close and cancel (a picker opened from
+    // the drawer) up to this one: only its own count.
+    onClose: (event: { target: unknown; currentTarget: unknown }) => {
+      if (event.target === event.currentTarget) onClose();
+    },
     // Escape would close the dialog at once; let the parent close it so
     // the panel can slide out first.
-    onCancel: (event: { preventDefault(): void }) => {
+    onCancel: (event: { target: unknown; currentTarget: unknown; preventDefault(): void }) => {
+      if (event.target !== event.currentTarget) return;
       event.preventDefault();
       onClose();
     },

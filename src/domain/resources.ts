@@ -1,5 +1,6 @@
 import { findClass } from "../rules";
 import { buildSheet } from "../rules/buildSheet";
+import { sheetOverridesOf } from "./statCorrections";
 import type { Character } from "./types";
 
 interface FeatureRecovery {
@@ -61,7 +62,7 @@ export function maxFeaturesFor(player: Character): Record<string, number> {
   if (cls.id === "bard") {
     let uses = 1;
     if (player.choices) {
-      const built = buildSheet(player.choices);
+      const built = buildSheet(player.choices, sheetOverridesOf(player.statAdjustments));
       if (built.ok) uses = Math.max(1, built.sheet.abilities.cha.modifier);
     }
     max["Inspiración bárdica"] = uses;
@@ -212,4 +213,12 @@ export function resourceStatusFor(player: Character): ResourceStatus {
     features,
     hitDice: { available: Math.max(0, hd.count - (player.spentHitDice ?? 0)), max: hd.count, die: hd.die },
   };
+}
+
+/** When a class resource comes back: on a short rest (all or one use) or
+    only on a long one. Unknown resources are treated as long-rest ones. */
+export function featureRecovery(name: string, level: number): "short" | "long" {
+  const rule = TRACKED_FEATURES[name];
+  if (!rule || rule.shortRest === "none") return "long";
+  return level >= (rule.shortRestFromLevel ?? 1) ? "short" : "long";
 }

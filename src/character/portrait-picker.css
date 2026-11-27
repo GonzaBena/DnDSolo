@@ -109,3 +109,33 @@
   outline: 3px solid var(--color-focus);
   outline-offset: 2px;
 }
+
+/* Info drawer: a large face with a pencil on its corner. */
+.portrait-chooser--badge {
+  position: relative;
+  flex: none;
+}
+.portrait-chooser--badge .portrait-face {
+  border: var(--border);
+}
+.portrait-chooser__pencil {
+  position: absolute;
+  right: -0.4rem;
+  bottom: -0.4rem;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 2px solid var(--color-ink);
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  cursor: pointer;
+}
+/* A larger invisible hit area: the pencil is small on purpose. */
+.portrait-chooser__pencil::after {
+  content: "";
+  position: absolute;
+  inset: -0.5rem;
+}

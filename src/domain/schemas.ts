@@ -348,6 +348,26 @@ export const gameStateSchema = z.object({
         spentSlots: z.record(z.string(), z.number().int().min(0)).optional(),
         spentResources: z.record(z.string(), z.number().int().min(0)).optional(),
         spentHitDice: z.number().int().min(0).optional(),
+        statAdjustments: z
+          .object({
+            maxHp: z.number().int().optional(),
+            armorClass: z.number().int().optional(),
+            initiative: z.number().int().optional(),
+            speed: z.number().int().optional(),
+            spellSaveDc: z.number().int().optional(),
+            spellAttackBonus: z.number().int().optional(),
+            attacks: z
+              .record(z.string(), z.object({ bonus: z.number().int().optional(), damage: z.string().optional() }))
+              .optional(),
+            extraAttacks: z
+              .array(z.object({ name: z.string(), attackBonus: z.number().int(), damage: z.string() }))
+              .optional(),
+            removedAttacks: z.array(z.string()).optional(),
+            abilities: z.record(z.string(), z.number().int()).optional(),
+            saves: z.record(z.string(), z.boolean()).optional(),
+            skills: z.record(z.string(), z.enum(["none", "proficient", "expertise"])).optional(),
+          })
+          .optional(),
       }),
     )
     .min(1),

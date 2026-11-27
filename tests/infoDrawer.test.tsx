@@ -20,6 +20,27 @@ describe("InfoDrawer", () => {
     expect(html).not.toContain("/campaign?id=");
   });
 
+  it("splits the information into Héroe, Historia and Mundo tabs, Héroe first", () => {
+    const html = renderToStaticMarkup(<InfoDrawer state={newGame()} open onClose={() => {}} onOpenRecap={() => {}} />);
+    expect(html).toContain('role="tablist"');
+    expect(html.match(/role="tab"/g)).toHaveLength(3);
+    expect(html).toMatch(/aria-selected="true"[^>]*>.*?Héroe/);
+    // The other panels are in the page, hidden until their tab is picked.
+    expect(html.match(/role="tabpanel"[^>]*hidden=""/g)).toHaveLength(2);
+  });
+
+  it("marks carried story items in the inventory", () => {
+    const game = newGame();
+    const state = {
+      ...game,
+      players: [{ ...game.players[0]!, inventory: [{ name: "Llave de bronce", quantity: 1 }] }],
+      storyItems: [{ name: "Llave de bronce", description: "Abre el faro.", location: "", status: "taken" as const }],
+    };
+    const html = renderToStaticMarkup(<InfoDrawer state={state} open onClose={() => {}} onOpenRecap={() => {}} />);
+    expect(html).toContain("(objeto de la historia)");
+    expect(html).toContain("Abre el faro.");
+  });
+
   describe("Fuera del SRD", () => {
     const withPlayer = (overrides: object) => {
       const game = newGame();
@@ -66,12 +87,13 @@ describe("InfoDrawer", () => {
       });
       const html = renderToStaticMarkup(<InfoDrawer state={state} open onClose={() => {}} onOpenRecap={() => {}} />);
       expect(html).toContain("Ver ficha completa");
-      expect(html).toContain("Dados de golpe:");
-      expect(html).toContain("3/3 d8");
+      expect(html).toContain("Dados de golpe");
+      expect(html).toContain("d8 · se gastan en descanso corto");
+      expect(html).toContain("3 de 3 disponibles");
       expect(html).toContain("Envenenado");
     });
 
-    it("renders manual hit dice and inventory editing controls when handlers are passed", () => {
+    it("renders manual hit dice and the inventory's edit toggle when handlers are passed", () => {
       const state = withPlayer({
         inventory: [{ name: "Cuerda", quantity: 1 }],
       });
@@ -86,7 +108,7 @@ describe("InfoDrawer", () => {
         />,
       );
       expect(html).toContain("Gastar dado de golpe");
-      expect(html).toContain("Editar inventario (1)");
+      expect(html).toContain("Editar");
       expect(html).toContain("Cuerda");
     });
   });

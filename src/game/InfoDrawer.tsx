@@ -1,63 +1,32 @@
-import { useState } from "react";
-import { campaignHref } from "../campaign/links";
-import { canUpgradeSheet } from "../domain/sheetProgress";
-import { OutsideSrdSection, type OutsideSrdEdit } from "./OutsideSrdSection";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { enterPage, enterSubpage, leaveSubpage } from "../animations/motion";
 import { findCampaign } from "../campaigns";
-import { npcTag } from "../domain/npcRename";
 import type { InventoryEdit } from "../domain/manualEdits";
-import { resourceStatusFor } from "../domain/resources";
+import {
+  hasCombatAdjustments,
+  hasSheetAdjustments,
+  sheetOverridesOf,
+  type AbilityValues,
+  type StatValues,
+} from "../domain/statCorrections";
+import type { GameState } from "../domain/types";
 import { buildSheet } from "../rules/buildSheet";
-import { formatSheetText } from "../rules/formatSheet";
-import { NpcEditButton } from "./NpcRenameDialog";
-import type { GameState, QuestStatus, StoryItem, ThreadKind } from "../domain/types";
+import type { CharacterSheet } from "../rules/types";
+import { HeroTab } from "./info/HeroTab";
+import { Icon, type IconName } from "./info/icons";
+import { SheetPage } from "./info/SheetPage";
+import { StoryTab } from "./info/StoryTab";
+import { WorldTab } from "./info/WorldTab";
+import type { OutsideSrdEdit } from "./OutsideSrdSection";
 import { useDrawer } from "./useDrawer";
-import { PortraitChooser } from "../character/PortraitPicker";
 
-const QUEST_LABEL: Record<QuestStatus, string> = {
-  active: "Activa",
-  completed: "Completada",
-  failed: "Fallida",
-};
+type Tab = "hero" | "story" | "world";
 
-const THREAD_LABEL: Record<ThreadKind, string> = {
-  goal: "Objetivo",
-  threat: "Amenaza",
-  mystery: "Misterio",
-};
-
-const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
-
-interface ItemRowProps {
-  item: StoryItem;
-  /** Total carried, for taken items. */
-  quantity?: number;
-  /** Small label after the name: who holds it, or where it was seen. */
-  note?: string;
-}
-
-/** One object on one line; the description, when there is one, unfolds. */
-function ItemRow({ item, quantity, note }: ItemRowProps) {
-  const head = (
-    <>
-      <span className="story-item__name">{item.name}</span>
-      {quantity !== undefined && quantity > 1 && <span className="story-item__qty">×{quantity}</span>}
-      {note && <span className="story-item__note">{note}</span>}
-      {item.status === "gone" && <span className="story-item__note">Ya no está</span>}
-    </>
-  );
-  return (
-    <li className="story-item" data-status={item.status}>
-      {item.description ? (
-        <details>
-          <summary>{head}</summary>
-          <p>{item.description}</p>
-        </details>
-      ) : (
-        <div className="story-item__head">{head}</div>
-      )}
-    </li>
-  );
-}
+const TABS: { id: Tab; label: string; icon: IconName }[] = [
+  { id: "hero", label: "Héroe", icon: "shield" },
+  { id: "story", label: "Historia", icon: "book" },
+  { id: "world", label: "Mundo", icon: "map" },
+];
 
 interface Props {
   state: GameState;
@@ -79,10 +48,19 @@ interface Props {
   onAdjustHitDice?: (delta: number) => Promise<void>;
   /** Edits the first player's carried inventory manually. */
   onEditInventory?: (edit: InventoryEdit) => Promise<void>;
+  /** Replaces the first player's DM-facing numbers with their own sheet's; resolves to an error or null. */
+  onCorrectStats?: (values: StatValues) => Promise<string | null>;
+  /** Drops the first player's corrections; resolves to an error or null. */
+  onResetStats?: () => Promise<string | null>;
+  /** Replaces the first player's ability scores, saves and skill training with their own sheet's. */
+  onCorrectAbilities?: (values: AbilityValues) => Promise<string | null>;
+  /** Drops the first player's ability, save and skill corrections. */
+  onResetAbilities?: () => Promise<string | null>;
 }
 
-/** Everything the campaign knows: characters, place, quests, story items
-    and the NPCs met so far. */
+/** Everything the campaign knows, in three tabs: the characters (Héroe),
+    what has happened (Historia) and where they are and whom they met
+    (Mundo). A character's full sheet opens as a page over the tabs. */
 export function InfoDrawer({
   state,
   open,
@@ -95,401 +73,200 @@ export function InfoDrawer({
   onEditNpc,
   onAdjustHitDice,
   onEditInventory,
+  onCorrectStats,
+  onResetStats,
+  onCorrectAbilities,
+  onResetAbilities,
 }: Props) {
   const { dialogProps, panelRef } = useDrawer(open, onClose);
-  const [itemName, setItemName] = useState("");
-  const [itemQty, setItemQty] = useState("1");
-  const [editingBusy, setEditingBusy] = useState(false);
+  const uid = useId();
+  const [tab, setTab] = useState<Tab>("hero");
+  const [sheetFor, setSheetFor] = useState<string | null>(null);
+  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ hero: null, story: null, world: null });
+  const panelRefs = useRef<Record<Tab, HTMLDivElement | null>>({ hero: null, story: null, world: null });
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const mainScroll = useRef(0);
+  const animateTab = useRef(false);
   const campaign = findCampaign(state.campaignId);
   const players = state.players ?? [];
-  const storyItems = state.storyItems ?? [];
-  const here = storyItems.filter(
-    (i) => i.status === "available" && i.location !== "" && sameName(i.location, state.location?.name ?? ""),
-  );
-  const held = storyItems.filter((i) => i.status === "taken");
-  const past = storyItems.filter((i) => i.status !== "taken" && !here.includes(i));
-  // Secret threads are the DM's: the player only sees what was revealed.
-  const threads = (state.threads ?? []).filter((t) => !t.secret);
-  const holding = (item: StoryItem) =>
-    players
-      .map((p) => ({ player: p, entry: p.inventory.find((e) => sameName(e.name, item.name)) }))
-      .filter((h) => h.entry !== undefined);
+
+  // Sheets are built only while the drawer is open.
+  const sheets = useMemo(() => {
+    const map = new Map<string, CharacterSheet>();
+    if (!open) return map;
+    for (const p of players) {
+      if (!p.choices) continue;
+      // With the player's own scores and training, computed by the rules.
+      const built = buildSheet(p.choices, sheetOverridesOf(p.statAdjustments));
+      if (built.ok) map.set(p.id, built.sheet);
+    }
+    return map;
+  }, [open, players]);
+
+  // Every opening starts on the tabs, not on a sheet left open last time.
+  useLayoutEffect(() => {
+    if (open) setSheetFor(null);
+  }, [open]);
+
+  // A new tab's blocks rise in, like any other screen.
+  useEffect(() => {
+    if (!animateTab.current) return;
+    animateTab.current = false;
+    const panel = panelRefs.current[tab];
+    if (panel) enterPage([...panel.children]);
+  }, [tab]);
+
+  const scroller = () => panelRef.current;
+
+  const selectTab = (next: Tab, focus = false) => {
+    if (next !== tab) {
+      animateTab.current = true;
+      setTab(next);
+      scroller()?.scrollTo({ top: 0 });
+    }
+    if (focus) tabRefs.current[next]?.focus();
+  };
+
+  const onTabKey = (event: KeyboardEvent<HTMLButtonElement>) => {
+    const index = TABS.findIndex((t) => t.id === tab);
+    const to =
+      event.key === "ArrowRight"
+        ? (index + 1) % TABS.length
+        : event.key === "ArrowLeft"
+          ? (index - 1 + TABS.length) % TABS.length
+          : event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? TABS.length - 1
+              : -1;
+    if (to < 0) return;
+    event.preventDefault();
+    selectTab(TABS[to]!.id, true);
+  };
+
+  const openSheet = (playerId: string) => {
+    mainScroll.current = scroller()?.scrollTop ?? 0;
+    setSheetFor(playerId);
+  };
+
+  // The sheet slides in once it is mounted, from the top of the drawer.
+  useLayoutEffect(() => {
+    if (!sheetFor || !sheetRef.current) return;
+    scroller()?.scrollTo({ top: 0 });
+    enterSubpage(sheetRef.current);
+    sheetRef.current.querySelector("button")?.focus();
+  }, [sheetFor]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const closeSheet = () => {
+    const element = sheetRef.current;
+    const back = () => {
+      const from = sheetFor;
+      setSheetFor(null);
+      requestAnimationFrame(() => {
+        scroller()?.scrollTo({ top: mainScroll.current });
+        const panel = panelRefs.current[tab];
+        if (panel) enterPage([...panel.children]);
+        panel?.querySelector<HTMLButtonElement>(`[data-sheet-for="${from}"]`)?.focus();
+      });
+    };
+    if (element) leaveSubpage(element, back);
+    else back();
+  };
+
+  const sheetPlayer = sheetFor ? players.find((p) => p.id === sheetFor) : undefined;
+  const sheet = sheetFor ? sheets.get(sheetFor) : undefined;
 
   return (
-    <dialog {...dialogProps} aria-labelledby="info-title">
+    <dialog {...dialogProps} aria-labelledby={`${uid}-title`}>
       <div ref={panelRef} className="drawer__panel drawer__panel-info" data-mode="calm">
-        <header className="drawer__header">
-          <div>
-            <h2 id="info-title">Información</h2>
-            <p className="drawer__place">{state.location?.name || "Lugar desconocido"}</p>
+        {sheetPlayer && sheet ? (
+          <div ref={sheetRef} className="info-subpage">
+            <h2 id={`${uid}-title`} className="sr-only">
+              Información
+            </h2>
+            <SheetPage
+              sheet={sheet}
+              stats={sheetPlayer.stats}
+              corrected={hasCombatAdjustments(sheetPlayer.statAdjustments)}
+              abilitiesCorrected={hasSheetAdjustments(sheetPlayer.statAdjustments)}
+              onCorrectAbilities={sheetPlayer === players[0] ? onCorrectAbilities : undefined}
+              onResetAbilities={sheetPlayer === players[0] ? onResetAbilities : undefined}
+              turnRunning={turnRunning}
+              name={sheetPlayer.name} story={sheetPlayer.background ?? ""} onBack={closeSheet} />
           </div>
-          <button type="button" className="drawer__close" onClick={onClose} aria-label="Cerrar">
-            ×
-          </button>
-        </header>
-
-        {state.location?.description && <p>{state.location.description}</p>}
-
-        {campaign && (
-          <section className="info-section">
-            <div className="info-section__header">
-              <h3>{campaign.title}</h3>
-              <span className="info-badge">{campaign.tag}</span>
-            </div>
-            <p>{campaign.synopsis}</p>
-          </section>
-        )}
-
-        <section className="info-section">
-          <div className="info-section__header">
-            <h3>Crónica de la campaña</h3>
-            <span className="info-badge">{(state.turns ?? []).length} turnos</span>
-          </div>
-          {typeof state.summary === "string" && state.summary.trim() !== "" ? (
-            <div className="chronicle-text">
-              {state.summary.split(/\n+/).map((paragraph, index) => (
-                <p key={index}>{paragraph}</p>
-              ))}
-            </div>
-          ) : (
-            <p className="drawer__empty">
-              Tu historia recién comienza. A medida que avances, el diario de campaña registrará los hechos más importantes.
-            </p>
-          )}
-          <div className="chronicle-actions">
-            {(state.turns ?? []).length > 0 && (
-              <button type="button" className="button button--small" onClick={onOpenRecap}>
-                Anteriormente en…
-              </button>
-            )}
-            {!turnRunning && (
-              <a className="button button--small" href={campaignHref(state.id)}>
-                Ver tu campaña
-              </a>
-            )}
-          </div>
-        </section>
-
-        <section className="info-section">
-          <h3>Personajes</h3>
-          <ul className="info-list">
-            {state.players.map((p) => {
-              const res = resourceStatusFor(p);
-              const conditions = p.activeConditions ?? [];
-              const built = open && p.choices ? buildSheet(p.choices) : null;
-              return (
-                <li key={p.id}>
-                  <strong>{p.name}</strong>
-                  <span>
-                    {p.race} · {p.characterClass} · Nivel {p.level}
-                  </span>
-                  {p.background && <p>{p.background}</p>}
-                  <div className="info-player-meta">
-                    <p className="info-hit-dice">
-                      <strong>Dados de golpe:</strong> {res.hitDice.available}/{res.hitDice.max} {res.hitDice.die}
-                      {onAdjustHitDice && p === players[0] && (
-                        <span className="info-step-buttons">
-                          <button
-                            type="button"
-                            className="button button--small"
-                            aria-label="Gastar dado de golpe"
-                            disabled={turnRunning || editingBusy || res.hitDice.available <= 0}
-                            onClick={() => {
-                              setEditingBusy(true);
-                              void onAdjustHitDice(-1).finally(() => setEditingBusy(false));
-                            }}
-                          >
-                            −
-                          </button>
-                          <button
-                            type="button"
-                            className="button button--small"
-                            aria-label="Recuperar dado de golpe"
-                            disabled={turnRunning || editingBusy || res.hitDice.available >= res.hitDice.max}
-                            onClick={() => {
-                              setEditingBusy(true);
-                              void onAdjustHitDice(1).finally(() => setEditingBusy(false));
-                            }}
-                          >
-                            +
-                          </button>
-                        </span>
-                      )}
-                    </p>
-                    {p.stats && p.stats.attacks.length > 0 && (
-                      <p>
-                        <strong>Ataques:</strong>{" "}
-                        {p.stats.attacks
-                          .map((a) => `${a.name} (${a.attackBonus >= 0 ? `+${a.attackBonus}` : a.attackBonus}, ${a.damage})`)
-                          .join(" · ")}
-                      </p>
-                    )}
-                    {p.stats?.spellSaveDc !== null && p.stats?.spellSaveDc !== undefined && (
-                      <p>
-                        <strong>CD de conjuros:</strong> {p.stats.spellSaveDc}
-                        {p.stats.spellAttackBonus !== null &&
-                          ` · Ataque mágico: ${p.stats.spellAttackBonus >= 0 ? `+${p.stats.spellAttackBonus}` : p.stats.spellAttackBonus}`}
-                      </p>
-                    )}
-                    {res.slots.length > 0 && (
-                      <p>
-                        <strong>Espacios:</strong>{" "}
-                        {res.slots.map((s) => `${s.label} (${s.available}/${s.max})`).join(" · ")}
-                      </p>
-                    )}
-                    {res.features.length > 0 && (
-                      <p>
-                        <strong>Recursos:</strong>{" "}
-                        {res.features.map((f) => `${f.name} (${f.available}/${f.max})`).join(" · ")}
-                      </p>
-                    )}
-                    {conditions.length > 0 && (
-                      <p>
-                        <strong>Condiciones:</strong> {conditions.join(", ")}
-                      </p>
-                    )}
-                  </div>
-                  {built?.ok && (
-                    <details className="info-sheet-details">
-                      <summary>Ver ficha completa</summary>
-                      <pre className="info-sheet-text">{formatSheetText(built.sheet, p.name, p.background ?? "")}</pre>
-                    </details>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-          {/* Outside the list: its styles would reach into the picker. */}
-          {onSavePortrait && players[0] && (
-            <PortraitChooser
-              classId={players[0].classId}
-              name={players[0].name}
-              value={players[0].portrait}
-              onPick={(portrait) => void onSavePortrait(portrait)}
-            />
-          )}
-          {onEditInventory && players[0] && (
-            <details className="info-sheet-details">
-              <summary>Editar inventario ({players[0].inventory.length})</summary>
-              <div className="inventory-editor">
-                {players[0].inventory.length === 0 ? (
-                  <p className="drawer__empty">No llevás objetos encima.</p>
-                ) : (
-                  <ul className="inventory-editor__list">
-                    {players[0].inventory.map((item) => (
-                      <li key={item.name} className="inventory-editor__row">
-                        <span className="inventory-editor__name">
-                          {item.name}
-                          {item.quantity > 1 && ` ×${item.quantity}`}
-                        </span>
-                        <span className="info-step-buttons">
-                          <button
-                            type="button"
-                            className="button button--small"
-                            aria-label={`Quitar uno de ${item.name}`}
-                            disabled={turnRunning || editingBusy}
-                            onClick={() => {
-                              setEditingBusy(true);
-                              void onEditInventory({ type: "delta", name: item.name, delta: -1 }).finally(() =>
-                                setEditingBusy(false),
-                              );
-                            }}
-                          >
-                            −
-                          </button>
-                          <button
-                            type="button"
-                            className="button button--small"
-                            aria-label={`Sumar uno de ${item.name}`}
-                            disabled={turnRunning || editingBusy}
-                            onClick={() => {
-                              setEditingBusy(true);
-                              void onEditInventory({ type: "delta", name: item.name, delta: 1 }).finally(() =>
-                                setEditingBusy(false),
-                              );
-                            }}
-                          >
-                            +
-                          </button>
-                          <button
-                            type="button"
-                            className="button button--small"
-                            aria-label={`Eliminar ${item.name}`}
-                            disabled={turnRunning || editingBusy}
-                            onClick={() => {
-                              setEditingBusy(true);
-                              void onEditInventory({ type: "remove", name: item.name }).finally(() =>
-                                setEditingBusy(false),
-                              );
-                            }}
-                          >
-                            ×
-                          </button>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <form
-                  className="inventory-editor__add"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    const trimmed = itemName.trim();
-                    if (!trimmed || turnRunning || editingBusy) return;
-                    const parsedQty = Number.parseInt(itemQty, 10);
-                    const quantity = Number.isFinite(parsedQty) && parsedQty > 0 ? parsedQty : 1;
-                    setEditingBusy(true);
-                    void onEditInventory({ type: "add", name: trimmed, quantity })
-                      .then(() => {
-                        setItemName("");
-                        setItemQty("1");
-                      })
-                      .finally(() => setEditingBusy(false));
-                  }}
-                >
-                  <input
-                    type="text"
-                    aria-label="Objeto nuevo"
-                    placeholder="Agregar objeto…"
-                    value={itemName}
-                    onChange={(e) => setItemName(e.target.value)}
-                    disabled={turnRunning || editingBusy}
-                  />
-                  <input
-                    type="number"
-                    aria-label="Cantidad"
-                    min={1}
-                    max={999}
-                    value={itemQty}
-                    onChange={(e) => setItemQty(e.target.value)}
-                    disabled={turnRunning || editingBusy}
-                  />
-                  <button
-                    type="submit"
-                    className="button button--small"
-                    disabled={turnRunning || editingBusy || !itemName.trim()}
-                  >
-                    Agregar
-                  </button>
-                </form>
+        ) : null}
+        <div className="info-main" hidden={sheetPlayer !== undefined && sheet !== undefined}>
+          <header className="info-top">
+            <div className="info-top__row">
+              <div>
+                <p className="info-eyebrow">Estás en</p>
+                <h2 id={sheetPlayer && sheet ? undefined : `${uid}-title`} className="info-top__place">
+                  {state.location?.name || "Lugar desconocido"}
+                </h2>
               </div>
-            </details>
-          )}
-        </section>
-
-        {onSaveOutsideSrd && players[0] && (
-          <OutsideSrdSection
-            player={players[0]}
-            onSave={onSaveOutsideSrd}
-            onUpgradeSheet={onUpgradeSheet && canUpgradeSheet(players[0]) ? onUpgradeSheet : undefined}
-          />
-        )}
-
-        <section className="info-section">
-          <h3>Misiones</h3>
-          {state.quests.length === 0 ? (
-            <p className="drawer__empty">Todavía no hay misiones.</p>
-          ) : (
-            <ul className="info-list">
-              {state.quests.map((q) => (
-                <li key={q.title}>
-                  <strong>{q.title}</strong>
-                  <span>{QUEST_LABEL[q.status]}</span>
-                  <p>{q.description}</p>
-                </li>
+              <button type="button" className="info-round" onClick={onClose} aria-label="Cerrar">
+                <Icon name="close" />
+              </button>
+            </div>
+            <div className="info-tabs" role="tablist" aria-label="Secciones de información">
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  ref={(el) => {
+                    tabRefs.current[t.id] = el;
+                  }}
+                  type="button"
+                  role="tab"
+                  id={`${uid}-tab-${t.id}`}
+                  className="info-tab"
+                  aria-selected={tab === t.id}
+                  tabIndex={tab === t.id ? 0 : -1}
+                  onClick={() => selectTab(t.id)}
+                  onKeyDown={onTabKey}
+                >
+                  <Icon name={t.icon} />
+                  {t.label}
+                </button>
               ))}
-            </ul>
-          )}
-        </section>
+            </div>
+          </header>
 
-        <section className="info-section">
-          <h3>Hilos</h3>
-          {threads.length === 0 ? (
-            <p className="drawer__empty">Todavía no se abrió ningún hilo.</p>
-          ) : (
-            <ul className="info-list">
-              {threads.map((t) => (
-                <li key={t.title} className={t.status === "resolved" ? "thread thread--resolved" : "thread"}>
-                  <strong>{t.title}</strong>
-                  <span>
-                    {THREAD_LABEL[t.kind]}
-                    {t.status === "resolved" ? " · Resuelto" : ""}
-                  </span>
-                  {t.description && <p>{t.description}</p>}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="info-section">
-          <div className="info-section__header">
-            <h3>Objetos de la historia</h3>
-            {storyItems.length > 0 && <span className="info-badge">{storyItems.length}</span>}
-          </div>
-          {storyItems.length === 0 ? (
-            <p className="drawer__empty">Todavía no apareció ningún objeto.</p>
-          ) : (
-            <>
-              {here.length > 0 && (
-                <div className="story-items story-items--here">
-                  <h4>A tu alcance</h4>
-                  <ul>
-                    {here.map((i) => (
-                      <ItemRow key={i.name} item={i} />
-                    ))}
-                  </ul>
-                </div>
+          {TABS.map((t) => (
+            <div
+              key={t.id}
+              ref={(el) => {
+                panelRefs.current[t.id] = el;
+              }}
+              role="tabpanel"
+              id={`${uid}-panel-${t.id}`}
+              aria-labelledby={`${uid}-tab-${t.id}`}
+              className="info-panel"
+              hidden={tab !== t.id}
+              tabIndex={0}
+            >
+              {t.id === "hero" && (
+                <HeroTab
+                  players={players}
+                  storyItems={state.storyItems ?? []}
+                  sheets={sheets}
+                  onOpenSheet={openSheet}
+                  turnRunning={turnRunning}
+                  onSaveOutsideSrd={onSaveOutsideSrd}
+                  onSavePortrait={onSavePortrait}
+                  onUpgradeSheet={onUpgradeSheet}
+                  onAdjustHitDice={onAdjustHitDice}
+                  onEditInventory={onEditInventory}
+                  onCorrectStats={onCorrectStats}
+                  onResetStats={onResetStats}
+                />
               )}
-              {held.length > 0 && (
-                <div className="story-items">
-                  <h4>En tu poder</h4>
-                  <ul>
-                    {held.map((i) => {
-                      const holders = holding(i);
-                      const quantity = holders.reduce((sum, h) => sum + (h.entry?.quantity ?? 0), 0);
-                      const note = players.length > 1 ? holders.map((h) => h.player.name).join(", ") : undefined;
-                      return <ItemRow key={i.name} item={i} quantity={quantity} note={note} />;
-                    })}
-                  </ul>
-                </div>
+              {t.id === "story" && (
+                <StoryTab state={state} campaign={campaign} onOpenRecap={onOpenRecap} turnRunning={turnRunning} />
               )}
-              {past.length > 0 && (
-                <div className="story-items story-items--past">
-                  <h4>Vistos antes</h4>
-                  <ul>
-                    {past.map((i) => (
-                      <ItemRow key={i.name} item={i} note={i.status === "available" ? i.location : undefined} />
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </>
-          )}
-        </section>
-
-        <section className="info-section">
-          <h3>Personajes conocidos</h3>
-          {state.npcs.length === 0 ? (
-            <p className="drawer__empty">Todavía no conociste a nadie.</p>
-          ) : (
-            <ul className="info-list">
-              {state.npcs.map((n) => (
-                <li key={n.name}>
-                  <strong>
-                    {n.name}
-                    {onEditNpc && <NpcEditButton name={n.name} onClick={() => onEditNpc(n.name)} />}
-                  </strong>
-                  <span>
-                    {npcTag(n)}
-                    {n.present ? " · En escena" : ""}
-                  </span>
-                  <p>{n.description}</p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+              {t.id === "world" && <WorldTab state={state} onEditNpc={onEditNpc} />}
+            </div>
+          ))}
+        </div>
       </div>
     </dialog>
   );

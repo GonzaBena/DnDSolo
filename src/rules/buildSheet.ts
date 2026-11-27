@@ -6,7 +6,9 @@ import type { Concept } from "./choices";
 import { CLASSES_DATA, LOADED_MAX_LEVEL, SPECIES, STANDARD_ARRAY, findBackground, findFeat } from "./index";
 import { ABILITIES, ABILITY_NAMES, SKILLS } from "./types";
 import type { Ability, BackgroundData, CharacterSheet, ChoiceSpec, Option, SkillId } from "./types";
-import { alwaysPreparedSpells, computeSheet } from "./sheet";
+import { alwaysPreparedSpells, computeSheet, type SheetOverrides } from "./sheet";
+
+export type { SheetOverrides };
 
 export interface CharacterChoices extends Concept {
   baseScores: Record<Ability, number>;
@@ -414,8 +416,9 @@ export function validateChoices(choices: CharacterChoices): ChoiceError[] {
 
 export type BuildResult = { ok: true; sheet: CharacterSheet } | { ok: false; errors: ChoiceError[] };
 
-/** Validates the choices and, when they are legal, computes the whole sheet in code. */
-export function buildSheet(choices: CharacterChoices): BuildResult {
+/** Validates the choices and, when they are legal, computes the whole sheet in code
+    (with the player's own corrections, when given). */
+export function buildSheet(choices: CharacterChoices, overrides?: SheetOverrides): BuildResult {
   const errors = validateChoices(choices);
-  return errors.length > 0 ? { ok: false, errors } : { ok: true, sheet: computeSheet(choices) };
+  return errors.length > 0 ? { ok: false, errors } : { ok: true, sheet: computeSheet(choices, overrides) };
 }

@@ -65,8 +65,7 @@ export function OutsideSrdSection({
   };
 
   return (
-    <section className="info-section outside-srd">
-      <h3>Fuera del SRD</h3>
+    <div className="outside-srd">
       <label className="field">
         <span>Lo que tu personaje tiene y no está en el SRD. El DM lo tiene en cuenta.</span>
         <textarea
@@ -137,6 +136,6 @@ export function OutsideSrdSection({
           {status === "saved" ? "Guardado." : failure ?? ""}
         </span>
       </div>
-    </section>
+    </div>
   );
 }
