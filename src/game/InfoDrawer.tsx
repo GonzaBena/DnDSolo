@@ -163,42 +163,43 @@ export function InfoDrawer({ state, open, onClose, onOpenRecap, turnRunning = fa
                     {p.race} · {p.characterClass} · Nivel {p.level}
                   </span>
                   {p.background && <p>{p.background}</p>}
-                  {(p.stats || res.slots.length > 0 || res.features.length > 0 || conditions.length > 0) && (
-                    <div className="info-player-meta">
-                      {p.stats && p.stats.attacks.length > 0 && (
-                        <p>
-                          <strong>Ataques:</strong>{" "}
-                          {p.stats.attacks
-                            .map((a) => `${a.name} (${a.attackBonus >= 0 ? `+${a.attackBonus}` : a.attackBonus}, ${a.damage})`)
-                            .join(" · ")}
-                        </p>
-                      )}
-                      {p.stats?.spellSaveDc !== null && p.stats?.spellSaveDc !== undefined && (
-                        <p>
-                          <strong>CD de conjuros:</strong> {p.stats.spellSaveDc}
-                          {p.stats.spellAttackBonus !== null &&
-                            ` · Ataque mágico: ${p.stats.spellAttackBonus >= 0 ? `+${p.stats.spellAttackBonus}` : p.stats.spellAttackBonus}`}
-                        </p>
-                      )}
-                      {res.slots.length > 0 && (
-                        <p>
-                          <strong>Espacios:</strong>{" "}
-                          {res.slots.map((s) => `${s.label} (${s.available}/${s.max})`).join(" · ")}
-                        </p>
-                      )}
-                      {res.features.length > 0 && (
-                        <p>
-                          <strong>Recursos:</strong>{" "}
-                          {res.features.map((f) => `${f.name} (${f.available}/${f.max})`).join(" · ")}
-                        </p>
-                      )}
-                      {conditions.length > 0 && (
-                        <p>
-                          <strong>Condiciones:</strong> {conditions.join(", ")}
-                        </p>
-                      )}
-                    </div>
-                  )}
+                  <div className="info-player-meta">
+                    <p>
+                      <strong>Dados de golpe:</strong> {res.hitDice.available}/{res.hitDice.max} {res.hitDice.die}
+                    </p>
+                    {p.stats && p.stats.attacks.length > 0 && (
+                      <p>
+                        <strong>Ataques:</strong>{" "}
+                        {p.stats.attacks
+                          .map((a) => `${a.name} (${a.attackBonus >= 0 ? `+${a.attackBonus}` : a.attackBonus}, ${a.damage})`)
+                          .join(" · ")}
+                      </p>
+                    )}
+                    {p.stats?.spellSaveDc !== null && p.stats?.spellSaveDc !== undefined && (
+                      <p>
+                        <strong>CD de conjuros:</strong> {p.stats.spellSaveDc}
+                        {p.stats.spellAttackBonus !== null &&
+                          ` · Ataque mágico: ${p.stats.spellAttackBonus >= 0 ? `+${p.stats.spellAttackBonus}` : p.stats.spellAttackBonus}`}
+                      </p>
+                    )}
+                    {res.slots.length > 0 && (
+                      <p>
+                        <strong>Espacios:</strong>{" "}
+                        {res.slots.map((s) => `${s.label} (${s.available}/${s.max})`).join(" · ")}
+                      </p>
+                    )}
+                    {res.features.length > 0 && (
+                      <p>
+                        <strong>Recursos:</strong>{" "}
+                        {res.features.map((f) => `${f.name} (${f.available}/${f.max})`).join(" · ")}
+                      </p>
+                    )}
+                    {conditions.length > 0 && (
+                      <p>
+                        <strong>Condiciones:</strong> {conditions.join(", ")}
+                      </p>
+                    )}
+                  </div>
                   {built?.ok && (
                     <details className="info-sheet-details">
                       <summary>Ver ficha completa</summary>

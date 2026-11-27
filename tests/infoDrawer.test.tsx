@@ -58,7 +58,7 @@ describe("InfoDrawer", () => {
     it("no subclass options before the subclass level", () =>
       expect(render(withPlayer({ level: 1 }))).not.toContain("Otra de tu manual"));
 
-    it("renders the full read-only character sheet and active conditions when choices exist", () => {
+    it("renders the full read-only character sheet, hit dice, and active conditions when choices exist", () => {
       const state = withPlayer({
         srdBackgroundId: "criminal",
         choices: greedyChoices("elf", "rogue", "criminal", 3),
@@ -66,6 +66,8 @@ describe("InfoDrawer", () => {
       });
       const html = renderToStaticMarkup(<InfoDrawer state={state} open onClose={() => {}} onOpenRecap={() => {}} />);
       expect(html).toContain("Ver ficha completa");
+      expect(html).toContain("Dados de golpe:");
+      expect(html).toContain("3/3 d8");
       expect(html).toContain("Envenenado");
     });
   });

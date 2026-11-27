@@ -112,7 +112,7 @@ const stateChange = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("resource"),
     playerId: z.string(),
-    kind: z.enum(["slot", "feature"]),
+    kind: z.enum(["slot", "feature", "hit_dice"]),
     name: z.string().min(1),
     delta: z.number().int().refine((d) => d !== 0, "delta must not be 0"),
   }),
@@ -347,6 +347,7 @@ export const gameStateSchema = z.object({
         activeConditions: z.array(z.string()).optional(),
         spentSlots: z.record(z.string(), z.number().int().min(0)).optional(),
         spentResources: z.record(z.string(), z.number().int().min(0)).optional(),
+        spentHitDice: z.number().int().min(0).optional(),
       }),
     )
     .min(1),

@@ -96,4 +96,27 @@ describe("resource and condition tracking", () => {
     ]).state;
     expect(step3.players[0]!.activeConditions).toEqual([]);
   });
+
+  it("tracks hit dice spending and restores them on long rest", () => {
+    const fighter = fighterAtLevel(3); // 3d10
+    const fid = fighter.players[0]!.id;
+    expect(resourceStatusFor(fighter.players[0]!).hitDice).toEqual({ available: 3, max: 3, die: "d10" });
+
+    const spent = applyStateChanges(fighter, [
+      { type: "resource", playerId: fid, kind: "hit_dice", name: "Dados de golpe", delta: -2 },
+      { type: "rest", kind: "short" },
+    ]).state;
+    expect(spent.players[0]!.spentHitDice).toBe(2);
+    expect(resourceStatusFor(spent.players[0]!).hitDice).toEqual({ available: 1, max: 3, die: "d10" });
+
+    // Clamps to available max (3)
+    const overspent = applyStateChanges(spent, [
+      { type: "resource", playerId: fid, kind: "hit_dice", name: "Dados de golpe", delta: -5 },
+    ]).state;
+    expect(overspent.players[0]!.spentHitDice).toBe(3);
+
+    const afterLong = applyStateChanges(overspent, [{ type: "rest", kind: "long" }]).state;
+    expect(afterLong.players[0]!.spentHitDice).toBeUndefined();
+    expect(resourceStatusFor(afterLong.players[0]!).hitDice).toEqual({ available: 3, max: 3, die: "d10" });
+  });
 });

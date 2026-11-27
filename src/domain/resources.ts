@@ -77,10 +77,29 @@ function compactRecord(map: Record<string, number>): Record<string, number> {
   return out;
 }
 
+/** Hit die count and die face for a character's class and level. */
+export function maxHitDiceFor(player: Character): { count: number; die: string } {
+  const count = Math.max(1, player.level);
+  const cls = findClass(player.classId ?? player.characterClass);
+  if (cls) return { count, die: `d${cls.hitDie}` };
+  const fromStats = /d\d+/.exec(player.stats?.hitDice ?? "")?.[0];
+  return { count, die: fromStats ?? "d8" };
+}
+
 export function applyResourceChange(
   player: Character,
-  change: { kind: "slot" | "feature"; name: string; delta: number },
+  change: { kind: "slot" | "feature" | "hit_dice"; name: string; delta: number },
 ): { ok: true; player: Character } | { ok: false; reason: string } {
+  if (change.kind === "hit_dice") {
+    const { count: max } = maxHitDiceFor(player);
+    const currentSpent = player.spentHitDice ?? 0;
+    const nextSpent = Math.min(max, Math.max(0, currentSpent - change.delta));
+    const { spentHitDice: _prev, ...rest } = player;
+    return {
+      ok: true,
+      player: nextSpent > 0 ? { ...rest, spentHitDice: nextSpent } : rest,
+    };
+  }
   if (change.kind === "slot") {
     const maxMap = maxSlotsFor(player);
     const key = normalizeSlotKey(change.name);
@@ -156,9 +175,10 @@ export function applyShortRestResources(player: Character): Character {
 }
 
 export function applyLongRestResources(player: Character): Character {
-  if (!player.spentSlots && !player.spentResources) return player;
+  if (!player.spentSlots && !player.spentResources && !player.spentHitDice) return player;
+  const { spentHitDice: _hd, ...rest } = player;
   return {
-    ...player,
+    ...rest,
     ...(player.spentSlots ? { spentSlots: {} } : {}),
     ...(player.spentResources ? { spentResources: {} } : {}),
   };
@@ -167,6 +187,7 @@ export function applyLongRestResources(player: Character): Character {
 export interface ResourceStatus {
   slots: { key: string; label: string; available: number; max: number }[];
   features: { name: string; available: number; max: number }[];
+  hitDice: { available: number; max: number; die: string };
 }
 
 export function resourceStatusFor(player: Character): ResourceStatus {
@@ -185,5 +206,10 @@ export function resourceStatusFor(player: Character): ResourceStatus {
     available: Math.max(0, max - (player.spentResources?.[name] ?? 0)),
     max,
   }));
-  return { slots, features };
+  const hd = maxHitDiceFor(player);
+  return {
+    slots,
+    features,
+    hitDice: { available: Math.max(0, hd.count - (player.spentHitDice ?? 0)), max: hd.count, die: hd.die },
+  };
 }

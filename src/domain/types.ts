@@ -70,6 +70,8 @@ export interface Character {
   spentSlots?: Record<string, number> | undefined;
   /** Class feature uses spent, keyed by SRD resource name. */
   spentResources?: Record<string, number> | undefined;
+  /** Hit dice spent since the last long rest. Absent means 0 spent. */
+  spentHitDice?: number | undefined;
 }
 
 export interface OutsideSrd {
@@ -289,7 +291,7 @@ export type StateChange =
       Taking it is an inventory_add with the same name. */
   | { type: "item"; name: string; description: string; status: Exclude<StoryItemStatus, "taken"> }
   /** Spends (delta < 0) or recovers (delta > 0) a spell slot or tracked class resource. */
-  | { type: "resource"; playerId: string; kind: "slot" | "feature"; name: string; delta: number }
+  | { type: "resource"; playerId: string; kind: "slot" | "feature" | "hit_dice"; name: string; delta: number }
   /** Adds or removes an active combat/status condition (including Concentration). */
   | { type: "condition"; playerId: string; condition: string; active: boolean };
 
