@@ -120,6 +120,11 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
             <span>Sonido</span>
             <input id="sound-switch" type="checkbox" class="switch" {...switchAttr} role="switch" checked />
           </label>
+          {game && (
+            <button id="replay-tour" class="settings-menu__link settings-menu__button" type="button">
+              Recorrido guiado
+            </button>
+          )}
           <a class="settings-menu__link" href="/settings">Configuración</a>
         </div>
         <button class="theme-toggle" type="button" aria-label="Modo oscuro" aria-pressed="false">
@@ -150,6 +155,7 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
     <script>
       import { syncStatus } from "../sync/status";
       import { setSoundEnabled, soundEnabled } from "../audio/sound";
+      import { START_TOUR_EVENT } from "../game/tour/steps";
       import { wireSettingsMenu } from "./settingsMenu";
 
       // Sync button: only in builds that have sync, and only once a page
@@ -176,6 +182,14 @@ const syncBuild = Boolean(import.meta.env.PUBLIC_GOOGLE_CLIENT_ID);
         soundSwitch.checked = soundEnabled();
         soundSwitch.addEventListener("change", () => setSoundEnabled(soundSwitch.checked));
       }
+
+      const replayTour = document.querySelector<HTMLButtonElement>("#replay-tour");
+      replayTour?.addEventListener("click", () => {
+        if (settingsMenu && typeof settingsMenu.hidePopover === "function") {
+          settingsMenu.hidePopover();
+        }
+        window.dispatchEvent(new CustomEvent(START_TOUR_EVENT));
+      });
 
       const root = document.documentElement;
       const toggle = document.querySelector<HTMLButtonElement>(".theme-toggle");

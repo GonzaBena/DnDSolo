@@ -56,7 +56,7 @@ export function CharacterPanel({
           </span>
         </div>
         {stats && hp && (
-          <div className="sheet__vitals">
+          <div className="sheet__vitals" data-tour="hp">
             <div className="hp">
               <div
                 className="hp__bar"
@@ -147,6 +147,7 @@ export function CharacterPanel({
         <button
           type="button"
           className="button scene-toggle scene-toggle--scene"
+          data-tour="scene-button"
           data-mode={inCombat ? "combat" : "calm"}
           onClick={onOpenScene}
           aria-haspopup="dialog"
@@ -159,6 +160,7 @@ export function CharacterPanel({
         <button
           type="button"
           className="button scene-toggle"
+          data-tour="info"
           onClick={onOpenInfo}
           aria-haspopup="dialog"
           data-inventory-target

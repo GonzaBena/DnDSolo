@@ -22,7 +22,12 @@ export function ScenePanel({
 }) {
   const members = sceneMembers(state, dmActing);
   return (
-    <aside className="scene-panel" aria-label="Personajes en escena" data-mode={state.scene.inCombat ? "combat" : "calm"}>
+    <aside
+      className="scene-panel"
+      data-tour="scene-panel"
+      aria-label="Personajes en escena"
+      data-mode={state.scene.inCombat ? "combat" : "calm"}
+    >
       <p className="scene-panel__place">{state.location.name || "Lugar desconocido"}</p>
       {members.some((m) => m.initiative !== null) && (
         <p className="scene-panel__order">Orden de iniciativa</p>

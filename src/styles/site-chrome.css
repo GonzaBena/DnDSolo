@@ -168,6 +168,15 @@
   border-radius: 0;
   color: inherit;
 }
+.settings-menu__button {
+  inline-size: 100%;
+  border-inline: 0;
+  border-bottom: 0;
+  background: none;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
 .settings-menu__link:hover {
   text-decoration: underline;
 }

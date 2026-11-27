@@ -41,6 +41,7 @@ import { useOldSaveSuggestions } from "./useOldSaveSuggestions";
 import { useSendTurn } from "./useSendTurn";
 import { useStickToBottom } from "./useStickToBottom";
 import { useTurnAnnouncement } from "./useTurnAnnouncement";
+import { usePlayTour } from "./tour/usePlayTour";
 import "./game.css";
 
 // The whole game screen is this single React island; every other page is
@@ -158,6 +159,20 @@ export default function Game() {
 
   useOldSaveSuggestions(session, canAct);
   useComposerFocus(draftRef, turnReady);
+  const handleBeforeTour = useCallback(() => {
+    setZenMode(false);
+    setSceneOpen(false);
+    setInfoOpen(false);
+  }, []);
+  const playerDead =
+    screen.status === "playing" &&
+    screen.state.players[0]?.condition === "dead" &&
+    !inFlight &&
+    !busy;
+  usePlayTour({
+    ready: screen.status === "playing" && !playerDead && !levelUpOpen && !recapOpen && !upgradeOpen,
+    onBeforeStart: handleBeforeTour,
+  });
 
   if (screen.status === "loading") return <DiceLoader label="Cargando partida…" />;
 
@@ -386,7 +401,7 @@ export default function Game() {
         />
 
         <p className="sr-only" role="status">{announcement}</p>
-        <div className="log">
+        <div className="log" data-tour="log">
           <TurnLog turns={state.turns} players={state.players} cast={cast} enterCount={screen.loadedTurns} />
           {inFlight && (
             <div

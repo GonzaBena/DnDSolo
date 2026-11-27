@@ -116,6 +116,7 @@ export function Composer({
             id="action-input"
             ref={inputRef}
             className="action-input"
+            data-tour="composer"
             rows={1}
             value={draft}
             disabled={!canAct}
@@ -132,6 +133,7 @@ export function Composer({
           <button
             type="button"
             className={`button action-roll${rollRequested ? " action-roll--requested" : ""}`}
+            data-tour="roll"
             aria-label="Cargar tirada"
             title="Cargar tirada"
             disabled={!canAct}

@@ -56,7 +56,7 @@ export function Suggestions({
   };
 
   return (
-    <div className={`suggestions-slot${open ? " suggestions-slot--open" : ""}`} inert={!open}>
+    <div className={`suggestions-slot${open ? " suggestions-slot--open" : ""}`} data-tour="suggestions" inert={!open}>
       <div
         className="suggestions-curtain"
         data-more-before={more.before || undefined}
