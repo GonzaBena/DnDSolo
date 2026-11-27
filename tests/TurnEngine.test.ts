@@ -16,6 +16,7 @@ function setup(random: () => number = () => 0.5) {
     repo,
     random,
     now: () => new Date("2026-01-02T00:00:00Z"),
+    transientRetryDelayMs: 0,
   });
   return { llm, repo, engine };
 }
@@ -70,6 +71,44 @@ describe("TurnEngine.playTurn", () => {
     expect(outcome.failure.kind).toBe("llm");
     expect(outcome.state).toEqual(before);
     expect(ctx.repo.saveCount).toBe(0);
+  });
+
+  it("retries once after a transient rate-limit or timeout error and succeeds", async () => {
+    const llm = new FakeLLMClient();
+    const repo = new InMemoryGameRepo();
+    const engine = new TurnEngine({ llm, repo, transientRetryDelayMs: 0 });
+    llm.queueStructured(new LLMError("rate_limit", "429"), reply({}));
+
+    const outcome = await engine.playTurn(newGame(), { type: "start" });
+
+    expect(outcome.ok).toBe(true);
+    expect(llm.structuredRequests).toHaveLength(2);
+  });
+
+  it("does not retry auth failures", async () => {
+    const llm = new FakeLLMClient();
+    const repo = new InMemoryGameRepo();
+    const engine = new TurnEngine({ llm, repo, transientRetryDelayMs: 0 });
+    llm.queueStructured(new LLMError("auth", "bad key"), reply({}));
+
+    const outcome = await engine.playTurn(newGame(), { type: "start" });
+
+    expect(outcome.ok).toBe(false);
+    expect(llm.structuredRequests).toHaveLength(1);
+  });
+
+  it("aborts cleanly during transient retry backoff", async () => {
+    const llm = new FakeLLMClient();
+    const repo = new InMemoryGameRepo();
+    const engine = new TurnEngine({ llm, repo, transientRetryDelayMs: 5000 });
+    llm.queueStructured(new LLMError("timeout", "slow"), reply({}));
+    const controller = new AbortController();
+    const promise = engine.playTurn(newGame(), { type: "start" }, undefined, controller.signal);
+    await Promise.resolve();
+    controller.abort();
+    const outcome = await promise;
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) expect(outcome.failure.kind).toBe("aborted");
   });
 
   it("applies the proposed changes, records the turn and saves", async () => {
@@ -498,9 +537,9 @@ describe("TurnEngine.playTurn", () => {
     expect(ctx.llm.structuredRequests).toHaveLength(3); // start + 2 attempts, no third
   });
 
-  it("reports a failed call without retrying", async () => {
+  it("reports a non-transient failed call without retrying", async () => {
     const ctx = setup();
-    ctx.llm.queueStructured(new LLMError("rate_limit", "quota"));
+    ctx.llm.queueStructured(new LLMError("unknown", "server error"));
 
     const outcome = await ctx.engine.playTurn(newGame(), { type: "start" });
 
@@ -508,6 +547,18 @@ describe("TurnEngine.playTurn", () => {
     if (outcome.ok) return;
     expect(outcome.failure.kind).toBe("llm");
     expect(ctx.llm.structuredRequests).toHaveLength(1);
+  });
+
+  it("reports a transient failure after one retry", async () => {
+    const ctx = setup();
+    ctx.llm.queueStructured(new LLMError("rate_limit", "quota"), new LLMError("rate_limit", "quota"));
+
+    const outcome = await ctx.engine.playTurn(newGame(), { type: "start" });
+
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.failure.kind).toBe("llm");
+    expect(ctx.llm.structuredRequests).toHaveLength(2);
   });
 
   it("still returns the turn when saving fails, and says so", async () => {
@@ -1291,5 +1342,48 @@ describe("TurnEngine.updatePlayer", () => {
     const out = await ctx.engine.updatePlayer(state, "nobody", (p) => ({ ...p, level: 4 }));
     expect(out.state).toBe(state);
     expect(await ctx.repo.load(state.id)).toBeNull();
+  });
+
+  it("uses auxiliaryLlm for summaries and suggestions when provided", async () => {
+    const llm = new FakeLLMClient();
+    const auxiliaryLlm = new FakeLLMClient();
+    const repo = new InMemoryGameRepo();
+    const engine = new TurnEngine({ llm, auxiliaryLlm, repo, transientRetryDelayMs: 0 });
+    llm.queueStructured(reply());
+    const startedOutcome = await engine.playTurn(newGame(), { type: "start" });
+    if (!startedOutcome.ok) throw new Error("start failed");
+
+    auxiliaryLlm.queueStructured(JSON.stringify({ suggestions: ["Exploro el lugar"] }));
+    const suggestions = await engine.suggestFor(startedOutcome.state);
+    expect(suggestions).toEqual(["Exploro el lugar"]);
+    expect(auxiliaryLlm.structuredRequests).toHaveLength(1);
+    expect(llm.structuredRequests).toHaveLength(1);
+
+    let state = startedOutcome.state;
+    for (let i = 0; i < 9; i += 1) {
+      llm.queueStructured(reply());
+      const out = await engine.playTurn(state, { type: "action", text: `Turno ${i + 2}` });
+      if (!out.ok) throw new Error("turn failed");
+      state = out.state;
+    }
+    auxiliaryLlm.queueText("Resumen breve.");
+    const patch = await engine.summarizeIfDue(state);
+    expect(patch?.summary).toBe("Resumen breve.");
+    expect(auxiliaryLlm.textRequests).toHaveLength(1);
+    expect(llm.textRequests).toHaveLength(0);
+  });
+
+  it("restoreState reverts the saved state and latest tracked snapshot", async () => {
+    const ctx = setup();
+    const initial = await started(ctx);
+    ctx.llm.queueStructured(reply({ narration: "Avanzás." }));
+    const after = await ctx.engine.playTurn(initial, { type: "action", text: "Avanzo" });
+    if (!after.ok) throw new Error("turn failed");
+    expect(after.state.turns).toHaveLength(2);
+
+    const restored = await ctx.engine.restoreState(initial);
+    expect(restored.saveError).toBeNull();
+    expect(restored.state.turns).toHaveLength(1);
+    expect((await ctx.repo.load(initial.id))!.turns).toHaveLength(1);
   });
 });

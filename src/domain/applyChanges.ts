@@ -3,6 +3,12 @@ import { addFailures } from "./deathSaves";
 import { campaignPortrait } from "../campaigns";
 import { npcNameFromArchetype } from "./portraits";
 import { guessPortrait } from "./portraitGuess";
+import {
+  applyConditionChange,
+  applyLongRestResources,
+  applyResourceChange,
+  applyShortRestResources,
+} from "./resources";
 import { MILESTONES_PER_LEVEL, type Character, type GameState, type StateChange, type StoryItem } from "./types";
 import { sameName, samePlace } from "./names";
 import { findNpc } from "./dialogue";
@@ -192,7 +198,13 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
         break;
       }
       case "rest": {
-        if (change.kind === "short") break;
+        if (change.kind === "short") {
+          if (next.scene.inCombat || next.players.some((p) => p.condition === "dead" || p.condition === "dying")) {
+            break;
+          }
+          next = { ...next, players: next.players.map(applyShortRestResources) };
+          break;
+        }
         if (next.scene.inCombat) {
           rejected.push({ change, reason: "Can't rest during combat." });
           break;
@@ -207,14 +219,16 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
         }
         next = {
           ...next,
-          players: next.players.map((p) => ({
-            ...p,
-            // Stable at 0 HP: the rest gets them back on their feet with 1 HP,
-            // but its benefits need at least 1 HP at the start.
-            currentHp: p.stats === null ? p.currentHp : p.condition === "stable" ? 1 : p.stats.maxHp,
-            condition: "ok",
-            deathSaves: { successes: 0, failures: 0 },
-          })),
+          players: next.players.map((p) =>
+            applyLongRestResources({
+              ...p,
+              // Stable at 0 HP: the rest gets them back on their feet with 1 HP,
+              // but its benefits need at least 1 HP at the start.
+              currentHp: p.stats === null ? p.currentHp : p.condition === "stable" ? 1 : p.stats.maxHp,
+              condition: "ok",
+              deathSaves: { successes: 0, failures: 0 },
+            }),
+          ),
         };
         break;
       }
@@ -350,6 +364,29 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
           ...next,
           storyItems: upsert(next.storyItems, item, (i) => sameName(i.name, change.name)),
         };
+        break;
+      }
+      case "resource": {
+        const index = findPlayerIndex(next.players, change.playerId);
+        if (index === -1) {
+          rejected.push({ change, reason: "Unknown player." });
+          break;
+        }
+        const applied = applyResourceChange(next.players[index]!, change);
+        if (!applied.ok) {
+          rejected.push({ change, reason: applied.reason });
+          break;
+        }
+        updatePlayer(index, () => applied.player);
+        break;
+      }
+      case "condition": {
+        const index = findPlayerIndex(next.players, change.playerId);
+        if (index === -1) {
+          rejected.push({ change, reason: "Unknown player." });
+          break;
+        }
+        updatePlayer(index, (p) => applyConditionChange(p, change.condition, change.active));
         break;
       }
     }

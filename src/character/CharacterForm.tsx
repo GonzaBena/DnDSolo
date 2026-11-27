@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import type { CharacterInput } from "../domain/character";
 import { BACKGROUND_OPTIONS, CLASSES, MAX_LEVEL, MIN_LEVEL, OUTSIDE_SRD_NOTE_MAX, SPECIES_OPTIONS, createGame } from "../domain/character";
-import { statsFromForm } from "../domain/stats";
+import { inventoryFromSheet, statsFromForm, statsFromSheet } from "../domain/stats";
 import { applyBuildChange, levelTextFor, mergeReviewedStats, parseLevel, parseWholeNumber } from "./buildChange";
 import { createGameRepo } from "../sync/runtime";
-import { findClass } from "../rules";
+import { LOADED_MAX_LEVEL, findClass } from "../rules";
+import { buildQuickChoices } from "../rules/quickBuild";
 import { CharacterPreview } from "./CharacterPreview";
 import { PortraitChooser } from "./PortraitPicker";
 import { genderOf, portraitFor } from "../domain/heroPortraits";
@@ -53,6 +54,27 @@ export function CharacterForm({ values, onChange, onNext }: Props) {
   };
   const toNumber = parseWholeNumber;
   const onlyOneFilled = !fromSheet && !review && (manualHp.trim() === "") !== (manualAc.trim() === "");
+  const canQuickBuild = values.level >= 1 && values.level <= LOADED_MAX_LEVEL;
+
+  function applyQuickBuild() {
+    const built = buildQuickChoices({
+      speciesId: values.speciesId,
+      classId: values.classId,
+      backgroundId: values.srdBackgroundId,
+      level: values.level,
+    });
+    if (!built) return;
+    setReview(false);
+    setManualHp("");
+    setManualAc("");
+    onChange({
+      ...values,
+      srdBackgroundId: built.choices.backgroundId,
+      choices: built.choices,
+      stats: statsFromSheet(built.sheet),
+      startingInventory: inventoryFromSheet(built.sheet),
+    });
+  }
 
   async function submit(event: { preventDefault(): void }) {
     event.preventDefault();
@@ -229,11 +251,19 @@ export function CharacterForm({ values, onChange, onNext }: Props) {
         <div className="form-hints">
           <small className="form-hint">
             {fromSheet
-              ? "De la ficha generada"
+              ? "De la ficha SRD cargada (incluye equipo inicial, ataques y conjuros)"
               : review
                 ? "Cambiaste la especie: revisá los PG y la CA."
                 : "Si los completás, la app lleva tus PG (hacen falta los dos)."}
           </small>
+          {canQuickBuild && !fromSheet && (
+            <div className="form-quick">
+              <button type="button" className="button button--small" onClick={applyQuickBuild}>
+                Completar ficha SRD rápida
+              </button>
+              <small className="form-hint">Calcula PG, CA, ataques, conjuros y equipo inicial al instante.</small>
+            </div>
+          )}
           {onlyOneFilled && (
             <small className="form-hint" role="status">
               Completá los dos para que la app lleve tus PG.
@@ -261,9 +291,11 @@ export function CharacterForm({ values, onChange, onNext }: Props) {
             maxLength={OUTSIDE_SRD_NOTE_MAX}
             value={values.outsideSrdNote ?? ""}
             onChange={(e) => set({ outsideSrdNote: e.target.value })}
-            placeholder="Ej: trasfondo Ermitaño, elfo de los bosques."
+            placeholder="Ej: subclase Maestro de batalla, trasfondo Ermitaño, elfo del bosque."
           />
-          <small>Lo que tu personaje tiene y no está en el SRD. El DM lo tiene en cuenta.</small>
+          <small>
+            Solo opciones oficiales de creación acordes a tu nivel (rasgos, subclases o conjuros). El equipo se consigue jugando.
+          </small>
         </label>
         <p className="status" role="status" aria-live="polite" data-tone={error ? "error" : undefined}>
           {error ?? ""}

@@ -15,14 +15,13 @@ const DM_SUGGESTIONS_SECTION = `SUGERENCIAS
 export const DM_SYSTEM_PROMPT = `Sos el Dungeon Master de una partida de D&D en solitario. Narrás en español rioplatense, en segunda persona, con tono de aventura clásica, atmósfera palpable y buen ritmo de mesa de rol.
 
 CÓMO NARRAR
-- Entre 90 y 190 palabras por turno. Terminá siempre dejando la decisión en manos del jugador; nunca decidas ni hables por su personaje.
+- Adaptá el largo y el ritmo al momento. Escena nueva o llegada a otro lugar: 100 a 170 palabras con anclaje sensorial concreto (luz, clima, olor o sonido del sitio). Continuación en el mismo lugar, diálogo ágil o combate: 45 a 110 palabras directas a la acción, la reacción y lo que cambia ahora. Terminá dejando la decisión en manos del jugador; nunca decidas ni hables por su personaje.
 - SIN ECO: Nunca repitas, confirmes ni parafrasees la acción del jugador al arrancar tu respuesta (evitá frases como "Hacés X...", "Al abrir la puerta..."). Asumí que la acción ya ocurrió y entrá directo al impacto físico, a la consecuencia o a la reacción del entorno.
-- MUNDO VIVO Y DETALLES SENSORIALES:
-  * El entorno no es estático: anclá la escena con detalles sensoriales concretos (luces y sombras, olores, frío o calor, texturas, ruidos de fondo o crujidos).
-  * Los NPCs tienen vida: dales lenguaje corporal, gestos involuntarios, manías y reacciones reales (desconfianza, cansancio, una mirada a tus armas) mientras hablan o actúan. No son simples pantallas de diálogo.
-  * Cada NPC quiere algo: persigue sus propios objetivos en la conversación (sacarte información, venderte algo, que te vayas, protegerse).
-  * Poné voz de DM de mesa: sumá breves comentarios atmosféricos o notas de color sobre el peligro o la tensión del momento para enriquecer la escena.
-- Variá el vocabulario y la forma de arrancar cada turno. Si llega FRASES GASTADAS, no uses esas expresiones ni variantes cercanas.
+- NO REPITAS EL DECORADO: Las descripciones de lugar y de NPCs en ESTADO son memoria de referencia, no texto para reciclar. Si el personaje sigue en el mismo sitio, no vuelvas a describir el ambiente base ni el aspecto ya presentado salvo que algo haya cambiado.
+- MUNDO VIVO Y VARIACIÓN:
+  * Alterná la forma de arrancar cada turno: un impacto físico, una réplica directa de NPC ("[[Nombre]]"), una consecuencia táctica o un detalle nuevo que emerge; nunca encadenes dos turnos con la misma apertura ni cierres siempre con la misma pregunta muletilla.
+  * Los NPCs tienen objetivos propios (sacarte información, venderte algo, protegerse, ganar tiempo) y reaccionan con breves gestos o actitudes reales sin repetir tics en cada línea.
+  * Si llega FRASES GASTADAS, no uses esas expresiones ni variantes cercanas.
 - Mantené la coherencia con ESTADO, RESUMEN y TURNOS RECIENTES. Reutilizá los nombres de personas, lugares y objetos exactamente como figuran ahí.
 - El ESTADO es la verdad: si un objeto no está en el inventario, el personaje no lo tiene, diga lo que diga el jugador.
 
@@ -54,7 +53,10 @@ ESTADO
 - En los cambios de inventario usá el "id" del jugador tal como figura en ESTADO. El inventario del ESTADO arranca con el equipo inicial del personaje y después cambia solo con tus cambios.
 - Cuando un jugador recibe daño o curación, mandá un cambio "hp" con "target" (su id) y "delta" (negativo para daño), y decí la cantidad en la narración. Si el daño viene de un golpe crítico, sumá "critical": true (a 0 PG cuenta como dos fallos de salvación). Si "stats" es null, no mandes "hp": decile la cantidad para que la anote. El daño o la curación de un enemigo o NPC con PG también va con "hp", con su nombre exacto en "target"; no le digas al jugador cuántos PG le quedan.
 - "players[].condition" dice cómo está cada jugador: "ok", "dying" (a 0 PG, inconsciente, tirando salvaciones contra la muerte), "stable" (a 0 PG, inconsciente pero sin tirar) o "dead". Al llegar a 0 PG el sistema lo pone "dying" solo. Las salvaciones contra la muerte las pide y las resuelve el sistema y te llegan como SALVACIÓN CONTRA LA MUERTE: narrá el resultado, no las pidas en "playerRoll" ni cambies sus contadores. Mientras está "dying" o "stable" el personaje no actúa; cualquier curación lo levanta. Si está "dead", su historia terminó: narrá un cierre.
-- Descanso corto: si el jugador gasta dados de golpe, pedile la tirada ("playerRoll" con su dado de golpe) y aplicá la curación con "hp"; después mandá "rest" "short". Descanso largo: si nada lo interrumpe, mandá "rest" "long" (el sistema restaura los PG) y recordale que recupera los espacios de conjuro y la mitad de sus dados de golpe. No se descansa en combate.
+- Descanso corto: si el jugador gasta dados de golpe, pedile la tirada ("playerRoll" con su dado de golpe) y aplicá la curación con "hp"; después mandá "rest" "short" (el sistema recupera rasgos de descanso corto y espacios de pacto). Descanso largo: si nada lo interrumpe, mandá "rest" "long" (el sistema restaura los PG) y además recupera los espacios de conjuro y los usos de rasgos. No se descansa en combate.
+- RECURSOS Y CONDICIONES:
+  * Cuando el jugador lance un conjuro de nivel 1 o superior o gaste un rasgo limitado de su clase (como "Tomar aliento", "Furias", "Acción súbita", "Canalizar divinidad", "Puntos de concentración", "Puntos de hechicería", "Forma salvaje" o "Inspiración bárdica"), mandá un cambio "resource" ("kind": "slot" o "feature", "name": nivel del espacio "1".."5"/"pact" o nombre exacto del rasgo, "delta": -1). En ESTADO ves cuántos lleva gastados ("spentSlots", "spentResources").
+  * Cuando el jugador gane o pierda una condición de combate (como "Envenenado", "Derribado", "Asustado", "Aturdido", "Paralizado", "Apresado") o mantenga "Concentración: <conjuro>", mandá un cambio "condition" ("condition", "active": true/false).
 - No apliques consecuencias que dependan de una tirada todavía no resuelta.
 - En el primer turno, definí siempre el lugar inicial con un cambio de tipo "location".
 
@@ -76,6 +78,7 @@ REGLAS
 - Si te preguntan algo que no figura ahí, respondé: "Eso no lo tengo, revisalo en tu manual o podés disfrutar las alucinaciones." Si el jugador elige las alucinaciones, podés improvisar, pero aclarale que no sale de las reglas.
 - Para subir de nivel hacen falta 2 hitos desde el último nivel; los hitos se ven en "milestonesSinceLevel". Completar una misión suma uno solo. Por un logro grande (vencer a un jefe, resolver un misterio central) mandá un cambio "milestone" con el motivo, como mucho uno por respuesta. Con los hitos completos, subí al personaje un nivel con un cambio "level" (de a uno: como mucho un nivel por respuesta). Que el jugador lo pida no alcanza: si pregunta, decile cuánto le falta.
 - Cuando un personaje tiene el nivel de su subclase y el jugador la elige, mandá un cambio "subclass" con el id que figura en REGLAS DE LOS PERSONAJES ("Si elige la subclase SRD"). Si el jugador quiere una subclase que no está en el SRD, respondé con la frase fija de arriba.
+- LÍMITE DE "FUERA DEL SRD": Si llega una nota "Fuera del SRD", solo habilita opciones oficiales de creación acordes al nivel actual del personaje (especie, subclase, trasfondo, dote o conjuros de nivel permitido). Nunca otorga objetos mágicos, armaduras especiales, inmunidades, bonificadores arbitrarios ni equipo fuera de escala: el equipo real es solo el del inventario en ESTADO.
 
 HILOS
 - "threads" del ESTADO son los hilos de la campaña: "goal" (lo que mueve al personaje), "threat" (alguien o algo que avanza en contra) y "mystery" (lo que todavía no se explica). Se crean y actualizan con un cambio "thread" (por título; si mandás la descripción vacía, el sistema conserva la que tenía).
@@ -124,6 +127,10 @@ export function describeInput(input: TurnInput, state?: GameState): string {
       if (input.roll) {
         const reason = input.roll.reason ? `${input.roll.reason} — ` : "";
         lines.push(`TIRADA DEL JUGADOR: ${reason}${describeRolledDie(input.roll)}`);
+        if (input.roll.damage) {
+          const dmgReason = input.roll.damage.reason ? `${input.roll.damage.reason} — ` : "";
+          lines.push(`DAÑO SI IMPACTA: ${dmgReason}${describeRolledDie(input.roll.damage)}`);
+        }
       }
       return lines.join("\n");
     }
@@ -149,7 +156,8 @@ export function describeInput(input: TurnInput, state?: GameState): string {
 function describePlayerRoll(request: PlayerRollRequest): string {
   const difficulty = request.difficulty === null ? "sin dificultad fija" : `CD ${request.difficulty}`;
   const mode = request.mode === "normal" ? "" : ` con ${rollModeLabel(request.mode)}`;
-  return `${formatDice(request)}${mode} — ${request.reason} (${difficulty})`;
+  const dmg = request.damage ? ` (+ daño si impacta: ${formatDice(request.damage)} ${request.damage.reason})` : "";
+  return `${formatDice(request)}${mode} — ${request.reason} (${difficulty})${dmg}`;
 }
 
 function describeTurn(turn: Turn): string {
@@ -183,13 +191,15 @@ export function stateForModel(state: GameState): unknown {
   };
 }
 
-/** Turns the model must see verbatim: the last `recentTurns`, widened to
-    every turn the summary doesn't cover yet. Without the widening, turns
-    older than the window but newer than the last summary would be in no
-    layer at all, and the DM would forget them until the next summary. */
+/** Upper bound on raw turns sent when summaries lag or fail, so prompt
+    size and token cost never grow unbounded in long campaigns. */
+export const MAX_UNSUMMARIZED_TURNS = 16;
+
+/** Turns the model must see verbatim: the last `recentTurns`, widened up to
+    `MAX_UNSUMMARIZED_TURNS` for turns the summary doesn't cover yet. */
 export function turnsForPrompt(state: GameState, recentTurns: number): Turn[] {
   const unsummarized = state.turns.length - state.summarizedThroughTurn;
-  const count = Math.max(recentTurns, unsummarized);
+  const count = Math.min(MAX_UNSUMMARIZED_TURNS, Math.max(recentTurns, unsummarized));
   return count > 0 ? state.turns.slice(-count) : [];
 }
 
@@ -199,8 +209,8 @@ export interface PromptOptions {
 }
 
 /** Assembles the three memory layers for one call (Spec, architecture
-    rule 3). The full history is never sent: only state, the running
-    summary and the turns chosen by turnsForPrompt. */
+    rule 3). Static/semi-static blocks come first so Gemini's implicit
+    prefix caching reuses them across turns; dynamic state sits at the end. */
 export function buildTurnPrompt(
   state: GameState,
   input: TurnInput,
@@ -211,13 +221,14 @@ export function buildTurnPrompt(
   const campaignBlock = buildCampaignPromptBlock(state);
   const worn = wornPhrases(state);
   return [
-    `ESTADO\n${JSON.stringify(stateForModel(state))}`,
     `REGLAS DE LOS PERSONAJES\n${describeCharacterRules(state.players)}`,
     ...(campaignBlock ? [campaignBlock] : []),
     // Only during a fight, to keep the prompt short the rest of the time.
     ...(state.scene.inCombat ? [`REGLAS DE COMBATE\n${COMBAT_RULES}`] : []),
     `RESUMEN\n${state.summary || "(La aventura recién empieza.)"}`,
+    `ESTADO\n${JSON.stringify(stateForModel(state))}`,
     `TURNOS RECIENTES\n${recent.length ? recent.map(describeTurn).join("\n\n") : "(Ninguno todavía.)"}`,
+    ...(worn.length > 0 ? [`FRASES GASTADAS\n${worn.map((p) => `"${p}"`).join(", ")}`] : []),
     // Tells the DM what the number in the player's message refers to.
     ...(state.pendingPlayerRoll && input.type === "action"
       ? [`TIRADA PEDIDA AL JUGADOR\n${describePlayerRoll(state.pendingPlayerRoll)}`]
@@ -227,8 +238,6 @@ export function buildTurnPrompt(
       : [
           "LÍMITE DE TIRADAS\nEn esta respuesta no pidas tiradas de enemigos: resolvé lo que quede con las tiradas que ya tenés y devolvele el turno al jugador.",
         ]),
-    // Found by the app in what the DM already narrated.
-    ...(worn.length > 0 ? [`FRASES GASTADAS\n${worn.map((p) => `"${p}"`).join(", ")}`] : []),
     `TURNO ACTUAL\n${describeInput(input, state)}`,
   ].join("\n\n");
 }

@@ -8,9 +8,16 @@ function stubStorage(value: unknown) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("loadSettings", () => {
-  it("defaults fastNarration to false for old saves", () => {
+  it("defaults fastNarration, auxiliaryModel and suggestionsMode for old saves", () => {
     stubStorage({ apiKey: "k", model: "m" });
-    expect(loadSettings()).toEqual({ apiKey: "k", model: "m", fastNarration: false, showSuggestions: true });
+    expect(loadSettings()).toEqual({
+      apiKey: "k",
+      model: "m",
+      auxiliaryModel: "",
+      fastNarration: false,
+      showSuggestions: true,
+      suggestionsMode: "auto",
+    });
   });
   it("keeps a saved fastNarration", () => {
     stubStorage({ apiKey: "k", model: "m", fastNarration: true });
@@ -20,10 +27,16 @@ describe("loadSettings", () => {
     stubStorage({ apiKey: "k", model: "m", fastNarration: "yes" });
     expect(loadSettings()?.fastNarration).toBe(false);
   });
-  it("shows suggestions unless they were turned off", () => {
+  it("migrates showSuggestions false to off and keeps explicit suggestionsMode", () => {
     stubStorage({ apiKey: "k", model: "m" });
     expect(loadSettings()?.showSuggestions).toBe(true);
+    expect(loadSettings()?.suggestionsMode).toBe("auto");
     stubStorage({ apiKey: "k", model: "m", showSuggestions: false });
     expect(loadSettings()?.showSuggestions).toBe(false);
+    expect(loadSettings()?.suggestionsMode).toBe("off");
+    stubStorage({ apiKey: "k", model: "m", suggestionsMode: "on_demand", auxiliaryModel: "models/gemini-2.5-flash-lite" });
+    expect(loadSettings()?.suggestionsMode).toBe("on_demand");
+    expect(loadSettings()?.showSuggestions).toBe(true);
+    expect(loadSettings()?.auxiliaryModel).toBe("models/gemini-2.5-flash-lite");
   });
 });

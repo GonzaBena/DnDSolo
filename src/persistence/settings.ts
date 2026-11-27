@@ -1,16 +1,27 @@
 // User settings live in localStorage (Spec, MVP scope 2): the API key never
 // touches the repo or any server other than Google's.
 
+export type SuggestionsMode = "auto" | "on_demand" | "off";
+
 export interface Settings {
   apiKey: string;
   model: string;
+  /** Optional lighter model for summaries and on-demand suggestions; "" uses `model`. */
+  auxiliaryModel: string;
   /** Lower the model's thinking to answer sooner. */
   fastNarration: boolean;
-  /** Show the DM's suggested actions as chips over the composer. */
+  /** Kept for compatibility; true when suggestionsMode !== "off". */
   showSuggestions: boolean;
+  /** Whether the DM includes suggestions every turn, only on demand, or never. */
+  suggestionsMode: SuggestionsMode;
 }
 
 const STORAGE_KEY = "dnsolo.settings";
+
+function parseSuggestionsMode(mode: unknown, showSuggestions: unknown): SuggestionsMode {
+  if (mode === "auto" || mode === "on_demand" || mode === "off") return mode;
+  return showSuggestions === false ? "off" : "auto";
+}
 
 export function loadSettings(): Settings | null {
   try {
@@ -18,10 +29,20 @@ export function loadSettings(): Settings | null {
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== "object" || parsed === null) return null;
-    const { apiKey, model, fastNarration, showSuggestions } = parsed as Record<string, unknown>;
+    const { apiKey, model, auxiliaryModel, fastNarration, showSuggestions, suggestionsMode } = parsed as Record<
+      string,
+      unknown
+    >;
     if (typeof apiKey !== "string" || typeof model !== "string") return null;
-    // On unless turned off: older settings never had the option.
-    return { apiKey, model, fastNarration: fastNarration === true, showSuggestions: showSuggestions !== false };
+    const mode = parseSuggestionsMode(suggestionsMode, showSuggestions);
+    return {
+      apiKey,
+      model,
+      auxiliaryModel: typeof auxiliaryModel === "string" ? auxiliaryModel : "",
+      fastNarration: fastNarration === true,
+      showSuggestions: mode !== "off",
+      suggestionsMode: mode,
+    };
   } catch {
     // Blocked storage or corrupt JSON both mean "not configured".
     return null;

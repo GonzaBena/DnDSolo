@@ -107,7 +107,7 @@ Abrí la app como `http://localhost:4321` (no `127.0.0.1` ni la IP de la red loc
 En `/generator` podés describir una idea ("una elfa que dejó el templo para cazar no muertos") y pedir opciones. **El modelo elige, el código calcula**: la IA solo elige especie, clase, trasfondo y cada elección de reglas (habilidades, idiomas, conjuros, dotes, maestrías…); `src/rules/` valida esas elecciones y calcula todos los números de la ficha (PG, CA, salvaciones, bonificadores, CD de conjuros). Si una elección no es legal, se le devuelve el error al modelo para que la corrija.
 
 - `src/rules/data/` tiene las especies, clases, trasfondos, dotes, equipo y conjuros del SRD en español.
-- La fase 1 cubre los **niveles 1 a 4**, con la única subclase de cada clase que trae el SRD.
+- La fase 1 cubre los **niveles 1 a 10**, con la única subclase de cada clase que trae el SRD.
 - La ficha se puede copiar como texto o Markdown, o pasar al formulario de `/character` con "Usar este personaje" para empezar la partida; el DM recibe los rasgos reales del nivel actual y del siguiente.
 
 Esta obra incluye material procedente del documento de referencia del sistema 5.2.1 (“SRD 5.2.1”) de Wizards of the Coast LLC, disponible en https://www.dndbeyond.com/srd. La licencia sobre el SRD 5.2.1 se concede de acuerdo con la licencia internacional de atribución/reconocimiento 4.0 de Creative Commons, disponible en https://creativecommons.org/licenses/by/4.0/legalcode.

@@ -8,6 +8,7 @@ export function RollRequest({ roll }: { roll: PlayerRollRequest }) {
       <p>
         <strong>El DM te pide una tirada: {formatDice(roll)}</strong>
         {roll.difficulty !== null && ` (CD ${roll.difficulty})`}
+        {roll.damage && ` + ${formatDice(roll.damage)} de daño`}
       </p>
       <p>{roll.reason}</p>
       <p className="roll-request__hint">

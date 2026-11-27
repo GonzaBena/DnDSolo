@@ -10,6 +10,8 @@ export function describeLLMError(error: unknown): string {
         return "Llegaste al límite de uso de la API. Esperá un rato y probá de nuevo.";
       case "network":
         return "No se pudo conectar con Gemini. Revisá tu conexión a internet.";
+      case "timeout":
+        return "La respuesta tardó demasiado. Probá de nuevo.";
       case "empty":
         return "El modelo no devolvió ninguna respuesta. Probá de nuevo.";
       case "aborted":

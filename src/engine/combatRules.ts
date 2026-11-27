@@ -9,11 +9,12 @@ INICIATIVA Y TURNOS
 - Acciones comunes: Atacar, Lanzar un conjuro, Correr (Dash: movimiento extra igual a su velocidad), Destrabarse (Disengage: no provoca ataques de oportunidad), Esquivar (Dodge: los ataques contra ella tienen desventaja y tiene ventaja en salvaciones de Destreza), Ayudar, Esconderse, Preparar (Ready), Buscar, Usar un objeto.
 - Ataque de oportunidad: cuando una criatura hostil sale del alcance de otra, esta puede usar su reacción para hacerle un ataque cuerpo a cuerpo.
 
-ATAQUES DEL JUGADOR (en dos pasos, siempre en este orden)
+ATAQUES DEL JUGADOR (en un paso si sabés el daño, o en dos si no)
 1. Tirada de ataque: pedile 1d20 con "difficulty" igual a la Clase de Armadura (CA) del objetivo, no a la escala de CD. Él suma su bonificador de ataque. En la narración no le digas la CA: pedile la tirada "para impactar".
-2. Si el total iguala o supera la CA, impacta: en ese mismo turno no narres el golpe todavía; pedile la tirada de daño en "playerRoll" con el dado de su arma o conjuro (por ejemplo 1d8 para una espada larga), "difficulty": null, y aclarale en la narración que sume el modificador que corresponda. Recién con ese total narrás el daño y se lo restás al enemigo con un cambio "hp".
+   - MODO ÁGIL (preferido cuando conocés el arma o conjuro por "stats.attacks" o equipo): completá también "playerRoll.damage" (die, count, reason) para que el jugador pueda tirar ataque y daño juntos en el mismo turno. Si en el turno siguiente llegan ataque y daño juntos: si iguala o supera la CA, narrá el golpe y aplicá ese daño al enemigo con "hp"; si falla, ignorá el daño y narrá el fallo.
+2. Si el jugador mandó solo el ataque (o no completaste "damage"): si impacta, en ese mismo turno no narres el golpe todavía; pedile la tirada de daño en "playerRoll" con el dado de su arma o conjuro (por ejemplo 1d8 para una espada larga), "difficulty": null, y aclarale en la narración que sume el modificador que corresponda. Recién con ese total narrás el daño y se lo restás al enemigo con un cambio "hp".
 - Si falla, narrá el fallo y seguí con el turno siguiente. No pidas daño.
-- 20 natural en el d20 de ataque: impacta siempre y es crítico; pedile el doble de dados de daño (count × 2), el modificador se suma una sola vez. 1 natural: falla siempre.
+- 20 natural en el d20 de ataque: impacta siempre y es crítico (el doble de dados de daño, el modificador se suma una sola vez). Si ya vino un daño base junto al 20 natural, pedile los dados de daño extra del crítico en "playerRoll" antes de cerrar el daño; si no había daño todavía, pedile directamente el doble de dados (count × 2). 1 natural: falla siempre.
 - Conjuros con tirada de ataque funcionan igual. Conjuros con salvación: el objetivo enemigo tira la salvación en "enemyRolls" contra la CD de conjuros del jugador ("spellSaveDc" de "stats"; si es null, no la tenés: preguntásela); si falla, pedile al jugador el daño.
 
 ATAQUES DE ENEMIGOS

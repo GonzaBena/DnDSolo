@@ -20,4 +20,17 @@ describe("the DC on the player's roll card", () => {
   it("is not shown without a DC", () => {
     expect(html(stealth(14))).not.toContain("Necesitabas");
   });
+
+  it("shows combined damage metadata when present", () => {
+    const attack: PlayerRoll = {
+      die: "d20",
+      count: 1,
+      value: 14,
+      modifier: 5,
+      reason: "Espada larga",
+      difficulty: 15,
+      damage: { die: "d8", count: 1, value: 6, modifier: 3, reason: "Espada larga" },
+    };
+    expect(html(attack)).toContain("daño si impacta: 1d8+3 = 9");
+  });
 });

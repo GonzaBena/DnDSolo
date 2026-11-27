@@ -5,10 +5,10 @@ import type { GameSession } from "./useGameSession";
     once, on entering, unless the DM is waiting on a roll. Turns played
     afterwards bring their own. Kept on screen only: the next turn saves its own. */
 export function useOldSaveSuggestions(session: GameSession, canAct: boolean) {
-  const { screen, setScreen, showSuggestions, generationRef } = session;
+  const { screen, setScreen, suggestionsMode, generationRef } = session;
   const askedSuggestionsRef = useRef<string | null>(null);
   useEffect(() => {
-    if (screen.status !== "playing" || !showSuggestions || !canAct) return;
+    if (screen.status !== "playing" || suggestionsMode !== "auto" || !canAct) return;
     const { engine, state } = screen;
     if (state.turns.length === 0 || state.turns.length !== screen.loadedTurns) return; // only on entering
     if (state.suggestedActions.length > 0 || state.pendingPlayerRoll) return;
@@ -27,5 +27,5 @@ export function useOldSaveSuggestions(session: GameSession, canAct: boolean) {
           : current,
       );
     });
-  }, [screen, showSuggestions, canAct, setScreen, generationRef]);
+  }, [screen, suggestionsMode, canAct, setScreen, generationRef]);
 }

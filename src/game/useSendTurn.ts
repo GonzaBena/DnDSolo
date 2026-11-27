@@ -1,4 +1,4 @@
-import { useCallback, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { useCallback, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { shakeScreen } from "../animations/motion";
 import { play } from "../audio/sound";
 import type { GameState, TurnInput } from "../domain/types";
@@ -27,11 +27,26 @@ interface Ui {
   showLevelUp: (levelUp: LevelUp) => void;
 }
 
+interface UndoEntry {
+  before: GameState;
+  afterTurnNumber: number;
+  input: TurnInput;
+  draft?: string;
+}
+
+const MAX_UNDO_HISTORY = 10;
+
 /** Plays turns: streams the DM's narration, then shows, saves and summarizes
     the result. `send` is for turns the app takes on its own; `sendFromPlayer`
     for the player's, which may first have to renew the Google session. */
 export function useSendTurn(session: GameSession, { setDraft, setToasts, scrollToBottom, gameRef, showBanners, showLevelUp }: Ui) {
   const [busy, setBusy] = useState(false);
+  const undoStackRef = useRef<UndoEntry[]>([]);
+  const [undoTop, setUndoTop] = useState<{ gameId: string; afterTurnNumber: number } | null>(null);
+  const flushRef = useRef<(() => void) | null>(null);
+  const flushNarration = useCallback(() => {
+    flushRef.current?.();
+  }, []);
   const {
     setScreen,
     setInFlight,
@@ -77,6 +92,7 @@ export function useSendTurn(session: GameSession, { setDraft, setToasts, scrollT
       const typewriter = createTypewriter((narration) =>
         setInFlight({ input, narration, draft: typed }),
       );
+      flushRef.current = typewriter.flush;
       const controller = new AbortController();
       abortRef.current = controller;
       const aborted = new Promise<void>((resolve) =>
@@ -98,6 +114,7 @@ export function useSendTurn(session: GameSession, { setDraft, setToasts, scrollT
         console.error(error);
       } finally {
         if (abortRef.current === controller) abortRef.current = null;
+        if (flushRef.current === typewriter.flush) flushRef.current = null;
         typewriter.cancel();
         setBusy(false);
       }
@@ -168,6 +185,22 @@ export function useSendTurn(session: GameSession, { setDraft, setToasts, scrollT
       }
       // The ref was just reconciled with any summary that landed meanwhile.
       const shown = latestStateRef.current ?? outcome.state;
+      if (input.type === "action" || input.type === "death_save") {
+        const nextEntry: UndoEntry = {
+          before: state,
+          afterTurnNumber: shown.turns.length,
+          input,
+          draft: typed,
+        };
+        undoStackRef.current = [...undoStackRef.current.slice(-(MAX_UNDO_HISTORY - 1)), nextEntry];
+        setUndoTop({ gameId: shown.id, afterTurnNumber: shown.turns.length });
+      } else if (input.type === "enemy_rolls") {
+        const last = undoStackRef.current.at(-1);
+        if (last && last.before.id === shown.id) {
+          last.afterTurnNumber = shown.turns.length;
+          setUndoTop({ gameId: shown.id, afterTurnNumber: shown.turns.length });
+        }
+      }
       setScreen((previous) => ({
         status: "playing",
         engine,
@@ -237,5 +270,52 @@ export function useSendTurn(session: GameSession, { setDraft, setToasts, scrollT
     );
   };
 
-  return { busy, send, sendFromPlayer };
+  const popUndo = (state: GameState): UndoEntry | null => {
+    const top = undoStackRef.current.at(-1);
+    if (!top || top.before.id !== state.id || top.afterTurnNumber !== state.turns.length) return null;
+    undoStackRef.current = undoStackRef.current.slice(0, -1);
+    const nextTop = undoStackRef.current.at(-1);
+    setUndoTop(nextTop ? { gameId: nextTop.before.id, afterTurnNumber: nextTop.afterTurnNumber } : null);
+    return top;
+  };
+
+  const undoLastTurn = async (engine: TurnEngine, currentState: GameState) => {
+    if (busy || pauseRef.current.replacing || pauseRef.current.opening) return;
+    const entry = popUndo(currentState);
+    if (!entry) return;
+    const generation = generationRef.current;
+    const restored = await track(engine.restoreState(entry.before));
+    if (generationRef.current !== generation) return;
+    latestStateRef.current = restored.state;
+    setError(null);
+    setWarning(restored.saveError ? SAVE_WARNING : null);
+    setScreen((previous) => ({
+      status: "playing",
+      engine,
+      state: restored.state,
+      loadedTurns: previous.status === "playing" ? Math.min(previous.loadedTurns, restored.state.turns.length) : 0,
+    }));
+    if (entry.input.type === "action" && !entry.input.roll) {
+      setDraft(entry.draft ?? entry.input.text);
+    }
+  };
+
+  const regenerateLastTurn = async (engine: TurnEngine, currentState: GameState) => {
+    if (busy || pauseRef.current.replacing || pauseRef.current.opening) return;
+    const entry = popUndo(currentState);
+    if (!entry) return;
+    const generation = generationRef.current;
+    const restored = await track(engine.restoreState(entry.before));
+    if (generationRef.current !== generation) return;
+    latestStateRef.current = restored.state;
+    setScreen((previous) => ({
+      status: "playing",
+      engine,
+      state: restored.state,
+      loadedTurns: previous.status === "playing" ? Math.min(previous.loadedTurns, restored.state.turns.length) : 0,
+    }));
+    sendFromPlayer(engine, restored.state, entry.input, entry.draft);
+  };
+
+  return { busy, send, sendFromPlayer, flushNarration, undoTop, undoLastTurn, regenerateLastTurn };
 }

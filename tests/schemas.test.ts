@@ -16,6 +16,27 @@ describe("parseDMResponse", () => {
     expect(parsed.ok).toBe(true);
   });
 
+  it("accepts a player attack roll request with optional damage", () => {
+    const parsed = parseDMResponse(
+      JSON.stringify(
+        reply({
+          playerRoll: {
+            die: "d20",
+            count: 1,
+            reason: "Ataque con espada larga",
+            difficulty: 15,
+            mode: "normal",
+            damage: { die: "d8", count: 1, reason: "Espada larga" },
+          },
+        }),
+      ),
+    );
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(parsed.response.playerRoll?.damage).toEqual({ die: "d8", count: 1, reason: "Espada larga" });
+    }
+  });
+
   it("rejects non-JSON, missing fields and unknown dice", () => {
     expect(parseDMResponse("not json").ok).toBe(false);
     expect(parseDMResponse(JSON.stringify({ narration: "Hola" })).ok).toBe(false);

@@ -52,7 +52,21 @@ function CharacterCard({ values, hp, ac }: Omit<Props, "saving">) {
           <p className="character-card__pills">
             {hp && <span className="pill pill--hp">♥ {hp} PG</span>}
             {ac && <span className="pill pill--ac">CA {ac}</span>}
+            {values.stats?.spellSaveDc !== null && values.stats?.spellSaveDc !== undefined && (
+              <span className="pill">CD {values.stats.spellSaveDc}</span>
+            )}
           </p>
+        )}
+        {values.stats && values.stats.attacks.length > 0 && (
+          <dl className="character-card__facts">
+            <dt>Ataques</dt>
+            <dd>
+              {values.stats.attacks
+                .slice(0, 2)
+                .map((a) => `${a.name} (${a.attackBonus >= 0 ? `+${a.attackBonus}` : a.attackBonus}, ${a.damage})`)
+                .join(" · ")}
+            </dd>
+          </dl>
         )}
         {background && (
           <dl className="character-card__facts">

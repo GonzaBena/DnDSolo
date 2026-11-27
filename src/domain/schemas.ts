@@ -15,12 +15,19 @@ export const MAX_SUGGESTIONS = 3;
     picking it sends exactly this text: the chip trims it on screen (CSS). */
 export const MAX_SUGGESTION_LENGTH = 160;
 
+const damageRollRequest = z.object({
+  die: z.enum(DICE),
+  count: diceCount,
+  reason: z.string().min(1),
+});
+
 const playerRollRequest = z.object({
   die: z.enum(DICE),
   count: diceCount,
   reason: z.string().min(1),
   difficulty: z.number().int().nullable(),
   mode: z.enum(ROLL_MODES),
+  damage: damageRollRequest.nullable().optional(),
 });
 
 const enemyRollRequest = z.object({
@@ -101,6 +108,19 @@ const stateChange = z.discriminatedUnion("type", [
     name: z.string().min(1),
     description: z.string(),
     status: z.enum(["available", "gone"]),
+  }),
+  z.object({
+    type: z.literal("resource"),
+    playerId: z.string(),
+    kind: z.enum(["slot", "feature"]),
+    name: z.string().min(1),
+    delta: z.number().int().refine((d) => d !== 0, "delta must not be 0"),
+  }),
+  z.object({
+    type: z.literal("condition"),
+    playerId: z.string(),
+    condition: z.string().min(1),
+    active: z.boolean(),
   }),
 ]);
 
@@ -226,6 +246,15 @@ const turnInput = z.discriminatedUnion("type", [
         mode: z.enum(ROLL_MODES).optional(),
         rolls: z.tuple([z.number().int(), z.number().int()]).optional(),
         difficulty: z.number().int().optional(),
+        damage: z
+          .object({
+            die: z.enum(DICE),
+            count: z.number().int().positive().optional(),
+            value: z.number().int(),
+            modifier: z.number().int(),
+            reason: z.string().optional(),
+          })
+          .optional(),
       })
       .optional(),
   }),
@@ -315,6 +344,9 @@ export const gameStateSchema = z.object({
         choices: characterChoicesSchema.nullable(),
         outsideSrd: z.object({ note: z.string(), subclass: z.string().nullable() }),
         portrait: z.string().nullable(),
+        activeConditions: z.array(z.string()).optional(),
+        spentSlots: z.record(z.string(), z.number().int().min(0)).optional(),
+        spentResources: z.record(z.string(), z.number().int().min(0)).optional(),
       }),
     )
     .min(1),

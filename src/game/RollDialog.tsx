@@ -1,8 +1,10 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { enterRollDialog, leaveRollDialog, motionAllowed } from "../animations/motion";
-import { dieSides, formatDice, resolveRollMode, rollModeLabel } from "../domain/dice";
-import { DICE, type Die, type PlayerRollRequest, type RollMode } from "../domain/types";
+import { dieSides, formatDice, resolveRollMode, rollDie, rollModeLabel } from "../domain/dice";
+import { DICE, type DamageRoll, type Die, type PlayerRollRequest, type RollMode } from "../domain/types";
 import { DieShape, GemD20, SPARK } from "./DieShape";
+
+const DAMAGE_DICE = ["d4", "d6", "d8", "d10", "d12"] as const satisfies readonly Die[];
 
 interface Props {
   open: boolean;
@@ -20,6 +22,7 @@ interface Props {
     modifier: number;
     mode: RollMode;
     rolls?: [number, number];
+    damage?: DamageRoll;
   }) => void;
 }
 
@@ -46,6 +49,8 @@ export function RollDialog({ open, request: asked, deathSave = false, originRef,
     value: `${uid}-value`,
     second: `${uid}-value-2`,
     modifier: `${uid}-modifier`,
+    damageValue: `${uid}-damage-value`,
+    damageModifier: `${uid}-damage-modifier`,
   };
   const [value, setValue] = useState("");
   // The modifier survives between rolls: the same check often repeats.
@@ -55,6 +60,10 @@ export function RollDialog({ open, request: asked, deathSave = false, originRef,
   const [chosenDie, setChosenDie] = useState<Die>("d20");
   const [chosenMode, setChosenMode] = useState<RollMode>("normal");
   const [secondValue, setSecondValue] = useState("");
+  const [includeDamage, setIncludeDamage] = useState(false);
+  const [manualDamageDie, setManualDamageDie] = useState<Die>("d8");
+  const [damageValue, setDamageValue] = useState("");
+  const [damageModifier, setDamageModifier] = useState("0");
   const die = request?.die ?? chosenDie;
   // Advantage only exists on the d20 when the player picks it by hand.
   const mode: RollMode = request ? request.mode : die === "d20" ? chosenMode : "normal";
@@ -77,6 +86,8 @@ export function RollDialog({ open, request: asked, deathSave = false, originRef,
       setValue("");
       setSecondValue("");
       setChosenMode("normal");
+      setIncludeDamage(false);
+      setDamageValue("");
       dialog.showModal();
       // showModal focuses the first control (the d4 when picking a die);
       // the result is what the player came to type.
@@ -101,13 +112,25 @@ export function RollDialog({ open, request: asked, deathSave = false, originRef,
   const count = twoDice ? 1 : (request?.count ?? 1);
   const maxValue = dieSides(die) * count;
   const inRange = (n: number) => Number.isInteger(n) && n >= 1 && n <= maxValue;
-  const valid = twoDice ? inRange(parsedValue) && inRange(parsedSecond) : inRange(parsedValue);
+  const requestedDamage = !deathSave ? (request?.damage ?? null) : null;
+  const canToggleManualDamage = !deathSave && !request && die === "d20";
+  const showDamageRow = requestedDamage !== null || (canToggleManualDamage && includeDamage);
+  const damageDie: Die = requestedDamage?.die ?? manualDamageDie;
+  const damageCount = requestedDamage?.count ?? 1;
+  const maxDamage = dieSides(damageDie) * damageCount;
+  const parsedDamageValue = Number.parseInt(damageValue, 10);
+  const parsedDamageModifier = Number.parseInt(damageModifier, 10) || 0;
+  const damageFilled = showDamageRow && damageValue.trim() !== "";
+  const damageValid =
+    !damageFilled || (Number.isInteger(parsedDamageValue) && parsedDamageValue >= 1 && parsedDamageValue <= maxDamage);
+  const baseValid = twoDice ? inRange(parsedValue) && inRange(parsedSecond) : inRange(parsedValue);
+  const valid = baseValid && damageValid;
   const kept =
-    twoDice && valid ? resolveRollMode([parsedValue, parsedSecond], mode) : parsedValue;
+    twoDice && baseValid ? resolveRollMode([parsedValue, parsedSecond], mode) : parsedValue;
   // A natural 20 or 1 on the die that counts (only the d20 has them).
-  const natural = die === "d20" && valid && (kept === 20 || kept === 1) ? kept : null;
+  const natural = die === "d20" && baseValid && (kept === 20 || kept === 1) ? kept : null;
   // With two dice, the one that doesn't count.
-  const dropped = twoDice && valid ? (parsedValue === kept ? 1 : 0) : null;
+  const dropped = twoDice && baseValid ? (parsedValue === kept ? 1 : 0) : null;
 
   // Picking another die by hand: the old figure spins away first, then the
   // new one pops in (keyed on the figure). A requested die never changes.
@@ -130,6 +153,21 @@ export function RollDialog({ open, request: asked, deathSave = false, originRef,
   const shown = (raw: string) => {
     const n = Number.parseInt(raw, 10);
     return inRange(n) ? String(n) : "?";
+  };
+
+  const rollSum = (d: Die, n: number) =>
+    Array.from({ length: n }, () => rollDie(d)).reduce((sum, v) => sum + v, 0);
+
+  const rollVirtually = () => {
+    if (twoDice) {
+      setValue(String(rollDie(die)));
+      setSecondValue(String(rollDie(die)));
+    } else {
+      setValue(String(rollSum(die, count)));
+    }
+    if (showDamageRow) {
+      setDamageValue(String(rollSum(damageDie, damageCount)));
+    }
   };
 
   return (
@@ -161,6 +199,17 @@ export function RollDialog({ open, request: asked, deathSave = false, originRef,
             modifier: parsedModifier,
             mode,
             ...(twoDice ? { rolls: [parsedValue, parsedSecond] as [number, number] } : {}),
+            ...(damageFilled
+              ? {
+                  damage: {
+                    die: damageDie,
+                    count: damageCount,
+                    value: parsedDamageValue,
+                    modifier: parsedDamageModifier,
+                    ...(requestedDamage?.reason ? { reason: requestedDamage.reason } : {}),
+                  },
+                }
+              : {}),
           });
         }}
       >
@@ -385,14 +434,95 @@ export function RollDialog({ open, request: asked, deathSave = false, originRef,
           )}
         </div>
         <div
-          className={`roll-dialog__fold${twoDice && valid ? "" : " roll-dialog__fold--closed"}`}
-          inert={!(twoDice && valid)}
+          className={`roll-dialog__fold${twoDice && baseValid ? "" : " roll-dialog__fold--closed"}`}
+          inert={!(twoDice && baseValid)}
         >
           <p className="roll-dialog__kept">
-            {twoDice && valid ? `Con ${rollModeLabel(mode)} queda el ${kept}.` : "\u00a0"}
+            {twoDice && baseValid ? `Con ${rollModeLabel(mode)} queda el ${kept}.` : "\u00a0"}
           </p>
         </div>
+        {canToggleManualDamage && (
+          <label className="roll-dialog__damage-toggle">
+            <input
+              type="checkbox"
+              checked={includeDamage}
+              onChange={(event) => setIncludeDamage(event.target.checked)}
+            />
+            <span>Incluir daño si impacta</span>
+          </label>
+        )}
+        {showDamageRow && (
+          <div className="roll-dialog__damage">
+            <div className="roll-dialog__damage-head">
+              <strong>Daño si impacta</strong>
+              {requestedDamage ? (
+                <span className="roll-dialog__chip">
+                  {formatDice(requestedDamage)} · {requestedDamage.reason}
+                </span>
+              ) : (
+                <select
+                  aria-label="Dado de daño"
+                  value={manualDamageDie}
+                  onChange={(event) => setManualDamageDie(event.target.value as Die)}
+                >
+                  {DAMAGE_DICE.map((d) => (
+                    <option key={d} value={d}>
+                      1{d}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <div className="roll-dialog__fields">
+              <div className="field">
+                <label htmlFor={ids.damageValue}>
+                  {damageCount > 1 ? `Suma de ${damageCount}${damageDie}` : `Dado (${damageDie})`}
+                </label>
+                <input
+                  id={ids.damageValue}
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={maxDamage}
+                  placeholder="Opcional"
+                  value={damageValue}
+                  onChange={(event) => setDamageValue(event.target.value)}
+                />
+              </div>
+              <span className="roll-dialog__op" aria-hidden="true">
+                +
+              </span>
+              <div className="field">
+                <label htmlFor={ids.damageModifier}>
+                  <span className="roll-dialog__label-long">Modificador</span>
+                  <span className="roll-dialog__label-short">Mod.</span>
+                </label>
+                <input
+                  id={ids.damageModifier}
+                  type="number"
+                  inputMode="numeric"
+                  value={damageModifier}
+                  onChange={(event) => setDamageModifier(event.target.value)}
+                />
+              </div>
+              <span className="roll-dialog__op" aria-hidden="true">
+                =
+              </span>
+              <output className="roll-dialog__total" htmlFor={`${ids.damageValue} ${ids.damageModifier}`}>
+                <span>{damageFilled && damageValid ? parsedDamageValue + parsedDamageModifier : "—"}</span>
+              </output>
+            </div>
+          </div>
+        )}
         <div className="actions">
+          <button
+            type="button"
+            className="button roll-dialog__virtual"
+            title="Generar tirada virtual si no tenés dados a mano"
+            onClick={rollVirtually}
+          >
+            Tirar acá
+          </button>
           <button type="button" className="button" onClick={onClose}>
             Cancelar
           </button>

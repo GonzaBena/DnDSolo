@@ -15,7 +15,12 @@ interface Props {
   atBottom: boolean;
   onScrollToBottom: () => void;
   /** Null when the player turned suggestions off. */
-  suggestions: { actions: string[]; visible: boolean } | null;
+  suggestions: {
+    actions: string[];
+    visible: boolean;
+    onAsk?: () => void;
+    asking?: boolean;
+  } | null;
   onSubmit: (event: { preventDefault(): void }) => void;
   /** Gets the button, so the roll dialog can grow out of it. */
   onOpenRoll: (origin: HTMLElement) => void;
@@ -79,16 +84,30 @@ export function Composer({
         </button>
       )}
       {suggestions && (
-        <Suggestions
-          actions={suggestions.actions}
-          visible={suggestions.visible}
-          onPick={(action) => {
-            onDraftChange((current) => withSuggestion(current, action));
-            // On a phone, focusing would open the keyboard over the field:
-            // the player can send it as is, or tap the field to edit it.
-            if (matchMedia("(pointer: fine)").matches) inputRef.current?.focus();
-          }}
-        />
+        <>
+          {suggestions.onAsk && suggestions.visible && suggestions.actions.length === 0 && (
+            <div className="suggestions-ask">
+              <button
+                type="button"
+                className="suggestion suggestion--ask"
+                disabled={suggestions.asking}
+                onClick={suggestions.onAsk}
+              >
+                {suggestions.asking ? "Buscando ideas…" : "¿Ideas?"}
+              </button>
+            </div>
+          )}
+          <Suggestions
+            actions={suggestions.actions}
+            visible={suggestions.visible}
+            onPick={(action) => {
+              onDraftChange((current) => withSuggestion(current, action));
+              // On a phone, focusing would open the keyboard over the field:
+              // the player can send it as is, or tap the field to edit it.
+              if (matchMedia("(pointer: fine)").matches) inputRef.current?.focus();
+            }}
+          />
+        </>
       )}
       <div className="field">
         <label htmlFor="action-input">¿Qué hacés?</label>

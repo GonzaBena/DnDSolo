@@ -100,11 +100,11 @@ describe("DM_SYSTEM_PROMPT", () => {
 });
 
 describe("buildTurnPrompt", () => {
-  it("includes the rules block after the state", () => {
+  it("includes the rules block before dynamic state and summary for prefix caching", () => {
     const prompt = buildTurnPrompt(newGame(), { type: "start" }, 6);
     expect(prompt).toContain("REGLAS DE LOS PERSONAJES");
-    expect(prompt.indexOf("ESTADO")).toBeLessThan(prompt.indexOf("REGLAS DE LOS PERSONAJES"));
     expect(prompt.indexOf("REGLAS DE LOS PERSONAJES")).toBeLessThan(prompt.indexOf("RESUMEN"));
+    expect(prompt.indexOf("RESUMEN")).toBeLessThan(prompt.indexOf("ESTADO"));
   });
 });
 

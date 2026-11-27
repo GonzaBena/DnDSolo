@@ -10,6 +10,8 @@ export interface Typewriter {
   /** The full text received so far. If it doesn't extend what was already
       set (e.g. a retry started over), the reveal restarts. */
   setTarget(text: string): void;
+  /** Immediately reveals everything received so far and unblocks `finish()`. */
+  flush(): void;
   /** Resolves once everything set so far is on screen. */
   finish(): Promise<void>;
   cancel(): void;
@@ -90,6 +92,9 @@ export function createTypewriter(
         return;
       }
       if (shown < target.length) start();
+    },
+    flush() {
+      revealAll();
     },
     finish() {
       if (shown >= target.length) return Promise.resolve();

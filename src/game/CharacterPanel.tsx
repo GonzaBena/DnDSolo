@@ -35,6 +35,7 @@ export function CharacterPanel({
 
   const stats = player.stats;
   const hp = stats && player.currentHp !== null ? { current: player.currentHp, max: stats.maxHp } : null;
+  const conditions = player.activeConditions ?? [];
 
   return (
     <aside className={`sheet${zenMode ? " sheet--zen" : ""}`} aria-label="Tu personaje">
@@ -106,6 +107,15 @@ export function CharacterPanel({
               </button>
             </div>
           </div>
+        )}
+        {!zenMode && conditions.length > 0 && (
+          <ul className="sheet__conditions" aria-label="Condiciones activas">
+            {conditions.map((condition) => (
+              <li key={condition} className="sheet__condition">
+                {condition}
+              </li>
+            ))}
+          </ul>
         )}
         {!zenMode && (
           <dl className="sheet__details">

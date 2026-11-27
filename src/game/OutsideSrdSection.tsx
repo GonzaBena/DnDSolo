@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { OUTSIDE_SRD_NOTE_MAX } from "../domain/character";
 import { SUBCLASS_NAME_MAX, type SubclassPick } from "../domain/outsideSrd";
+import { nonSrdSubclassesFor } from "../domain/outsideSrdCatalog";
 import type { Character } from "../domain/types";
 import { findClass } from "../rules";
 
@@ -20,7 +21,10 @@ export function OutsideSrdSection({
   /** Present when the sheet's rules choices can be completed (a sheet without them). */
   onUpgradeSheet?: () => void;
 }) {
-  const srd = findClass(player.classId ?? player.characterClass)?.subclass;
+  const classObj = findClass(player.classId ?? player.characterClass);
+  const srd = classObj?.subclass;
+  const subclassSuggestions = nonSrdSubclassesFor(classObj?.id);
+  const datalistId = useId();
   const reached = srd !== undefined && player.level >= srd.level;
   const initialKind = player.outsideSrd.subclass !== null ? "custom" : player.subclassId !== null ? "srd" : null;
   const [note, setNote] = useState(player.outsideSrd.note);
@@ -88,17 +92,27 @@ export function OutsideSrdSection({
             Otra de tu manual
           </label>
           {kind === "custom" && (
-            <input
-              type="text"
-              maxLength={SUBCLASS_NAME_MAX}
-              value={name}
-              placeholder="Ej: Maestro de las bestias"
-              aria-label="Nombre de la subclase"
-              onChange={(e) => {
-                setName(e.target.value);
-                setStatus("idle");
-              }}
-            />
+            <>
+              <input
+                type="text"
+                maxLength={SUBCLASS_NAME_MAX}
+                list={subclassSuggestions.length > 0 ? datalistId : undefined}
+                value={name}
+                placeholder="Ej: Maestro de batalla"
+                aria-label="Nombre de la subclase"
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setStatus("idle");
+                }}
+              />
+              {subclassSuggestions.length > 0 && (
+                <datalist id={datalistId}>
+                  {subclassSuggestions.map((option) => (
+                    <option key={option} value={option} />
+                  ))}
+                </datalist>
+              )}
+            </>
           )}
         </fieldset>
       )}

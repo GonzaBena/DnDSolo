@@ -1,7 +1,7 @@
 // "Gemini" section: the API key, the model and the narration options.
 import { GeminiClient, listGeminiModels } from "../llm/GeminiClient";
 import { describeLLMError } from "../llm/errorMessages";
-import { loadSettings, saveSettings } from "../persistence/settings";
+import { loadSettings, saveSettings, type SuggestionsMode } from "../persistence/settings";
 
 type RequiredField = HTMLInputElement | HTMLSelectElement;
 
@@ -24,8 +24,9 @@ export function setUpApiSection(): void {
   const form = document.querySelector<HTMLFormElement>("#settings-form")!;
   const keyInput = document.querySelector<HTMLInputElement>("#api-key")!;
   const modelSelect = document.querySelector<HTMLSelectElement>("#model")!;
+  const auxModelSelect = document.querySelector<HTMLSelectElement>("#aux-model")!;
   const fastInput = document.querySelector<HTMLInputElement>("#fast-narration")!;
-  const suggestionsInput = document.querySelector<HTMLInputElement>("#show-suggestions")!;
+  const suggestionsSelect = document.querySelector<HTMLSelectElement>("#suggestions-mode")!;
   const loadButton = document.querySelector<HTMLButtonElement>("#load-models")!;
   const testButton = document.querySelector<HTMLButtonElement>("#test")!;
   const status = document.querySelector<HTMLParagraphElement>("#status")!;
@@ -54,7 +55,7 @@ export function setUpApiSection(): void {
     toggleKeyButton.textContent = show ? "Ocultar" : "Mostrar";
   });
 
-  async function loadModels(preferred: string) {
+  async function loadModels(preferred: string, preferredAux: string) {
     const apiKey = keyInput.value.trim();
     if (!requireFilled([keyInput])) {
       setStatus("Primero pegá tu API key.", "error");
@@ -69,8 +70,14 @@ export function setUpApiSection(): void {
         ...models.map((m) => new Option(m.label, m.id)),
       );
       modelSelect.disabled = false;
+      auxModelSelect.replaceChildren(
+        new Option("El mismo que el principal", ""),
+        ...models.map((m) => new Option(m.label, m.id)),
+      );
+      auxModelSelect.disabled = false;
       // Keep the saved choice only if this key can still use it.
       if (models.some((m) => m.id === preferred)) modelSelect.value = preferred;
+      if (models.some((m) => m.id === preferredAux)) auxModelSelect.value = preferredAux;
       setStatus(`${models.length} modelos disponibles.`, "ok");
     } catch (error) {
       setStatus(describeLLMError(error), "error");
@@ -79,7 +86,7 @@ export function setUpApiSection(): void {
     }
   }
 
-  loadButton.addEventListener("click", () => void loadModels(modelSelect.value));
+  loadButton.addEventListener("click", () => void loadModels(modelSelect.value, auxModelSelect.value));
 
   testButton.addEventListener("click", async () => {
     const apiKey = keyInput.value.trim();
@@ -110,11 +117,14 @@ export function setUpApiSection(): void {
       setStatus("Necesitás una API key y un modelo para guardar.", "error");
       return;
     }
+    const suggestionsMode = suggestionsSelect.value as SuggestionsMode;
     saveSettings({
       apiKey,
       model,
+      auxiliaryModel: auxModelSelect.value,
       fastNarration: fastInput.checked,
-      showSuggestions: suggestionsInput.checked,
+      showSuggestions: suggestionsMode !== "off",
+      suggestionsMode,
     });
     notice.hidden = true;
     setStatus("Configuración guardada.", "ok");
@@ -125,7 +135,7 @@ export function setUpApiSection(): void {
   if (saved) {
     keyInput.value = saved.apiKey;
     fastInput.checked = saved.fastNarration;
-    suggestionsInput.checked = saved.showSuggestions;
-    void loadModels(saved.model);
+    suggestionsSelect.value = saved.suggestionsMode;
+    void loadModels(saved.model, saved.auxiliaryModel);
   }
 }

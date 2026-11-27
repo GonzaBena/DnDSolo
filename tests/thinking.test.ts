@@ -25,7 +25,7 @@ describe("thinkingConfigFor", () => {
 
 describe("temperatureFor", () => {
   it("raises it for creative calls on Gemini 2.x", () => {
-    expect(temperatureFor("models/gemini-2.5-flash", true)).toBe(1.2);
+    expect(temperatureFor("models/gemini-2.5-flash", true)).toBe(1.05);
     expect(temperatureFor("models/gemini-2.5-flash", false)).toBeUndefined();
   });
   it("leaves Gemini 3 at its default, as Google advises", () => {

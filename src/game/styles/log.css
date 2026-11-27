@@ -104,10 +104,18 @@
    goes above the message instead. */
 @media (max-width: 34rem) {
   .message--dm,
-  .message--npc,
   .message--player {
     grid-template-columns: minmax(0, 1fr);
     gap: 0;
+  }
+  .message--npc {
+    grid-template-columns: 1.5rem minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+  .message--npc .avatar--sm .avatar__face {
+    width: 1.5rem;
+    height: 1.5rem;
+    font-size: 0.55rem;
   }
   .message--player .speaker {
     order: -1;
@@ -116,16 +124,21 @@
   .message--dm .speaker {
     text-align: left;
   }
-  /* The bubble already carries the NPC's name. */
-  .message--npc .avatar {
-    display: none;
-  }
   .speaker {
     padding-top: 0;
   }
   .thinking {
     padding-left: 0;
   }
+}
+.log__more {
+  justify-self: center;
+}
+.turn-undo {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
 }
 
 /* Jump-to-latest button: shows up once the player scrolls away from the end,

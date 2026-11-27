@@ -55,4 +55,18 @@ describe("typewriter in a hidden tab", () => {
     await done;
     expect(doc.listeners.size).toBe(0);
   });
+
+  it("flush reveals the buffered text at once and settles finish", async () => {
+    vi.stubGlobal("requestAnimationFrame", () => 1);
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    const doc = fakeDoc("visible");
+    const shown: string[] = [];
+    const tw = createTypewriter((text) => shown.push(text), doc as never);
+    tw.setTarget("hola mundo");
+    const done = tw.finish();
+    tw.flush();
+    await done;
+    expect(shown.at(-1)).toBe("hola mundo");
+    expect(doc.listeners.size).toBe(0);
+  });
 });

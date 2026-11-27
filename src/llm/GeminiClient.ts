@@ -5,6 +5,8 @@ import { temperatureFor, thinkingConfigFor } from "./thinking";
 import { LLMError, type LLMClient, type StructuredRequest, type TextRequest } from "./LLMClient";
 
 const API = "https://generativelanguage.googleapis.com/v1beta";
+const DEFAULT_REQUEST_TIMEOUT_MS = 25_000;
+const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 15_000;
 
 /** Google's error body: `{ error: { code, message, status } }`. */
 class GeminiHttpError extends Error {
@@ -16,8 +18,11 @@ class GeminiHttpError extends Error {
   }
 }
 
-function toLLMError(error: unknown): LLMError {
+function toLLMError(error: unknown, timedOut = false): LLMError {
   if (error instanceof LLMError) return error;
+  if (timedOut) {
+    return new LLMError("timeout", "The request timed out.", { cause: error });
+  }
   // Raised when the AbortSignal passed in the request fires.
   if ((error instanceof Error || error instanceof DOMException) && error.name === "AbortError") {
     return new LLMError("aborted", error.message, { cause: error });
@@ -39,6 +44,75 @@ function toLLMError(error: unknown): LLMError {
 
 function abortedError(): LLMError {
   return new LLMError("aborted", "The request was aborted.");
+}
+
+interface TimeoutGuard {
+  signal: AbortSignal;
+  reset: (ms: number) => void;
+  clear: () => void;
+  didTimeout: () => boolean;
+}
+
+/** Links an external AbortSignal with an internal idle/request timeout so hung
+    connections fail cleanly without masking a user-initiated abort. */
+function createTimeoutGuard(external: AbortSignal | undefined, initialMs: number): TimeoutGuard {
+  const controller = new AbortController();
+  let timedOut = false;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const clearTimer = () => {
+    if (timer !== null) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  };
+  const onExternalAbort = () => {
+    clearTimer();
+    controller.abort();
+  };
+  if (external?.aborted) {
+    controller.abort();
+  } else {
+    external?.addEventListener("abort", onExternalAbort, { once: true });
+  }
+
+  const reset = (ms: number) => {
+    clearTimer();
+    if (controller.signal.aborted || !Number.isFinite(ms) || ms <= 0) return;
+    timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, ms);
+  };
+  reset(initialMs);
+
+  return {
+    signal: controller.signal,
+    reset,
+    clear: () => {
+      clearTimer();
+      external?.removeEventListener("abort", onExternalAbort);
+    },
+    didTimeout: () => timedOut && !external?.aborted,
+  };
+}
+
+function readWithAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(new DOMException("The operation was aborted.", "AbortError"));
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new DOMException("The operation was aborted.", "AbortError"));
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
 }
 
 /** "gemini-2.5-flash" and "models/gemini-2.5-flash" name the same model. */
@@ -79,7 +153,11 @@ async function send(fetchFn: typeof fetch, url: string, apiKey: string, init: Re
 }
 
 /** Each server-sent event's JSON, as it arrives. */
-async function* sseEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<GenerateResponse> {
+async function* sseEvents(
+  body: ReadableStream<Uint8Array>,
+  guard: TimeoutGuard,
+  idleTimeoutMs: number,
+): AsyncGenerator<GenerateResponse> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -93,7 +171,8 @@ async function* sseEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<Gene
   };
   try {
     for (;;) {
-      const { done, value } = await reader.read();
+      guard.reset(idleTimeoutMs);
+      const { done, value } = await readWithAbort(reader.read(), guard.signal);
       if (done) break;
       // stream: a multi-byte letter (á, ñ) can be split between two reads.
       buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
@@ -107,6 +186,7 @@ async function* sseEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<Gene
     const last = parse(buffer + decoder.decode());
     if (last) yield last;
   } finally {
+    void reader.cancel().catch(() => {});
     reader.releaseLock();
   }
 }
@@ -116,27 +196,37 @@ export class GeminiClient implements LLMClient {
   private readonly model: string;
   private readonly fastNarration: boolean;
   private readonly fetchFn: typeof fetch;
+  private readonly requestTimeoutMs: number;
+  private readonly streamIdleTimeoutMs: number;
 
   constructor(
     apiKey: string,
     model: string,
-    options: { fastNarration?: boolean; fetchFn?: typeof fetch } = {},
+    options: {
+      fastNarration?: boolean;
+      fetchFn?: typeof fetch;
+      requestTimeoutMs?: number;
+      streamIdleTimeoutMs?: number;
+    } = {},
   ) {
     this.apiKey = apiKey;
     this.model = modelPath(model);
     this.fastNarration = options.fastNarration ?? false;
     // Bound: a bare `fetch` stored on an object loses its window receiver.
     this.fetchFn = options.fetchFn ?? ((...args) => fetch(...args));
+    this.requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+    this.streamIdleTimeoutMs = options.streamIdleTimeoutMs ?? DEFAULT_STREAM_IDLE_TIMEOUT_MS;
   }
 
   async generateStructured(request: StructuredRequest): Promise<string> {
+    const guard = createTimeoutGuard(request.signal, this.requestTimeoutMs);
     try {
       // Only the turn call: the summary keeps the model's default thinking.
       const thinkingConfig = thinkingConfigFor(this.model, this.fastNarration);
       const temperature = temperatureFor(this.model, request.creative ?? false);
       const response = await send(this.fetchFn, `${API}/${this.model}:streamGenerateContent?alt=sse`, this.apiKey, {
         method: "POST",
-        signal: request.signal,
+        signal: guard.signal,
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: request.prompt }] }],
           systemInstruction: { parts: [{ text: request.system }] },
@@ -150,8 +240,9 @@ export class GeminiClient implements LLMClient {
       });
       if (!response.body) throw new LLMError("empty", "The model returned no text.");
       let full = "";
-      for await (const event of sseEvents(response.body)) {
+      for await (const event of sseEvents(response.body, guard, this.streamIdleTimeoutMs)) {
         if (request.signal?.aborted) throw abortedError();
+        if (guard.didTimeout()) throw new LLMError("timeout", "The request timed out.");
         const fragment = textOf(event);
         if (!fragment) continue;
         full += fragment;
@@ -159,18 +250,22 @@ export class GeminiClient implements LLMClient {
       }
       // The stream can end quietly when cut: don't return the partial text.
       if (request.signal?.aborted) throw abortedError();
+      if (guard.didTimeout()) throw new LLMError("timeout", "The request timed out.");
       if (!full) throw new LLMError("empty", "The model returned no text.");
       return full;
     } catch (error) {
-      throw toLLMError(error);
+      throw toLLMError(error, guard.didTimeout());
+    } finally {
+      guard.clear();
     }
   }
 
   async generateText(request: TextRequest): Promise<string> {
+    const guard = createTimeoutGuard(request.signal, this.requestTimeoutMs);
     try {
       const response = await send(this.fetchFn, `${API}/${this.model}:generateContent`, this.apiKey, {
         method: "POST",
-        signal: request.signal,
+        signal: guard.signal,
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: request.prompt }] }],
           ...(request.system ? { systemInstruction: { parts: [{ text: request.system }] } } : {}),
@@ -178,10 +273,13 @@ export class GeminiClient implements LLMClient {
       });
       const text = textOf((await response.json()) as GenerateResponse);
       if (request.signal?.aborted) throw abortedError();
+      if (guard.didTimeout()) throw new LLMError("timeout", "The request timed out.");
       if (!text) throw new LLMError("empty", "The model returned no text.");
       return text;
     } catch (error) {
-      throw toLLMError(error);
+      throw toLLMError(error, guard.didTimeout());
+    } finally {
+      guard.clear();
     }
   }
 }

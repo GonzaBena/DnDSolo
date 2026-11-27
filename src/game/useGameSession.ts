@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { GameState, TurnInput } from "../domain/types";
 import { TurnEngine } from "../engine/TurnEngine";
 import { GeminiClient } from "../llm/GeminiClient";
-import { isConfigured, loadSettings } from "../persistence/settings";
+import { isConfigured, loadSettings, type SuggestionsMode } from "../persistence/settings";
 import { syncBeforeOpen } from "../sync/openGame";
 import { createGameRepo, getSyncRuntime } from "../sync/runtime";
 import type { FailureNotice } from "./failureNotice";
@@ -49,7 +49,8 @@ export function useGameSession() {
     );
     return () => clearTimeout(timer);
   }, [warning]);
-  const [showSuggestions, setShowSuggestions] = useState(true);
+  const [suggestionsMode, setSuggestionsMode] = useState<SuggestionsMode>("auto");
+  const showSuggestions = suggestionsMode !== "off";
   const abortRef = useRef<AbortController | null>(null);
   useEffect(() => () => abortRef.current?.abort(), []);
   // The newest playing state, so a summary that resolves late is applied to
@@ -92,16 +93,24 @@ export function useGameSession() {
       location.replace("/settings?missing=1");
       return;
     }
-    setShowSuggestions(settings.showSuggestions);
+    setSuggestionsMode(settings.suggestionsMode);
     const repo = createGameRepo();
-    const createEngine = () =>
-      new TurnEngine({
-        llm: new GeminiClient(settings.apiKey, settings.model, {
-          fastNarration: settings.fastNarration,
-        }),
-        repo,
-        config: { suggestions: settings.showSuggestions },
+    const createEngine = () => {
+      const llm = new GeminiClient(settings.apiKey, settings.model, {
+        fastNarration: settings.fastNarration,
       });
+      const auxModel = settings.auxiliaryModel.trim();
+      const auxiliaryLlm =
+        auxModel !== "" && auxModel !== settings.model
+          ? new GeminiClient(settings.apiKey, auxModel, { fastNarration: true })
+          : undefined;
+      return new TurnEngine({
+        llm,
+        auxiliaryLlm,
+        repo,
+        config: { suggestions: settings.suggestionsMode === "auto" },
+      });
+    };
     // /play?id=... opens a specific campaign; without it, the latest one.
     const id = new URLSearchParams(location.search).get("id");
     const load = () => (id ? repo.load(id) : repo.loadLatest());
@@ -205,6 +214,7 @@ export function useGameSession() {
     warning,
     setWarning,
     showSuggestions,
+    suggestionsMode,
     sync,
     abortRef,
     latestStateRef,

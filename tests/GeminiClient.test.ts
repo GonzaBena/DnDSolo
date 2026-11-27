@@ -102,7 +102,7 @@ describe("GeminiClient.generateStructured", () => {
   it("raises the temperature only for creative calls", async () => {
     const creative = fakeFetch(sseResponse(["{}"]));
     await new GeminiClient("k", "gemini-2.5-flash", { fetchFn: creative }).generateStructured({ ...structured, creative: true });
-    expect(requestOf(creative).body.generationConfig.temperature).toBe(1.2);
+    expect(requestOf(creative).body.generationConfig.temperature).toBe(1.05);
     const plain = fakeFetch(sseResponse(["{}"]));
     await new GeminiClient("k", "gemini-2.5-flash", { fetchFn: plain }).generateStructured(structured);
     expect(requestOf(plain).body.generationConfig).not.toHaveProperty("temperature");
@@ -113,6 +113,30 @@ describe("GeminiClient.generateStructured", () => {
     await expect(new GeminiClient("k", "m", { fetchFn }).generateStructured(structured)).rejects.toMatchObject({
       kind: "empty",
     });
+  });
+
+  it("times out when a stream stalls before delivering a chunk", async () => {
+    const stalledStream = new ReadableStream<Uint8Array>({
+      start() {
+        // Never enqueues or closes.
+      },
+    });
+    const fetchFn = fakeFetch(new Response(stalledStream, { status: 200 }));
+    await expect(
+      new GeminiClient("k", "m", { fetchFn, requestTimeoutMs: 500, streamIdleTimeoutMs: 25 }).generateStructured(structured),
+    ).rejects.toMatchObject({ kind: "timeout" });
+  });
+
+  it("keeps user aborts as aborted rather than timeout", async () => {
+    const controller = new AbortController();
+    const stalledStream = new ReadableStream<Uint8Array>({ start() {} });
+    const fetchFn = fakeFetch(new Response(stalledStream, { status: 200 }));
+    const promise = new GeminiClient("k", "m", { fetchFn, streamIdleTimeoutMs: 200 }).generateStructured({
+      ...structured,
+      signal: controller.signal,
+    });
+    controller.abort();
+    await expect(promise).rejects.toMatchObject({ kind: "aborted" });
   });
 });
 

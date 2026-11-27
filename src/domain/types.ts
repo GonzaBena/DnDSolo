@@ -2,7 +2,6 @@
 // what the engine transforms and (in part) what the model sees.
 
 import type { HealthLabel } from "./health";
-import type { PortraitId } from "./portraits";
 import type { CharacterChoices } from "../rules/buildSheet";
 
 export const DICE = ["d4", "d6", "d8", "d10", "d12", "d20", "d100"] as const;
@@ -65,6 +64,12 @@ export interface Character {
   outsideSrd: OutsideSrd;
   /** The player's portrait (an id in heroPortraits.ts); null shows their initials. */
   portrait: string | null;
+  /** Active combat or status conditions (e.g. "Envenenado", "Concentración: Bendición"). */
+  activeConditions?: string[] | undefined;
+  /** Spell slots spent per level ("1".."5" or "pact"). Absent means 0 spent. */
+  spentSlots?: Record<string, number> | undefined;
+  /** Class feature uses spent, keyed by SRD resource name. */
+  spentResources?: Record<string, number> | undefined;
 }
 
 export interface OutsideSrd {
@@ -76,6 +81,24 @@ export interface OutsideSrd {
 
 export const ROLL_MODES = ["normal", "advantage", "disadvantage"] as const;
 export type RollMode = (typeof ROLL_MODES)[number];
+
+/** Optional weapon/spell damage requested alongside an attack roll so combat
+    resolves hit + damage in a single turn. */
+export interface DamageRollRequest {
+  die: Die;
+  count: number;
+  /** e.g. "Espada larga" or "Descarga sobrenatural" */
+  reason: string;
+}
+
+/** Optional damage rolled alongside an attack roll. */
+export interface DamageRoll {
+  die: Die;
+  count?: number | undefined;
+  value: number;
+  modifier: number;
+  reason?: string | undefined;
+}
 
 /** A roll the DM asks the *player* for. The app never rolls it: the player
     rolls their own dice, applies their own modifiers and types the total
@@ -89,6 +112,9 @@ export interface PlayerRollRequest {
   /** Difficulty class, when the roll has one. */
   difficulty: number | null;
   mode: RollMode;
+  /** Present on weapon/spell attacks when the damage die is known, letting
+      the player roll attack and damage in one step. */
+  damage?: DamageRollRequest | null | undefined;
 }
 
 /** A roll the player made with their own dice and reported through the
@@ -108,6 +134,8 @@ export interface PlayerRoll {
   rolls?: [number, number] | undefined;
   /** The DC the DM asked for, when it had one: the card then says whether the total reached it. */
   difficulty?: number | undefined;
+  /** Combined damage roll when the player rolled attack and damage together. */
+  damage?: DamageRoll | undefined;
 }
 
 /** A roll for an enemy or NPC. These are the only dice the app rolls. */
@@ -259,7 +287,11 @@ export type StateChange =
     }
   /** An object the narration put within reach, or that stopped being there.
       Taking it is an inventory_add with the same name. */
-  | { type: "item"; name: string; description: string; status: Exclude<StoryItemStatus, "taken"> };
+  | { type: "item"; name: string; description: string; status: Exclude<StoryItemStatus, "taken"> }
+  /** Spends (delta < 0) or recovers (delta > 0) a spell slot or tracked class resource. */
+  | { type: "resource"; playerId: string; kind: "slot" | "feature"; name: string; delta: number }
+  /** Adds or removes an active combat/status condition (including Concentration). */
+  | { type: "condition"; playerId: string; condition: string; active: boolean };
 
 export const TURN_EVENTS = [
   "damage_taken",

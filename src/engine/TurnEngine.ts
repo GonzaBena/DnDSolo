@@ -58,10 +58,35 @@ export const MAX_CHAINED_ENEMY_ROLLS = 3;
 
 export interface EngineDeps {
   llm: LLMClient;
+  /** Optional lighter client used for summaries and on-demand suggestions. */
+  auxiliaryLlm?: LLMClient;
   repo: GameRepo;
   random?: () => number;
   now?: () => Date;
   config?: Partial<EngineConfig>;
+  /** Backoff before retrying a transient rate-limit/network/timeout failure. */
+  transientRetryDelayMs?: number;
+}
+
+const DEFAULT_TRANSIENT_RETRY_DELAY_MS = 1200;
+
+function isTransientLLMError(cause: unknown): boolean {
+  return cause instanceof LLMError && (cause.kind === "rate_limit" || cause.kind === "network" || cause.kind === "timeout");
+}
+
+function waitWithAbort(ms: number, signal?: AbortSignal): Promise<void> {
+  if (ms <= 0 || signal?.aborted) return Promise.resolve();
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 export type TurnFailure =
@@ -94,9 +119,11 @@ export type TurnOutcome =
     testable with a fake client and an in-memory repo. */
 export class TurnEngine {
   private readonly llm: LLMClient;
+  private readonly auxiliaryLlm: LLMClient;
   private readonly repo: GameRepo;
   private readonly random: () => number;
   private readonly now: () => Date;
+  private readonly transientRetryDelayMs: number;
   readonly config: EngineConfig;
   /** Per game, `turns.length` at the last failed summary attempt. */
   private readonly lastFailedSummaryAt = new Map<string, number>();
@@ -108,9 +135,11 @@ export class TurnEngine {
 
   constructor(deps: EngineDeps) {
     this.llm = deps.llm;
+    this.auxiliaryLlm = deps.auxiliaryLlm ?? deps.llm;
     this.repo = deps.repo;
     this.random = deps.random ?? Math.random;
     this.now = deps.now ?? (() => new Date());
+    this.transientRetryDelayMs = deps.transientRetryDelayMs ?? DEFAULT_TRANSIENT_RETRY_DELAY_MS;
     this.config = { ...DEFAULT_ENGINE_CONFIG, ...deps.config };
   }
 
@@ -149,12 +178,15 @@ export class TurnEngine {
       enemyRollsAllowed,
     });
 
-    // One retry on malformed output, then give up cleanly (Spec, rule 2).
+    // One retry on malformed output (Spec, rule 2), plus at most one backoff
+    // retry on transient rate-limit, network or timeout failures.
     let lastReason = "";
-    for (let attempt = 0; attempt < 2; attempt += 1) {
+    let attempt = 0;
+    let transientRetried = false;
+    while (attempt < 2) {
       let raw = "";
       if (signal?.aborted) return { ok: false, state, failure: { kind: "aborted" } };
-      if (attempt > 0) onNarration?.("");
+      if (attempt > 0 || transientRetried) onNarration?.("");
       try {
         raw = await this.llm.generateStructured({
           system: buildDmSystemPrompt({ suggestions: this.config.suggestions }),
@@ -172,6 +204,12 @@ export class TurnEngine {
         if (signal?.aborted || (cause instanceof LLMError && cause.kind === "aborted")) {
           return { ok: false, state, failure: { kind: "aborted" } };
         }
+        if (!transientRetried && isTransientLLMError(cause)) {
+          transientRetried = true;
+          await waitWithAbort(this.transientRetryDelayMs, signal);
+          if (signal?.aborted) return { ok: false, state, failure: { kind: "aborted" } };
+          continue;
+        }
         const message = cause instanceof Error ? cause.message : String(cause);
         return { ok: false, state, failure: { kind: "llm", message, cause } };
       }
@@ -183,6 +221,7 @@ export class TurnEngine {
       const parsed = parseDMResponse(raw);
       if (!parsed.ok) {
         lastReason = parsed.reason;
+        attempt += 1;
         continue;
       }
       // Lets the UI finish revealing the text; a Stop in that window
@@ -355,6 +394,14 @@ export class TurnEngine {
     return { state: next, saveError: await this.enqueueSave(next) };
   }
 
+  /** Restores a previous state snapshot (e.g. undoing or regenerating the last turn)
+      and persists it through the serialized save chain. */
+  async restoreState(snapshot: GameState): Promise<{ state: GameState; saveError: unknown | null }> {
+    const next: GameState = { ...snapshot, updatedAt: this.now().toISOString() };
+    this.latestByGame.set(next.id, next);
+    return { state: next, saveError: await this.enqueueSave(next) };
+  }
+
   /** Saves after every earlier save has settled; a failure doesn't break
       the chain. Resolves to the error, or null. */
   private enqueueSave(state: GameState): Promise<unknown | null> {
@@ -386,7 +433,7 @@ export class TurnEngine {
   async suggestFor(state: GameState, signal?: AbortSignal): Promise<string[]> {
     if (state.turns.length === 0) return [];
     try {
-      const raw = await this.llm.generateStructured({
+      const raw = await this.auxiliaryLlm.generateStructured({
         system: SUGGESTIONS_SYSTEM_PROMPT,
         prompt: buildSuggestionsPrompt(state, this.config.recentTurns),
         jsonSchema: suggestionsJsonSchema,
@@ -418,7 +465,7 @@ export class TurnEngine {
     this.summaryInFlight = true;
     try {
       const summary = (
-        await this.llm.generateText({
+        await this.auxiliaryLlm.generateText({
           system: SUMMARY_SYSTEM_PROMPT,
           prompt: buildSummaryPrompt(state.summary, pending),
         })

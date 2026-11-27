@@ -56,6 +56,16 @@ const switchAttr: Record<string, string> = { switch: "" };
         </div>
         <small id="model-help">La lista depende de tu key: recargala si cambiás de key.</small>
       </div>
+
+      <div class="settings-field">
+        <label for="aux-model">Modelo auxiliar <small>(opcional)</small></label>
+        <div class="settings-inline">
+          <select id="aux-model" name="aux-model" disabled aria-describedby="aux-model-help">
+            <option value="">El mismo que el principal</option>
+          </select>
+        </div>
+        <small id="aux-model-help">Para resúmenes de campaña y sugerencias. Podés elegir uno más rápido o liviano.</small>
+      </div>
     </section>
 
     <fieldset class="settings-section">
@@ -70,13 +80,17 @@ const switchAttr: Record<string, string> = { switch: "" };
         <input id="fast-narration" name="fast-narration" type="checkbox" class="switch" {...switchAttr} role="switch" />
       </label>
 
-      <label class="switch-row">
-        <span class="switch-row__text">
-          <strong>Sugerencias de acción</strong>
-          <small>El DM propone hasta tres ideas después de cada respuesta.</small>
-        </span>
-        <input id="show-suggestions" name="show-suggestions" type="checkbox" class="switch" {...switchAttr} role="switch" checked />
-      </label>
+      <div class="settings-field">
+        <label for="suggestions-mode">Sugerencias de acción</label>
+        <div class="settings-inline">
+          <select id="suggestions-mode" name="suggestions-mode" aria-describedby="suggestions-mode-help">
+            <option value="auto">Automáticas en cada turno</option>
+            <option value="on_demand">Solo al pedirlas (botón «¿Ideas?»)</option>
+            <option value="off">Desactivadas</option>
+          </select>
+        </div>
+        <small id="suggestions-mode-help">Pedirlas solo cuando las necesitás ahorra cuota de la API.</small>
+      </div>
     </fieldset>
 
     <div class="settings-footer">

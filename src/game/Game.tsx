@@ -46,8 +46,9 @@ export default function Game() {
   const session = useGameSession();
   // Sound unlocks and loads on the first tap or key in the game.
   useEffect(() => primeSounds(), []);
-  const { screen, inFlight, error, warning, showSuggestions, abortRef, paused, isPaused } = session;
+  const { screen, inFlight, error, warning, showSuggestions, suggestionsMode, abortRef, paused, isPaused, setScreen, generationRef } = session;
   const [draft, setDraft] = useState("");
+  const [ideasLoading, setIdeasLoading] = useState(false);
   const [sceneOpen, setSceneOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [rollOpen, setRollOpen] = useState(false);
@@ -77,7 +78,7 @@ export default function Game() {
   const startedRef = useRef(false);
   const draftRef = useRef<HTMLTextAreaElement>(null);
   const gameRef = useRef<HTMLElement>(null);
-  const { busy, send, sendFromPlayer } = useSendTurn(session, { setDraft, setToasts, scrollToBottom, gameRef, showBanners, showLevelUp });
+  const { busy, send, sendFromPlayer, flushNarration, undoTop, undoLastTurn, regenerateLastTurn } = useSendTurn(session, { setDraft, setToasts, scrollToBottom, gameRef, showBanners, showLevelUp });
   const { hpPending, adjustHp } = useHpAdjust(session, setToasts);
   const updatePlayer = usePlayerUpdate(session);
   const renameNpc = useNpcRename(session);
@@ -221,6 +222,33 @@ export default function Game() {
     sendFromPlayer(engine, state, inFlight.input, inFlight.draft);
   };
 
+  const askIdeas = async () => {
+    if (!canAct || isPaused() || ideasLoading || state.turns.length === 0) return;
+    const generation = generationRef.current;
+    setIdeasLoading(true);
+    try {
+      const actions = await engine.suggestFor(state);
+      if (actions.length === 0 || generation !== generationRef.current) return;
+      setScreen((current) =>
+        current.status === "playing" &&
+        current.state.id === state.id &&
+        current.state.turns.length === state.turns.length
+          ? { ...current, state: { ...current.state, suggestedActions: actions } }
+          : current,
+      );
+    } finally {
+      setIdeasLoading(false);
+    }
+  };
+
+  const canUndo =
+    !busy &&
+    !inFlight &&
+    !paused &&
+    undoTop !== null &&
+    undoTop.gameId === state.id &&
+    undoTop.afterTurnNumber === state.turns.length;
+
   return (
     <section ref={gameRef} className={`game${zenMode ? " game--zen" : ""}`}>
       <div className="game__main">
@@ -308,13 +336,39 @@ export default function Game() {
         <div className="log">
           <TurnLog turns={state.turns} players={state.players} cast={cast} enterCount={screen.loadedTurns} />
           {inFlight && (
-            <div className="turn">
+            <div
+              className="turn"
+              onClick={() => {
+                if (!busy || streamed === "") return;
+                if (window.getSelection()?.toString()) return;
+                flushNarration();
+              }}
+            >
               <InputEntry input={inFlight.input} players={state.players} animated />
               {streamed !== "" && <Narration text={streamed} cast={cast} animated />}
               {busy && streamed === "" && <ThinkingIndicator />}
             </div>
           )}
         </div>
+
+        {canUndo && (
+          <div className="turn-undo">
+            <button
+              type="button"
+              className="button button--small"
+              onClick={() => void undoLastTurn(engine, state)}
+            >
+              Deshacer último turno
+            </button>
+            <button
+              type="button"
+              className="button button--small"
+              onClick={() => void regenerateLastTurn(engine, state)}
+            >
+              Regenerar respuesta
+            </button>
+          </div>
+        )}
 
         {error && (
           <FailureBanner
@@ -378,7 +432,13 @@ export default function Game() {
             onScrollToBottom={() => scrollToBottom("smooth")}
             suggestions={
               showSuggestions
-                ? { actions: state.suggestedActions, visible: turnReady && !paused && !dying && !playerRoll }
+                ? {
+                    actions: state.suggestedActions,
+                    visible: turnReady && !paused && !dying && !playerRoll,
+                    ...(suggestionsMode === "on_demand" && state.turns.length > 0
+                      ? { onAsk: () => void askIdeas(), asking: ideasLoading }
+                      : {}),
+                  }
                 : null
             }
             onSubmit={submitAction}

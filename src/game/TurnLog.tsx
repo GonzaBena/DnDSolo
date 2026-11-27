@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { play } from "../audio/sound";
 import {
   enterFromRight,
@@ -152,13 +152,19 @@ function PlayerRollCard({
     roll.rolls && roll.mode && roll.mode !== "normal"
       ? ` con ${rollModeLabel(roll.mode)} (${roll.rolls[0]} y ${roll.rolls[1]}, queda ${roll.value})`
       : "";
+  const dmgTotal = roll.damage ? roll.damage.value + roll.damage.modifier : null;
+  const dmgMeta =
+    roll.damage && dmgTotal !== null
+      ? ` · daño si impacta: ${formatDice({ die: roll.damage.die, count: roll.damage.count ?? 1, modifier: roll.damage.modifier })} = ${dmgTotal}`
+      : "";
   const meta =
     (roll.reason ? `${roll.reason} · ` : "") +
     dice +
     kept +
     (roll.modifier !== 0
       ? ` · ${(roll.count ?? 1) > 1 ? "dados" : "dado"}: ${roll.value}`
-      : "");
+      : "") +
+    dmgMeta;
   return (
     <RollCard
       label="Tu tirada"
@@ -366,6 +372,7 @@ export function Narration({
 // Opening a save scrolls to the end, so only the last turns are on screen.
 // Staggering every turn of a long game would make the visible ones wait.
 const ENTERING_TURNS = 6;
+const VISIBLE_TURN_WINDOW = 25;
 
 /** `enterCount` is how many turns the save had when it was opened: the last
     of those rise in one after another, like the blocks of a page. Later
@@ -383,15 +390,28 @@ export function TurnLog({
   enterCount?: number;
 }) {
   const entering = useRef<HTMLDivElement[]>([]);
+  const [visibleLimit, setVisibleLimit] = useState(VISIBLE_TURN_WINDOW);
   useLayoutEffect(() => {
     enterPage(entering.current);
     // Mount-only on purpose: this is the entrance of the save as it opens.
   }, []);
+  const start = Math.max(0, turns.length - visibleLimit);
+  const visibleTurns = start > 0 ? turns.slice(start) : turns;
   return (
     <>
-      {turns.map((turn, index) => {
+      {start > 0 && (
+        <button
+          type="button"
+          className="button button--small log__more"
+          onClick={() => setVisibleLimit((limit) => limit + VISIBLE_TURN_WINDOW)}
+        >
+          Ver turnos anteriores ({start})
+        </button>
+      )}
+      {visibleTurns.map((turn, index) => {
+        const originalIndex = start + index;
         const enters =
-          index < enterCount && index >= enterCount - ENTERING_TURNS;
+          originalIndex < enterCount && originalIndex >= enterCount - ENTERING_TURNS;
         return (
           <div
             key={turn.number}
@@ -403,11 +423,11 @@ export function TurnLog({
             }}
           >
             <InputEntry input={turn.input} players={players} />
-            {turn.chapter && <ChapterSeparator chapter={turn.chapter} animated={index >= enterCount} />}
+            {turn.chapter && <ChapterSeparator chapter={turn.chapter} animated={originalIndex >= enterCount} />}
             <Narration text={turn.narration} cast={cast} />
             {/* Turns played since the save was opened join the log once, so
                 their cards animate once; reopened ones stay still. */}
-            {turn.arrivals && <ArrivalCards arrivals={turn.arrivals} animated={index >= enterCount} />}
+            {turn.arrivals && <ArrivalCards arrivals={turn.arrivals} animated={originalIndex >= enterCount} />}
           </div>
         );
       })}

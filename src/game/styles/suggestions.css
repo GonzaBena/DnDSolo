@@ -119,3 +119,14 @@
   background: var(--color-sun);
   color: var(--color-sun-ink);
 }
+.suggestions-ask {
+  display: flex;
+  padding-bottom: var(--space-2);
+}
+.suggestion--ask {
+  color: var(--color-ink-soft);
+}
+.suggestion--ask:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}

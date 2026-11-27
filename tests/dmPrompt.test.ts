@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildTurnPrompt, describeInput, DM_SYSTEM_PROMPT, stateForModel } from "../src/engine/dmPrompt";
+import { buildTurnPrompt, describeInput, DM_SYSTEM_PROMPT, MAX_UNSUMMARIZED_TURNS, stateForModel, turnsForPrompt } from "../src/engine/dmPrompt";
 import { COMBAT_RULES } from "../src/engine/combatRules";
 import type { GameState } from "../src/domain/types";
 import { newGame } from "./helpers";
@@ -89,6 +89,38 @@ describe("advantage in the turn prompt", () => {
     expect(prompt).toContain("1d20 con ventaja (12 y 17, queda 17): 17 + 3 = 20");
   });
 
+  it("includes combined damage roll in describeInput and pendingPlayerRoll", () => {
+    const state = {
+      ...newGame(),
+      pendingPlayerRoll: {
+        die: "d20" as const,
+        count: 1,
+        reason: "Ataque con espada",
+        difficulty: 14,
+        mode: "normal" as const,
+        damage: { die: "d8" as const, count: 1, reason: "Espada larga" },
+      },
+    };
+    const prompt = buildTurnPrompt(
+      state,
+      {
+        type: "action",
+        text: "Ataco",
+        roll: {
+          die: "d20",
+          count: 1,
+          value: 15,
+          modifier: 4,
+          reason: "Ataque con espada",
+          damage: { die: "d8", count: 1, value: 6, modifier: 3, reason: "Espada larga" },
+        },
+      },
+      6,
+    );
+    expect(prompt).toContain("(+ daño si impacta: 1d8 Espada larga)");
+    expect(prompt).toContain("DAÑO SI IMPACTA: Espada larga — 1d8: 6 + 3 = 9");
+  });
+
   it("tells the DM the requested player roll has disadvantage", () => {
     const state = {
       ...newGame(),
@@ -158,11 +190,46 @@ describe("compact prompt", () => {
 
   it("has no indentation in the state", () => {
     const prompt = buildTurnPrompt(big, { type: "start" }, 6);
-    const section = prompt.slice("ESTADO\n".length, prompt.indexOf("\n\nREGLAS DE LOS PERSONAJES"));
-    expect(prompt.startsWith("ESTADO\n")).toBe(true);
+    const marker = "\n\nESTADO\n";
+    const start = prompt.indexOf(marker) + marker.length;
+    const end = prompt.indexOf("\n\nTURNOS RECIENTES", start);
+    const section = prompt.slice(start, end);
+    expect(start).toBeGreaterThan(marker.length);
     expect(section.length).toBeGreaterThan(0);
     expect(section).not.toContain('\n  "');
     expect(section).not.toContain("\n");
+  });
+
+  it("puts static rule/campaign sections before dynamic ESTADO and TURNOS RECIENTES for prefix caching", () => {
+    const official: GameState = {
+      ...big,
+      campaignId: "campana-faro-hundido",
+      scene: { inCombat: true, turnOf: null, order: [] },
+    };
+    const prompt = buildTurnPrompt(official, { type: "start" }, 6);
+    expect(prompt.indexOf("REGLAS DE LOS PERSONAJES")).toBeLessThan(prompt.indexOf("GUÍA DE LA CAMPAÑA"));
+    expect(prompt.indexOf("GUÍA DE LA CAMPAÑA")).toBeLessThan(prompt.indexOf("REGLAS DE COMBATE"));
+    expect(prompt.indexOf("REGLAS DE COMBATE")).toBeLessThan(prompt.indexOf("ESTADO\n"));
+    expect(prompt.indexOf("ESTADO\n")).toBeLessThan(prompt.indexOf("TURNOS RECIENTES"));
+  });
+
+  it("caps unsummarized turns in turnsForPrompt at MAX_UNSUMMARIZED_TURNS", () => {
+    const turns = Array.from({ length: MAX_UNSUMMARIZED_TURNS + 10 }, (_, i) => ({
+      number: i + 1,
+      input: { type: "start" as const },
+      narration: `Turno ${i + 1}`,
+      events: [],
+    }));
+    const lagged: GameState = { ...newGame(), turns, summarizedThroughTurn: 0 };
+    const selected = turnsForPrompt(lagged, 6);
+    expect(selected).toHaveLength(MAX_UNSUMMARIZED_TURNS);
+    expect(selected[0]!.number).toBe(11);
+  });
+
+  it("adapts narrative rhythm and forbids repeating unchanging scenery", () => {
+    expect(DM_SYSTEM_PROMPT).toContain("NO REPITAS EL DECORADO");
+    expect(DM_SYSTEM_PROMPT).toContain("45 a 110 palabras");
+    expect(DM_SYSTEM_PROMPT).toContain("Alterná la forma de arrancar cada turno");
   });
 
   it("does not claim the ESTADO lists gone items, but still asks for the gone change", () => {
@@ -178,7 +245,10 @@ describe("compact prompt", () => {
       null,
       2,
     );
-    const section = buildTurnPrompt(big, { type: "start" }, 6).split("\n\nREGLAS DE LOS PERSONAJES")[0]!;
+    const prompt = buildTurnPrompt(big, { type: "start" }, 6);
+    const start = prompt.indexOf("\n\nESTADO\n") + 2;
+    const end = prompt.indexOf("\n\nTURNOS RECIENTES", start);
+    const section = prompt.slice(start, end);
     expect(section.length).toBeLessThanOrEqual(old.length * 0.6);
   });
 
@@ -285,6 +355,11 @@ describe("initiative order in the prompt", () => {
 });
 
 describe("suggestions in the prompt", () => {
+  it("tells the DM that outsideSrd cannot grant magic items or out-of-tier equipment", () => {
+    expect(DM_SYSTEM_PROMPT).toContain('LÍMITE DE "FUERA DEL SRD"');
+    expect(DM_SYSTEM_PROMPT).toContain("Nunca otorga objetos mágicos");
+  });
+
   it("asks for up to three short first-person actions, none with a roll pending", () => {
     expect(DM_SYSTEM_PROMPT).toContain('En "suggestions", hasta tres acciones cortas');
     expect(DM_SYSTEM_PROMPT).toContain("Si pedís una tirada, mandá []");

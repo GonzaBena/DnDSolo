@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { play } from "../audio/sound";
 import { enterLevelUp } from "../animations/motion";
 import type { BannerQueue } from "./bannerQueue";
@@ -6,6 +6,7 @@ import { viewForSubclass, type LevelUp } from "./levelUp";
 import { ChoicePicker } from "./ChoicePicker";
 import { hiddenErrors, levelSpecs, lockedPicks, pendingLevelUp, pendingSpecs, previewLevelUp } from "../domain/sheetProgress";
 import { SUBCLASS_NAME_MAX, applySubclassPick, needsSubclassChoice, type SubclassPick } from "../domain/outsideSrd";
+import { nonSrdSubclassesFor } from "../domain/outsideSrdCatalog";
 import { OUTSIDE_SRD_NOTE_MAX } from "../domain/character";
 import { findClass } from "../rules";
 import type { Character } from "../domain/types";
@@ -121,7 +122,10 @@ export function LevelUpScreen({
         classId,
         subclassKind === "srd" ? "srd" : subclassKind === "custom" && picked?.ok ? { custom: customName.trim() } : "undecided",
       );
-  const srdSubclass = player ? findClass(player.classId ?? player.characterClass)?.subclass : undefined;
+  const classObj = player ? findClass(player.classId ?? player.characterClass) : undefined;
+  const srdSubclass = classObj?.subclass;
+  const subclassSuggestions = nonSrdSubclassesFor(classObj?.id);
+  const subclassListId = useId();
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -179,12 +183,20 @@ export function LevelUpScreen({
               <input
                 type="text"
                 maxLength={SUBCLASS_NAME_MAX}
+                list={subclassSuggestions.length > 0 ? subclassListId : undefined}
                 value={customName}
-                placeholder="Ej: Maestro de las bestias"
+                placeholder="Ej: Maestro de batalla"
                 aria-label="Nombre de la subclase"
                 onFocus={() => setSubclassKind("custom")}
                 onChange={(e) => setCustomName(e.target.value)}
               />
+              {subclassSuggestions.length > 0 && (
+                <datalist id={subclassListId}>
+                  {subclassSuggestions.map((option) => (
+                    <option key={option} value={option} />
+                  ))}
+                </datalist>
+              )}
             </span>
           </label>
         </fieldset>
