@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { memo, useLayoutEffect, useRef, useState } from "react";
 import { play } from "../audio/sound";
 import {
   enterFromRight,
@@ -288,15 +288,25 @@ export function Inline({ nodes }: { nodes: InlineNode[] }) {
 }
 
 /** A paragraph of narration, with the model's Markdown emphasis rendered.
-    `animated` is only set while the text is still arriving. */
-function Paragraph({ text, animated }: { text: string; animated?: boolean }) {
+    `animated` is set while the turn is arriving (for the mount entrance);
+    `streaming` is only true on the tail paragraph still receiving characters,
+    so completed paragraphs stay memoized across typewriter ticks. */
+const Paragraph = memo(function Paragraph({
+  text,
+  animated,
+  streaming,
+}: {
+  text: string;
+  animated?: boolean;
+  streaming?: boolean;
+}) {
   const ref = useEnter<HTMLParagraphElement>(animated ? enterNarration : null);
   return (
     <p ref={ref}>
-      <Inline nodes={parseInline(text, animated)} />
+      <Inline nodes={parseInline(text, streaming)} />
     </p>
   );
-}
+});
 
 /** One NPC's line: a bubble on the DM's side, tinted by their attitude
     (neutral for someone the state doesn't know yet). */
@@ -305,11 +315,13 @@ function NpcLine({
   paragraphs,
   cast,
   animated,
+  isTailSegment,
 }: {
   name: string;
   paragraphs: string[];
   cast: Cast;
   animated?: boolean | undefined;
+  isTailSegment?: boolean;
 }) {
   const npc = findNpc(cast.npcs, name);
   const attitude = npc?.attitude ?? "neutral";
@@ -321,7 +333,12 @@ function NpcLine({
         {paragraphs.length > 0 && (
           <div className="entry entry--npc">
             {paragraphs.map((paragraph, index) => (
-              <Paragraph key={index} text={paragraph} animated={animated} />
+              <Paragraph
+                key={index}
+                text={paragraph}
+                animated={animated}
+                streaming={Boolean(animated && isTailSegment && index === paragraphs.length - 1)}
+              />
             ))}
           </div>
         )}
@@ -343,15 +360,22 @@ export function Narration({
 }) {
   // Keyed by position: while streaming, a segment and its paragraphs keep
   // their elements as they grow and only what is new animates in.
+  const segments = splitDialogue(text, cast);
   return (
     <>
-      {splitDialogue(text, cast).map((segment, index) =>
-        segment.speaker === null ? (
+      {segments.map((segment, index) => {
+        const isTailSegment = index === segments.length - 1;
+        return segment.speaker === null ? (
           <div key={index} className="message message--dm">
             <Speaker name={DM_NAME} />
             <div className="entry entry--dm">
               {segment.paragraphs.map((paragraph, p) => (
-                <Paragraph key={p} text={paragraph} animated={animated} />
+                <Paragraph
+                  key={p}
+                  text={paragraph}
+                  animated={animated}
+                  streaming={Boolean(animated && isTailSegment && p === segment.paragraphs.length - 1)}
+                />
               ))}
             </div>
           </div>
@@ -362,9 +386,10 @@ export function Narration({
             paragraphs={segment.paragraphs}
             cast={cast}
             animated={animated}
+            isTailSegment={isTailSegment}
           />
-        ),
-      )}
+        );
+      })}
     </>
   );
 }
