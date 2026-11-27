@@ -70,5 +70,24 @@ describe("InfoDrawer", () => {
       expect(html).toContain("3/3 d8");
       expect(html).toContain("Envenenado");
     });
+
+    it("renders manual hit dice and inventory editing controls when handlers are passed", () => {
+      const state = withPlayer({
+        inventory: [{ name: "Cuerda", quantity: 1 }],
+      });
+      const html = renderToStaticMarkup(
+        <InfoDrawer
+          state={state}
+          open
+          onClose={() => {}}
+          onOpenRecap={() => {}}
+          onAdjustHitDice={async () => {}}
+          onEditInventory={async () => {}}
+        />,
+      );
+      expect(html).toContain("Gastar dado de golpe");
+      expect(html).toContain("Editar inventario (1)");
+      expect(html).toContain("Cuerda");
+    });
   });
 });

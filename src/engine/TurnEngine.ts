@@ -377,6 +377,18 @@ export class TurnEngine {
     return { state: next, saveError: await this.enqueueSave(next) };
   }
 
+  /** Applies a manual state correction outside a turn and saves it. */
+  async updateState(
+    given: GameState,
+    update: (state: GameState) => GameState,
+  ): Promise<{ state: GameState; saveError: unknown | null }> {
+    const tracked = this.latestByGame.get(given.id);
+    const base = tracked && tracked.turns.length >= given.turns.length ? tracked : given;
+    const next: GameState = { ...update(base), updatedAt: this.now().toISOString() };
+    this.latestByGame.set(next.id, next);
+    return { state: next, saveError: await this.enqueueSave(next) };
+  }
+
   /** Renames an NPC and sets their label (see renameNpc), saving without a
       turn, on top of the newest known state like updatePlayer. */
   async renameNpc(

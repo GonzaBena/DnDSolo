@@ -32,6 +32,35 @@ export function usePlayerUpdate(session: GameSession) {
   };
 }
 
+/** Applies a manual scene/inventory state edit outside a turn, saves, and shows it. */
+export function useStateEdit(session: GameSession) {
+  const { setScreen, setWarning, latestStateRef, changedRef, track } = session;
+
+  return async (engine: TurnEngine, state: GameState, update: (s: GameState) => GameState) => {
+    const held = latestStateRef.current ?? state;
+    changedRef.current = true;
+    const applied = await track(engine.updateState(held, update));
+    const current = latestStateRef.current;
+    if (!current || (current.id === applied.state.id && current.turns.length <= applied.state.turns.length)) {
+      latestStateRef.current = applied.state;
+    }
+    setScreen((previous) =>
+      previous.status === "playing" &&
+      previous.state.id === applied.state.id &&
+      previous.state.turns.length <= applied.state.turns.length
+        ? {
+            ...previous,
+            state: {
+              ...applied.state,
+              suggestedActions: previous.state.suggestedActions,
+            },
+          }
+        : previous,
+    );
+    if (applied.saveError) setWarning(SAVE_WARNING);
+  };
+}
+
 /** The shown state with the saved NPCs and scene, after a rename. */
 export function withNpcsFrom(shown: GameState, saved: GameState): GameState {
   return { ...shown, npcs: saved.npcs, scene: saved.scene, updatedAt: saved.updatedAt };

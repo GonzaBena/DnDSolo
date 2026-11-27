@@ -398,7 +398,7 @@ export function applyStateChanges(state: GameState, changes: StateChange[]): App
 /** Inventories are the truth about who holds what: anything carried is
     "taken" (and recorded if the DM never announced it), and anything no
     longer carried that wasn't left within reach again is "gone". */
-function syncStoryItems(state: GameState): GameState {
+export function syncStoryItems(state: GameState): GameState {
   const held = new Map<string, string>();
   for (const player of state.players) {
     for (const item of player.inventory) {

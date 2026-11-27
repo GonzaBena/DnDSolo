@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { healthLabel, type HealthLabel } from "../domain/health";
 import type { Attitude, GameState } from "../domain/types";
 import { npcTag } from "../domain/npcRename";
@@ -89,18 +90,49 @@ interface Props {
   onClose: () => void;
   /** Opens the rename dialog for an NPC; without it they can't be renamed. */
   onEditNpc?: (name: string) => void;
+  /** Manual correction for place or combat state when the DM gets out of sync. */
+  onEditScene?: (patch: { locationName?: string; inCombat?: boolean }) => Promise<void>;
+  /** Disables edits while a turn or sync hold is active. */
+  editDisabled?: boolean;
 }
 
 /** Side panel with who is at the table. The DM runs everyone but the
     player; the panel only shows whose turn it is (orange border in combat,
     green otherwise) and dims the rest. A native modal <dialog> gives focus
     trapping and Escape-to-close for free. */
-export function SceneDrawer({ state, dmActing, open, onClose, onEditNpc }: Props) {
+export function SceneDrawer({
+  state,
+  dmActing,
+  open,
+  onClose,
+  onEditNpc,
+  onEditScene,
+  editDisabled = false,
+}: Props) {
   const { dialogProps, panelRef } = useDrawer(open, onClose);
+  const [locationDraft, setLocationDraft] = useState(state.location.name);
+  const [combatDraft, setCombatDraft] = useState(state.scene.inCombat);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setLocationDraft(state.location.name);
+    setCombatDraft(state.scene.inCombat);
+  }, [open, state.location.name, state.scene.inCombat]);
 
   const members = sceneMembers(state, dmActing);
   const { inCombat } = state.scene;
   const npcsInScene = members.filter((m) => m.kind !== "player" && m.kind !== "dm").length;
+
+  async function saveScenePatch(event: { preventDefault(): void }) {
+    event.preventDefault();
+    if (!onEditScene || dmActing || editDisabled || saving) return;
+    setSaving(true);
+    try {
+      await onEditScene({ locationName: locationDraft, inCombat: combatDraft });
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <dialog {...dialogProps} aria-labelledby="scene-title">
@@ -122,6 +154,39 @@ export function SceneDrawer({ state, dmActing, open, onClose, onEditNpc }: Props
               : "En combate"
             : "Sin combate"}
         </p>
+
+        {onEditScene && (
+          <details className="scene-adjust">
+            <summary>Corregir lugar o combate</summary>
+            <form className="scene-adjust__form" onSubmit={(e) => void saveScenePatch(e)}>
+              <label className="scene-adjust__field">
+                <span>Lugar actual</span>
+                <input
+                  type="text"
+                  value={locationDraft}
+                  onChange={(e) => setLocationDraft(e.target.value)}
+                  disabled={dmActing || editDisabled || saving}
+                />
+              </label>
+              <label className="scene-adjust__check">
+                <input
+                  type="checkbox"
+                  checked={combatDraft}
+                  onChange={(e) => setCombatDraft(e.target.checked)}
+                  disabled={dmActing || editDisabled || saving}
+                />
+                <span>En combate</span>
+              </label>
+              <button
+                type="submit"
+                className="button button--small"
+                disabled={dmActing || editDisabled || saving}
+              >
+                {saving ? "Guardando…" : "Aplicar"}
+              </button>
+            </form>
+          </details>
+        )}
 
         <ul className="scene-list">
           {members.map((member) => (

@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { campaignHref } from "../campaign/links";
 import { canUpgradeSheet } from "../domain/sheetProgress";
 import { OutsideSrdSection, type OutsideSrdEdit } from "./OutsideSrdSection";
 import { findCampaign } from "../campaigns";
 import { npcTag } from "../domain/npcRename";
+import type { InventoryEdit } from "../domain/manualEdits";
 import { resourceStatusFor } from "../domain/resources";
 import { buildSheet } from "../rules/buildSheet";
 import { formatSheetText } from "../rules/formatSheet";
@@ -73,12 +75,31 @@ interface Props {
   onUpgradeSheet?: () => void;
   /** Opens the rename dialog for an NPC; without it they can't be renamed. */
   onEditNpc?: (name: string) => void;
+  /** Adjusts the first player's spent hit dice (+1 recovers, -1 spends). */
+  onAdjustHitDice?: (delta: number) => Promise<void>;
+  /** Edits the first player's carried inventory manually. */
+  onEditInventory?: (edit: InventoryEdit) => Promise<void>;
 }
 
 /** Everything the campaign knows: characters, place, quests, story items
     and the NPCs met so far. */
-export function InfoDrawer({ state, open, onClose, onOpenRecap, turnRunning = false, onSaveOutsideSrd, onSavePortrait, onUpgradeSheet, onEditNpc }: Props) {
+export function InfoDrawer({
+  state,
+  open,
+  onClose,
+  onOpenRecap,
+  turnRunning = false,
+  onSaveOutsideSrd,
+  onSavePortrait,
+  onUpgradeSheet,
+  onEditNpc,
+  onAdjustHitDice,
+  onEditInventory,
+}: Props) {
   const { dialogProps, panelRef } = useDrawer(open, onClose);
+  const [itemName, setItemName] = useState("");
+  const [itemQty, setItemQty] = useState("1");
+  const [editingBusy, setEditingBusy] = useState(false);
   const campaign = findCampaign(state.campaignId);
   const players = state.players ?? [];
   const storyItems = state.storyItems ?? [];
@@ -164,8 +185,36 @@ export function InfoDrawer({ state, open, onClose, onOpenRecap, turnRunning = fa
                   </span>
                   {p.background && <p>{p.background}</p>}
                   <div className="info-player-meta">
-                    <p>
+                    <p className="info-hit-dice">
                       <strong>Dados de golpe:</strong> {res.hitDice.available}/{res.hitDice.max} {res.hitDice.die}
+                      {onAdjustHitDice && p === players[0] && (
+                        <span className="info-step-buttons">
+                          <button
+                            type="button"
+                            className="button button--small"
+                            aria-label="Gastar dado de golpe"
+                            disabled={turnRunning || editingBusy || res.hitDice.available <= 0}
+                            onClick={() => {
+                              setEditingBusy(true);
+                              void onAdjustHitDice(-1).finally(() => setEditingBusy(false));
+                            }}
+                          >
+                            −
+                          </button>
+                          <button
+                            type="button"
+                            className="button button--small"
+                            aria-label="Recuperar dado de golpe"
+                            disabled={turnRunning || editingBusy || res.hitDice.available >= res.hitDice.max}
+                            onClick={() => {
+                              setEditingBusy(true);
+                              void onAdjustHitDice(1).finally(() => setEditingBusy(false));
+                            }}
+                          >
+                            +
+                          </button>
+                        </span>
+                      )}
                     </p>
                     {p.stats && p.stats.attacks.length > 0 && (
                       <p>
@@ -218,6 +267,113 @@ export function InfoDrawer({ state, open, onClose, onOpenRecap, turnRunning = fa
               value={players[0].portrait}
               onPick={(portrait) => void onSavePortrait(portrait)}
             />
+          )}
+          {onEditInventory && players[0] && (
+            <details className="info-sheet-details">
+              <summary>Editar inventario ({players[0].inventory.length})</summary>
+              <div className="inventory-editor">
+                {players[0].inventory.length === 0 ? (
+                  <p className="drawer__empty">No llevás objetos encima.</p>
+                ) : (
+                  <ul className="inventory-editor__list">
+                    {players[0].inventory.map((item) => (
+                      <li key={item.name} className="inventory-editor__row">
+                        <span className="inventory-editor__name">
+                          {item.name}
+                          {item.quantity > 1 && ` ×${item.quantity}`}
+                        </span>
+                        <span className="info-step-buttons">
+                          <button
+                            type="button"
+                            className="button button--small"
+                            aria-label={`Quitar uno de ${item.name}`}
+                            disabled={turnRunning || editingBusy}
+                            onClick={() => {
+                              setEditingBusy(true);
+                              void onEditInventory({ type: "delta", name: item.name, delta: -1 }).finally(() =>
+                                setEditingBusy(false),
+                              );
+                            }}
+                          >
+                            −
+                          </button>
+                          <button
+                            type="button"
+                            className="button button--small"
+                            aria-label={`Sumar uno de ${item.name}`}
+                            disabled={turnRunning || editingBusy}
+                            onClick={() => {
+                              setEditingBusy(true);
+                              void onEditInventory({ type: "delta", name: item.name, delta: 1 }).finally(() =>
+                                setEditingBusy(false),
+                              );
+                            }}
+                          >
+                            +
+                          </button>
+                          <button
+                            type="button"
+                            className="button button--small"
+                            aria-label={`Eliminar ${item.name}`}
+                            disabled={turnRunning || editingBusy}
+                            onClick={() => {
+                              setEditingBusy(true);
+                              void onEditInventory({ type: "remove", name: item.name }).finally(() =>
+                                setEditingBusy(false),
+                              );
+                            }}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <form
+                  className="inventory-editor__add"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const trimmed = itemName.trim();
+                    if (!trimmed || turnRunning || editingBusy) return;
+                    const parsedQty = Number.parseInt(itemQty, 10);
+                    const quantity = Number.isFinite(parsedQty) && parsedQty > 0 ? parsedQty : 1;
+                    setEditingBusy(true);
+                    void onEditInventory({ type: "add", name: trimmed, quantity })
+                      .then(() => {
+                        setItemName("");
+                        setItemQty("1");
+                      })
+                      .finally(() => setEditingBusy(false));
+                  }}
+                >
+                  <input
+                    type="text"
+                    aria-label="Objeto nuevo"
+                    placeholder="Agregar objeto…"
+                    value={itemName}
+                    onChange={(e) => setItemName(e.target.value)}
+                    disabled={turnRunning || editingBusy}
+                  />
+                  <input
+                    type="number"
+                    aria-label="Cantidad"
+                    min={1}
+                    max={999}
+                    value={itemQty}
+                    onChange={(e) => setItemQty(e.target.value)}
+                    disabled={turnRunning || editingBusy}
+                  />
+                  <button
+                    type="submit"
+                    className="button button--small"
+                    disabled={turnRunning || editingBusy || !itemName.trim()}
+                  >
+                    Agregar
+                  </button>
+                </form>
+              </div>
+            </details>
           )}
         </section>
 

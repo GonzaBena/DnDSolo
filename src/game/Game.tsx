@@ -18,7 +18,9 @@ import { recapOf, shouldShowRecap } from "../domain/recap";
 import { LevelUpScreen, shouldOpenLevelUp } from "./LevelUpScreen";
 import { enqueueLevelUp, levelUpFromPlayer, type LevelUp } from "./levelUp";
 import { pendingLevelUp } from "../domain/sheetProgress";
-import { useNpcRename, usePlayerUpdate } from "./usePlayerUpdate";
+import { useNpcRename, usePlayerUpdate, useStateEdit } from "./usePlayerUpdate";
+import { editPlayerInventory, editSceneState } from "../domain/manualEdits";
+import { applyResourceChange } from "../domain/resources";
 import { NpcRenameDialog } from "./NpcRenameDialog";
 import { offersSheetUpgradeNotice, upgradeSheet } from "../domain/sheetProgress";
 import { confirmLevelUp, setOutsideSrd } from "../domain/outsideSrd";
@@ -81,6 +83,7 @@ export default function Game() {
   const { busy, send, sendFromPlayer, flushNarration, undoTop, undoLastTurn, regenerateLastTurn } = useSendTurn(session, { setDraft, setToasts, scrollToBottom, gameRef, showBanners, showLevelUp });
   const { hpPending, adjustHp } = useHpAdjust(session, setToasts);
   const updatePlayer = usePlayerUpdate(session);
+  const editState = useStateEdit(session);
   const renameNpc = useNpcRename(session);
   // The NPC whose name and label are being edited, by their stored name.
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -295,7 +298,7 @@ export default function Game() {
           state={state}
           open={infoOpen}
           onClose={() => setInfoOpen(false)}
-          turnRunning={busy || inFlight !== null}
+          turnRunning={busy || inFlight !== null || paused}
           onUpgradeSheet={() => {
             setInfoOpen(false);
             setUpgradeOpen(true);
@@ -312,6 +315,19 @@ export default function Game() {
               return result.ok ? result.player : p;
             });
           }}
+          onAdjustHitDice={async (delta) => {
+            const playerId = state.players[0]?.id;
+            if (!playerId) return;
+            await updatePlayer(engine, state, playerId, (p) => {
+              const res = applyResourceChange(p, { kind: "hit_dice", name: "Dados de golpe", delta });
+              return res.ok ? res.player : p;
+            });
+          }}
+          onEditInventory={async (edit) => {
+            const playerId = state.players[0]?.id;
+            if (!playerId) return;
+            await editState(engine, state, (s) => editPlayerInventory(s, playerId, edit));
+          }}
           onOpenRecap={() => {
             setInfoOpen(false);
             setRecapOpen(true);
@@ -324,6 +340,10 @@ export default function Game() {
           open={sceneOpen}
           onClose={() => setSceneOpen(false)}
           onEditNpc={setRenaming}
+          editDisabled={inFlight !== null || paused}
+          onEditScene={async (patch) => {
+            await editState(engine, state, (s) => editSceneState(s, patch));
+          }}
         />
         <NpcRenameDialog
           npc={renaming === null ? null : (state.npcs.find((n) => n.name === renaming) ?? null)}

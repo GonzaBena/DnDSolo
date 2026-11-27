@@ -485,3 +485,84 @@
   font-weight: 700;
   color: var(--color-primary);
 }
+
+/* Manual recovery controls inside SceneDrawer and InfoDrawer */
+.scene-adjust {
+  font-size: var(--text-sm);
+}
+.scene-adjust summary {
+  cursor: pointer;
+  font-weight: 800;
+  color: var(--color-accent);
+}
+.scene-adjust__form {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2);
+  border: 1.5px dashed var(--color-ink-soft);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+}
+.scene-adjust__field {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+.scene-adjust__field input {
+  width: 100%;
+}
+.scene-adjust__check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 700;
+}
+.info-hit-dice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.info-step-buttons {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+.inventory-editor {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.inventory-editor__list {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.inventory-editor__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1.5px solid var(--color-ink);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  font-size: var(--text-sm);
+}
+.inventory-editor__name {
+  font-weight: 700;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.inventory-editor__add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4.2rem auto;
+  gap: var(--space-1);
+  align-items: center;
+}
+.inventory-editor__add input {
+  min-width: 0;
+}
