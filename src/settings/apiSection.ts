@@ -1,7 +1,25 @@
 // "Gemini" section: the API key, the model and the narration options.
-import { GeminiClient, listGeminiModels } from "../llm/GeminiClient";
+import { GeminiClient, listGeminiModels, type ModelOption } from "../llm/GeminiClient";
 import { describeLLMError } from "../llm/errorMessages";
 import { loadSettings, saveSettings, type SuggestionsMode } from "../persistence/settings";
+import { groupModelOptions } from "./modelGroups";
+
+function populateModelSelect(
+  select: HTMLSelectElement,
+  placeholder: string,
+  models: ModelOption[],
+  preferred: string,
+): void {
+  const groups = groupModelOptions(models).map((group) => {
+    const optgroup = document.createElement("optgroup");
+    optgroup.label = group.label;
+    optgroup.append(...group.models.map((m) => new Option(m.label, m.id)));
+    return optgroup;
+  });
+  select.replaceChildren(new Option(placeholder, ""), ...groups);
+  select.disabled = false;
+  if (models.some((m) => m.id === preferred)) select.value = preferred;
+}
 
 type RequiredField = HTMLInputElement | HTMLSelectElement;
 
@@ -65,19 +83,8 @@ export function setUpApiSection(): void {
     loadButton.disabled = true;
     try {
       const models = await listGeminiModels(apiKey);
-      modelSelect.replaceChildren(
-        new Option("Elegí un modelo", ""),
-        ...models.map((m) => new Option(m.label, m.id)),
-      );
-      modelSelect.disabled = false;
-      auxModelSelect.replaceChildren(
-        new Option("El mismo que el principal", ""),
-        ...models.map((m) => new Option(m.label, m.id)),
-      );
-      auxModelSelect.disabled = false;
-      // Keep the saved choice only if this key can still use it.
-      if (models.some((m) => m.id === preferred)) modelSelect.value = preferred;
-      if (models.some((m) => m.id === preferredAux)) auxModelSelect.value = preferredAux;
+      populateModelSelect(modelSelect, "Elegí un modelo", models, preferred);
+      populateModelSelect(auxModelSelect, "El mismo que el principal", models, preferredAux);
       setStatus(`${models.length} modelos disponibles.`, "ok");
     } catch (error) {
       setStatus(describeLLMError(error), "error");

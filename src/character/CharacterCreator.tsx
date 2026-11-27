@@ -5,6 +5,7 @@ import { OFFICIAL_CAMPAIGNS, findCampaign } from "../campaigns";
 import type { CharacterInput } from "../domain/character";
 import { createGame } from "../domain/character";
 import { findClass, findSpecies } from "../rules";
+import { isConfigured, loadSettings } from "../persistence/settings";
 import { createGameRepo } from "../sync/runtime";
 import { applyBuildChange } from "./buildChange";
 import { CharacterForm } from "./CharacterForm";
@@ -44,11 +45,13 @@ export default function CharacterCreator() {
   const [step, setStep] = useState<"character" | "campaign">("character");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [configured, setConfigured] = useState<boolean | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const firstRenderRef = useRef(true);
 
   // A character picked on /generator arrives through sessionStorage.
   useEffect(() => {
+    setConfigured(isConfigured(loadSettings()));
     const generated = takeCharacter(sessionStorage);
     if (generated) setValues({ ...EMPTY, ...generated });
   }, []);
@@ -214,6 +217,12 @@ export default function CharacterCreator() {
           Generar con IA a partir de una historia
         </a>
       </div>
+      {configured === false && (
+        <p className="notice">
+          Todavía no cargaste tu API key de Gemini. Podés armar tu personaje ahora y configurarla en{" "}
+          <a href="/settings">Configuración</a> antes de empezar la partida.
+        </p>
+      )}
       <section className="creator-form" aria-labelledby="form-title">
         <h2 id="form-title" className="sr-only">
           Tu personaje
