@@ -28,6 +28,10 @@ export const SOUND_IDS: readonly SoundId[] = [
   "gameOver",
 ];
 
+/** Sounds heard frequently in regular play are preloaded on first tap; rarer
+    ones (levelUp, questDone, ambush, etc.) are fetched on demand. */
+export const EAGER_SOUNDS: readonly SoundId[] = ["dice", "hit", "chapter"];
+
 const STORAGE_KEY = "dnsolo.sound";
 
 /** On unless the player turned it off on this device. */
@@ -50,18 +54,32 @@ export function setSoundEnabled(on: boolean): void {
 let context: AudioContext | null = null;
 let primed = false;
 const buffers = new Map<SoundId, AudioBuffer>();
+const loading = new Map<SoundId, Promise<AudioBuffer | null>>();
 // iOS counts touchend (not touchstart's pointerdown) as the gesture that
 // lets audio start, so every kind of tap is tried.
 const UNLOCK_EVENTS = ["pointerdown", "touchend", "click", "keydown"] as const;
 
-async function load(audio: AudioContext, id: SoundId): Promise<void> {
-  try {
-    const response = await fetch(`/sounds/${id}.mp3`);
-    if (!response.ok) return;
-    buffers.set(id, await audio.decodeAudioData(await response.arrayBuffer()));
-  } catch {
-    // A missing or broken file only silences that one sound.
-  }
+function load(audio: AudioContext, id: SoundId): Promise<AudioBuffer | null> {
+  const cached = buffers.get(id);
+  if (cached) return Promise.resolve(cached);
+  const inflight = loading.get(id);
+  if (inflight) return inflight;
+  const task = (async () => {
+    try {
+      const response = await fetch(`/sounds/${id}.mp3`);
+      if (!response.ok) return null;
+      const decoded = await audio.decodeAudioData(await response.arrayBuffer());
+      buffers.set(id, decoded);
+      return decoded;
+    } catch {
+      // A missing or broken file only silences that one sound.
+      return null;
+    } finally {
+      loading.delete(id);
+    }
+  })();
+  loading.set(id, task);
+  return task;
 }
 
 function stopListening(): void {
@@ -88,7 +106,7 @@ function unlock(): void {
     if (!context) {
       if (typeof AudioContext === "undefined") return stopListening();
       context = new AudioContext();
-      for (const id of SOUND_IDS) void load(context, id);
+      for (const id of EAGER_SOUNDS) void load(context, id);
     }
     const audio = context;
     if (audio.state === "running") {
@@ -107,11 +125,24 @@ function unlock(): void {
   }
 }
 
-/** Gets the sounds ready: they unlock and load on the first tap or key. */
+/** Gets the sounds ready: they unlock and preload core sounds on the first tap or key. */
 export function primeSounds(): void {
   if (primed) return;
   primed = true;
   for (const type of UNLOCK_EVENTS) document.addEventListener(type, unlock, true);
+}
+
+function startBuffer(audio: AudioContext, buffer: AudioBuffer, volume: number): void {
+  try {
+    const source = audio.createBufferSource();
+    const gain = audio.createGain();
+    gain.gain.value = volume;
+    source.buffer = buffer;
+    source.connect(gain).connect(audio.destination);
+    source.start();
+  } catch {
+    // Silence rather than an error in the middle of a turn.
+  }
 }
 
 /** Plays a sound at `volume` (0 to 1), if sound is on and it is ready. */
@@ -121,17 +152,16 @@ export function play(id: SoundId, volume = 1): void {
   // right after a tap, so asking again usually brings it back.
   if (context.state !== "running") void context.resume().catch(() => {});
   const buffer = buffers.get(id);
-  if (!buffer) return;
-  try {
-    const source = context.createBufferSource();
-    const gain = context.createGain();
-    gain.gain.value = volume;
-    source.buffer = buffer;
-    source.connect(gain).connect(context.destination);
-    source.start();
-  } catch {
-    // Silence rather than an error in the middle of a turn.
+  if (buffer) {
+    startBuffer(context, buffer, volume);
+    return;
   }
+  const targetContext = context;
+  void load(targetContext, id).then((loaded) => {
+    if (loaded && context === targetContext && soundEnabled()) {
+      startBuffer(targetContext, loaded, volume);
+    }
+  });
 }
 
 export function resetSoundsForTests(): void {
@@ -140,4 +170,5 @@ export function resetSoundsForTests(): void {
   hadRun = false;
   primed = false;
   buffers.clear();
+  loading.clear();
 }

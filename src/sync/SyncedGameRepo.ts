@@ -1,5 +1,5 @@
 import type { GameState } from "../domain/types";
-import type { GameRepo } from "../persistence/GameRepo";
+import type { GameRepo, GameSummary } from "../persistence/GameRepo";
 import type { SyncEngine } from "./SyncEngine";
 
 /** Drop-in GameRepo: every call resolves with the local result; Drive work
@@ -25,6 +25,10 @@ export class SyncedGameRepo implements GameRepo {
 
   list(): Promise<GameState[]> {
     return this.local.list();
+  }
+
+  listSummaries(): Promise<GameSummary[]> {
+    return this.local.listSummaries();
   }
 
   async delete(id: string): Promise<void> {

@@ -1,5 +1,5 @@
 import type { GameState } from "../domain/types";
-import type { GameRepo } from "./GameRepo";
+import { extractGameSummary, type GameRepo, type GameSummary } from "./GameRepo";
 
 /** For tests, and a reference for what any GameRepo must do. */
 export class InMemoryGameRepo implements GameRepo {
@@ -29,6 +29,15 @@ export class InMemoryGameRepo implements GameRepo {
     return [...this.games.values()]
       .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
       .map((game) => structuredClone(game));
+  }
+
+  async listSummaries(): Promise<GameSummary[]> {
+    const out: GameSummary[] = [];
+    for (const game of [...this.games.values()].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))) {
+      const summary = extractGameSummary(game);
+      if (summary) out.push(summary);
+    }
+    return out;
   }
 
   async delete(id: string): Promise<void> {

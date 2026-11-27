@@ -1,5 +1,6 @@
 // Delete asks in a centred dialog; Cancel, Escape or the backdrop keep the campaign.
 import type { GameState } from "../domain/types";
+import type { GameSummary } from "../persistence/GameRepo";
 import { summarizeCampaign } from "./campaignSummary";
 import type { HomeContext } from "./context";
 import { byId } from "./dom";
@@ -37,11 +38,14 @@ export function deleteWarning(synced: boolean): string {
 }
 
 /** Returns the function that asks; `onDeleted` runs after the list was redrawn. */
-export function setUpDeleteDialog(ctx: HomeContext, onDeleted: () => void): (game: GameState) => void {
+export function setUpDeleteDialog(
+  ctx: HomeContext,
+  onDeleted: () => void,
+): (game: GameState | GameSummary) => void {
   const dialog = byId<HTMLDialogElement>("delete-dialog");
   const confirm = byId<HTMLButtonElement>("delete-confirm");
   const error = byId("delete-error");
-  let deleting: GameState | null = null;
+  let deleting: GameState | GameSummary | null = null;
 
   byId("delete-cancel").addEventListener("click", () => dialog.close());
   dialog.addEventListener("click", (event) => {

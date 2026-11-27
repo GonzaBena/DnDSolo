@@ -2,6 +2,7 @@
 // model, so they always go in as text, never as HTML.
 import { campaignHref, playHref } from "../campaign/links";
 import type { GameState } from "../domain/types";
+import type { GameSummary } from "../persistence/GameRepo";
 import { STATUS_TEXT, type DriveRow } from "../sync/driveImport";
 import { summarizeCampaign } from "./campaignSummary";
 
@@ -40,7 +41,7 @@ function deleteButton(name: string, onClick: () => void): HTMLButtonElement {
 }
 
 /** A row of "Tus campañas" on the returning home: initials, name and a play link. */
-export function campaignRow(game: GameState): HTMLLIElement {
+export function campaignRow(game: GameState | GameSummary): HTMLLIElement {
   const summary = summarizeCampaign(game);
   const avatar = el("span", "campaign-row__avatar", summary.initials);
   avatar.setAttribute("aria-hidden", "true");
@@ -55,12 +56,12 @@ export function campaignRow(game: GameState): HTMLLIElement {
 }
 
 export interface SaveRowActions {
-  onExport(game: GameState): void;
-  onDelete(game: GameState): void;
+  onExport(game: GameState | GameSummary): void;
+  onDelete(game: GameState | GameSummary): void;
 }
 
 /** A row of "Ver todas": play, export and delete. */
-export function saveRow(game: GameState, actions: SaveRowActions): HTMLLIElement {
+export function saveRow(game: GameState | GameSummary, actions: SaveRowActions): HTMLLIElement {
   const { name, subtitle, detail } = summarizeCampaign(game);
   const text = el("div");
   text.append(el("strong", undefined, subtitle ? `${name}, ${subtitle}` : name), el("small", undefined, detail));

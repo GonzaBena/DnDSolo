@@ -33,21 +33,23 @@ export async function syncBeforeOpen(
  * sent while the Google window may be open (up to ~20 s), and `hold(false)`
  * the moment the turn itself starts. Call it synchronously in the handler.
  */
-export function sendAfterRenewal<T>(
+export async function sendAfterRenewal<T>(
   sync: SyncRuntime | null,
   hold: (on: boolean) => void,
   run: () => Promise<T>,
 ): Promise<T> {
   hold(true);
   let started = false;
-  return withRenewal(sync, () => {
-    started = true;
-    hold(false);
-    return run();
-  }).finally(() => {
+  try {
+    return await withRenewal(sync, () => {
+      started = true;
+      hold(false);
+      return run();
+    });
+  } finally {
     // The renewal itself threw before the turn could start.
     if (!started) hold(false);
-  });
+  }
 }
 
 /**

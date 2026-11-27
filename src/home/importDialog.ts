@@ -167,7 +167,7 @@ function setUpDriveHalf(ctx: HomeContext): () => void {
     show("Buscando en tu Drive…", null);
     list!.hidden = true;
     try {
-      const [remote, local] = await Promise.all([sync.listRemote(), ctx.repo.list()]);
+      const [remote, local] = await Promise.all([sync.listRemote(), ctx.repo.listSummaries()]);
       const rows = driveRows(remote, local);
       list!.replaceChildren(...rows.map(driveRow));
       list!.hidden = rows.length === 0;

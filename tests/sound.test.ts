@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { play, primeSounds, resetSoundsForTests, setSoundEnabled, soundEnabled } from "../src/audio/sound";
+import { EAGER_SOUNDS, play, primeSounds, resetSoundsForTests, setSoundEnabled, soundEnabled } from "../src/audio/sound";
 
 /** A stand-in AudioContext that records each sound started and its volume. */
 function fakeAudio(initialState = "running") {
@@ -163,5 +163,29 @@ describe("play", () => {
     vi.stubGlobal("fetch", () => Promise.reject(new Error("offline")));
     await unlock();
     expect(() => play("hit")).not.toThrow();
+  });
+
+  it("preloads only eager sounds on unlock and loads rare sounds on demand", async () => {
+    const started = fakeAudio();
+    const fetched: string[] = [];
+    vi.stubGlobal("fetch", (url: string) => {
+      fetched.push(url);
+      return Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) });
+    });
+
+    await unlock();
+    expect(fetched.sort()).toEqual(EAGER_SOUNDS.map((id) => `/sounds/${id}.mp3`).sort());
+
+    play("levelUp", 0.8);
+    expect(fetched).toContain("/sounds/levelUp.mp3");
+    await settle();
+    await settle();
+    expect(started).toEqual([{ gain: 0.8 }]);
+
+    // Playing it again uses the cached buffer without fetching again.
+    const countAfterFirst = fetched.length;
+    play("levelUp", 0.4);
+    expect(fetched).toHaveLength(countAfterFirst);
+    expect(started).toEqual([{ gain: 0.8 }, { gain: 0.4 }]);
   });
 });

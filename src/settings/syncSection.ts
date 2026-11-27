@@ -88,7 +88,7 @@ export function setUpSync(section: HTMLElement) {
   /** Before the first sync: the player picks which of this device's campaigns go up; the rest are deleted here. */
   const chooseLocalGames = async () => {
     const local = new IndexedDBGameRepo();
-    const games = await local.list().catch(() => []);
+    const games = await local.listSummaries().catch(() => []);
     const keep = await askWhichToKeep(games);
     for (const game of games) {
       if (!keep.has(game.id)) await local.delete(game.id).catch(() => undefined);

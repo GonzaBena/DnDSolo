@@ -18,8 +18,12 @@ export function describeAgo(iso: string, now: number): string {
 }
 
 /** "turno 42 · hace 2 h". Pure: `now` is passed in. */
-export function describeVersion(state: GameState, now: number): string {
-  return `turno ${state.turns.length} · ${describeAgo(state.updatedAt, now)}`;
+export function describeVersion(
+  state: Pick<GameState, "updatedAt"> & { turns?: unknown[]; turnCount?: number },
+  now: number,
+): string {
+  const turns = state.turnCount ?? state.turns?.length ?? 0;
+  return `turno ${turns} · ${describeAgo(state.updatedAt, now)}`;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {

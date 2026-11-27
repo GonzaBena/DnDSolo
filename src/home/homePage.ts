@@ -1,7 +1,7 @@
 // The home page: the first-visit landing or the returning player's campaigns,
 // the full list ("Ver todas"), import and delete, and keeping it all in step
 // with Drive when sync is on.
-import type { GameState } from "../domain/types";
+import type { GameSummary } from "../persistence/GameRepo";
 import { downloadGame } from "../persistence/exportGame";
 import { loadGis } from "../sync/gis";
 import { SYNC_TAPPED_EVENT } from "../sync/indicator";
@@ -26,7 +26,7 @@ function setHome(state: "first" | "returning") {
   }
 }
 
-function renderContinue(game: GameState) {
+function renderContinue(game: GameSummary) {
   const summary = summarizeCampaign(game);
   byId("continue-initials").textContent = summary.initials;
   byId("continue-name").textContent = summary.name;
@@ -39,7 +39,7 @@ function renderContinue(game: GameState) {
   byId("home-returning").dataset.ready = ""; // filled: CSS stops hiding it
 }
 
-function renderOthers(games: GameState[], total: number) {
+function renderOthers(games: GameSummary[], total: number) {
   // "Ver todas" stays even without others: it is the way to export or delete.
   const others = byId("others");
   byId("others-title").hidden = games.length === 0;
@@ -85,13 +85,24 @@ export function initHome(): void {
   setUpImportDialog(ctx);
 
   async function refresh() {
-    const games = await ctx.repo.list();
+    const games = await ctx.repo.listSummaries();
     const [latest, ...rest] = games;
     if (latest) renderContinue(latest);
     renderOthers(rest.slice(0, 2), games.length);
     setHome(latest ? "returning" : "first");
     byId("saves-empty").hidden = games.length > 0;
-    savesList.replaceChildren(...games.map((game) => saveRow(game, { onExport: downloadGame, onDelete: askDelete })));
+    savesList.replaceChildren(
+      ...games.map((game) =>
+        saveRow(game, {
+          onExport: (entry) => {
+            void ctx.repo.load(entry.id).then((full) => {
+              if (full) downloadGame(full);
+            });
+          },
+          onDelete: askDelete,
+        }),
+      ),
+    );
   }
 
   // Local first, so the list never waits for Drive.

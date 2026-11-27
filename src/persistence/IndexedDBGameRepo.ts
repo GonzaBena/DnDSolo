@@ -1,10 +1,11 @@
 import type { GameState } from "../domain/types";
 import { migrateSave } from "./migrations";
-import type { GameRepo } from "./GameRepo";
+import { extractGameSummary, type GameRepo, type GameSummary } from "./GameRepo";
 
 const DB_NAME = "dnsolo";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE = "games";
+const SUMMARIES_STORE = "summaries";
 const BY_UPDATED = "byUpdatedAt";
 
 function asPromise<T>(request: IDBRequest<T>): Promise<T> {
@@ -37,10 +38,27 @@ export class IndexedDBGameRepo implements GameRepo {
     this.db ??= new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
       request.onupgradeneeded = () => {
-        const store = request.result.createObjectStore(STORE, { keyPath: "id" });
-        // ISO timestamps sort chronologically as strings, so this index
-        // gives "latest game" without loading every save.
-        store.createIndex(BY_UPDATED, "updatedAt");
+        const db = request.result;
+        if (!db.objectStoreNames.contains(STORE)) {
+          const store = db.createObjectStore(STORE, { keyPath: "id" });
+          // ISO timestamps sort chronologically as strings, so this index
+          // gives "latest game" without loading every save.
+          store.createIndex(BY_UPDATED, "updatedAt");
+        }
+        if (!db.objectStoreNames.contains(SUMMARIES_STORE)) {
+          const summaries = db.createObjectStore(SUMMARIES_STORE, { keyPath: "id" });
+          summaries.createIndex(BY_UPDATED, "updatedAt");
+          const tx = request.transaction!;
+          const gamesStore = tx.objectStore(STORE);
+          const cursorReq = gamesStore.openCursor();
+          cursorReq.onsuccess = () => {
+            const cursor = cursorReq.result;
+            if (!cursor) return;
+            const summary = extractGameSummary(cursor.value);
+            if (summary) summaries.put(summary);
+            cursor.continue();
+          };
+        }
       };
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
@@ -49,8 +67,12 @@ export class IndexedDBGameRepo implements GameRepo {
   }
 
   async save(state: GameState): Promise<void> {
-    const transaction = (await this.open()).transaction(STORE, "readwrite");
+    const transaction = (await this.open()).transaction([STORE, SUMMARIES_STORE], "readwrite");
     transaction.objectStore(STORE).put(state);
+    const summary = extractGameSummary(state);
+    const summaries = transaction.objectStore(SUMMARIES_STORE);
+    if (summary) summaries.put(summary);
+    else if (typeof (state as { id?: unknown })?.id === "string") summaries.delete(state.id);
     // Resolve on transaction completion, not on the request: only then is
     // the write durable.
     await done(transaction);
@@ -92,9 +114,25 @@ export class IndexedDBGameRepo implements GameRepo {
     });
   }
 
+  async listSummaries(): Promise<GameSummary[]> {
+    const index = (await this.open()).transaction(SUMMARIES_STORE).objectStore(SUMMARIES_STORE).index(BY_UPDATED);
+    return new Promise((resolve, reject) => {
+      const summaries: GameSummary[] = [];
+      const request = index.openCursor(null, "prev");
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (!cursor) return resolve(summaries);
+        summaries.push(cursor.value as GameSummary);
+        cursor.continue();
+      };
+    });
+  }
+
   async delete(id: string): Promise<void> {
-    const transaction = (await this.open()).transaction(STORE, "readwrite");
+    const transaction = (await this.open()).transaction([STORE, SUMMARIES_STORE], "readwrite");
     transaction.objectStore(STORE).delete(id);
+    transaction.objectStore(SUMMARIES_STORE).delete(id);
     await done(transaction);
   }
 }

@@ -1,5 +1,5 @@
 import type { GameState } from "../domain/types";
-import type { GameRepo } from "../persistence/GameRepo";
+import type { GameRepo, GameSummary } from "../persistence/GameRepo";
 import { migrateSave } from "../persistence/migrations";
 import type { SyncBases } from "./bases";
 import { reconcile } from "./reconcile";
@@ -45,10 +45,10 @@ export interface SyncSummary {
   uploaded: number;
 }
 
-const toLocalEntry = (state: GameState): LocalEntry => ({
+const toLocalEntry = (state: GameState | GameSummary): LocalEntry => ({
   id: state.id,
   updatedAt: state.updatedAt,
-  turnCount: state.turns.length,
+  turnCount: "turnCount" in state ? state.turnCount : state.turns.length,
 });
 
 /**
@@ -86,7 +86,10 @@ export class SyncEngine {
       this.pending.clear();
       try {
         const bases = await this.basesForAccount();
-        const [localGames, remoteEntries] = await Promise.all([this.deps.local.list(), this.deps.remote.list()]);
+        const [localGames, remoteEntries] = await Promise.all([
+          this.deps.local.listSummaries(),
+          this.deps.remote.list(),
+        ]);
         const actions = reconcile(localGames.map(toLocalEntry), remoteEntries, bases.all());
         this.fullSyncOwed = false;
         const localById = new Map(localGames.map((g) => [g.id, g]));
@@ -115,9 +118,10 @@ export class SyncEngine {
   }
 
   /** Reconciles one game; tells the caller whether local changed. */
-  syncGame(id: string): Promise<"downloaded" | "unchanged"> {
+  async syncGame(id: string): Promise<"downloaded" | "unchanged"> {
     this.pending.add(id);
-    return this.enqueue(() => this.syncOne(id)).then((outcome) => (outcome === "downloaded" ? "downloaded" : "unchanged"));
+    const outcome = await this.enqueue(() => this.syncOne(id));
+    return outcome === "downloaded" ? "downloaded" : "unchanged";
   }
 
   /** Registers the guard for `id`; returns the unregister. */
@@ -221,8 +225,12 @@ export class SyncEngine {
     return this.deps.bases(await this.deps.remote.accountId());
   }
 
-  /** `seen` is the local state the action was decided on. */
-  private async apply(action: SyncAction, bases: SyncBases, seen: GameState | null): Promise<Outcome> {
+  /** `seen` is the local state/summary the action was decided on. */
+  private async apply(
+    action: SyncAction,
+    bases: SyncBases,
+    seen: { updatedAt: string } | null,
+  ): Promise<Outcome> {
     const { id } = action;
     switch (action.type) {
       case "upload":
@@ -259,7 +267,12 @@ export class SyncEngine {
   }
 
   /** `chosen`: the player picked Drive's copy in the dialog, so no guard can veto it. */
-  private async download(id: string, bases: SyncBases, seen: GameState | null, chosen = false): Promise<Outcome> {
+  private async download(
+    id: string,
+    bases: SyncBases,
+    seen: { updatedAt: string } | null,
+    chosen = false,
+  ): Promise<Outcome> {
     const state = await this.readRemote(id);
     if (!state) return "unchanged"; // missing, or from an unknown version: leave local alone
     const guard = this.guards.get(id);
@@ -289,7 +302,7 @@ export class SyncEngine {
     }
   }
 
-  private async deleteLocal(id: string, seen: GameState | null): Promise<boolean> {
+  private async deleteLocal(id: string, seen: { updatedAt: string } | null): Promise<boolean> {
     if (!(await this.localUnchangedSince(id, seen))) return false;
     await this.deps.local.delete(id);
     return true;
@@ -299,13 +312,16 @@ export class SyncEngine {
     id: string,
     kind: SyncConflict["kind"],
     bases: SyncBases,
-    seen: GameState | null,
+    seen: { updatedAt: string } | null,
   ): Promise<Outcome> {
     if (kind === "deleted_remotely" && this.restoring.delete(id)) return this.upload(id, bases);
-    const remote = kind === "both_changed" ? await this.readRemote(id) : null;
+    const [local, remote] = await Promise.all([
+      seen ? this.deps.local.load(id) : Promise.resolve(null),
+      kind === "both_changed" ? this.readRemote(id) : Promise.resolve(null),
+    ]);
     // Never offer (or upload over) a remote save this version can't read.
     if (kind === "both_changed" && !remote) return "unchanged";
-    const choice = await this.deps.resolveConflict({ id, kind, local: seen, remote });
+    const choice = await this.deps.resolveConflict({ id, kind, local, remote });
     if (choice === "local") return this.upload(id, bases);
     if (kind === "both_changed") return this.download(id, bases, seen, true);
     if (await this.deleteLocal(id, seen)) bases.forget(id);
@@ -318,7 +334,7 @@ export class SyncEngine {
 
   /** Guards local writes against a save that landed while Drive was answering.
       Best-effort: a save inside this single IndexedDB round trip can still race. */
-  private async localUnchangedSince(id: string, seen: GameState | null): Promise<boolean> {
+  private async localUnchangedSince(id: string, seen: { updatedAt: string } | null): Promise<boolean> {
     const now = await this.deps.local.load(id);
     return (now?.updatedAt ?? null) === (seen?.updatedAt ?? null);
   }

@@ -124,4 +124,35 @@ describe("IndexedDBGameRepo", () => {
     expect(llm.structuredRequests.at(-1)!.prompt).toContain("Un guardia bloquea el puente.");
     expect(llm.structuredRequests.at(-1)!.prompt).toContain("1d20+2 = 22");
   });
+
+  it("listSummaries returns lightweight metadata without touching unsupported saves", async () => {
+    const repo = new IndexedDBGameRepo();
+    const g = {
+      ...newGame(),
+      id: "summary-ok",
+      updatedAt: "2035-05-01T00:00:00.000Z",
+      turns: [
+        { number: 1, input: { type: "start" as const }, narration: "Entrás a la taberna.", events: [] },
+        { number: 2, input: { type: "action" as const, text: "Miro" }, narration: "   ", events: [] },
+      ],
+    };
+    await repo.save(g);
+    await repo.save({ ...newGame(), id: "summary-future", version: 999, updatedAt: "2099-05-01T00:00:00.000Z" });
+
+    const summaries = await repo.listSummaries();
+    const found = summaries.find((s) => s.id === "summary-ok");
+    expect(found).toEqual({
+      id: "summary-ok",
+      updatedAt: "2035-05-01T00:00:00.000Z",
+      campaignId: g.campaignId,
+      player: {
+        name: g.players[0]!.name,
+        characterClass: g.players[0]!.characterClass,
+        level: g.players[0]!.level,
+      },
+      turnCount: 2,
+      latestNarration: "Entrás a la taberna.",
+    });
+    expect(summaries.some((s) => s.id === "summary-future")).toBe(false);
+  });
 });

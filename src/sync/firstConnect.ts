@@ -1,5 +1,6 @@
 // First connection to Drive: which local campaigns to keep, and the toast with what the sync moved.
 import type { GameState } from "../domain/types";
+import type { GameSummary } from "../persistence/GameRepo";
 import { enterToast, leaveToast } from "../animations/motion";
 import { describeVersion } from "./conflictDialog";
 import type { SyncSummary } from "./SyncEngine";
@@ -21,8 +22,8 @@ export function describeSummary({ downloaded, uploaded }: SyncSummary): string {
 }
 
 /** "Aria, Mago nivel 3". Pure. */
-export function describeHero(game: GameState): string {
-  const player = game.players[0];
+export function describeHero(game: GameState | GameSummary): string {
+  const player = "player" in game ? game.player : game.players[0];
   return player ? `${player.name}, ${player.characterClass} nivel ${player.level}` : "Sin personaje";
 }
 
@@ -38,7 +39,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, t
  * with the ids to keep. Closing it any other way (Escape, backdrop) keeps
  * everything: nothing is deleted unless the player says so.
  */
-export function askWhichToKeep(games: GameState[]): Promise<Set<string>> {
+export function askWhichToKeep(games: (GameState | GameSummary)[]): Promise<Set<string>> {
   const all = new Set(games.map((g) => g.id));
   if (games.length === 0) return Promise.resolve(all);
   return new Promise((resolve) => {

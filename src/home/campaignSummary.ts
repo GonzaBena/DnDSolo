@@ -1,5 +1,6 @@
 import { findCampaign } from "../campaigns";
 import type { GameState } from "../domain/types";
+import type { GameSummary } from "../persistence/GameRepo";
 
 /** What the home screen shows about one saved campaign. */
 export interface CampaignSummary {
@@ -13,11 +14,15 @@ export interface CampaignSummary {
   excerpt: string;
 }
 
-export function summarizeCampaign(game: GameState): CampaignSummary {
-  const player = game.players[0];
+export function summarizeCampaign(game: GameState | GameSummary): CampaignSummary {
+  const isSummary = "turnCount" in game;
+  const player = isSummary ? game.player : game.players[0];
   const campaign = findCampaign(game.campaignId);
-  const turns = game.turns.length === 1 ? "1 turno" : `${game.turns.length} turnos`;
-  const latest = game.turns.findLast((turn) => turn.narration.trim() !== "");
+  const count = isSummary ? game.turnCount : game.turns.length;
+  const turns = count === 1 ? "1 turno" : `${count} turnos`;
+  const latestNarration = isSummary
+    ? game.latestNarration
+    : (game.turns.findLast((turn) => turn.narration.trim() !== "")?.narration ?? "");
   const playerLine = player ? `${player.characterClass} · nivel ${player.level}` : "";
   const subtitle = [playerLine, campaign?.title].filter(Boolean).join(" · ");
   return {
@@ -27,7 +32,7 @@ export function summarizeCampaign(game: GameState): CampaignSummary {
     // Array.from splits by code point, so an emoji stays whole.
     initials: Array.from(player?.name.trim() ?? "")[0]?.toUpperCase() ?? "?",
     detail: `${turns} · ${new Date(game.updatedAt).toLocaleDateString("es-AR")}`,
-    excerpt: latest ? narrationExcerpt(latest.narration) : "",
+    excerpt: latestNarration ? narrationExcerpt(latestNarration) : "",
   };
 }
 

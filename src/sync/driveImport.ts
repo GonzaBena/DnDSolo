@@ -1,5 +1,6 @@
 // The Drive half of the import dialog: what Drive holds, compared with this device.
 import type { GameState } from "../domain/types";
+import type { GameSummary } from "../persistence/GameRepo";
 import type { RemoteEntry } from "./types";
 
 /** "same": identical here. "newer_remote": Drive moved ahead. "newer_local": this device is ahead. "new": not here. */
@@ -19,13 +20,13 @@ export const STATUS_TEXT: Record<DriveRowStatus, string> = {
   new: "Nueva",
 };
 
-const localName = (game: GameState): string => {
-  const player = game.players[0];
+const localName = (game: GameState | GameSummary): string => {
+  const player = "player" in game ? game.player : game.players[0];
   return player ? `${player.name}, ${player.characterClass} nivel ${player.level}` : "Sin personaje";
 };
 
 /** Pure. Deleted campaigns are left out; the newest comes first. */
-export function driveRows(remote: RemoteEntry[], local: GameState[]): DriveRow[] {
+export function driveRows(remote: RemoteEntry[], local: (GameState | GameSummary)[]): DriveRow[] {
   const localById = new Map(local.map((game) => [game.id, game]));
   return remote
     .filter((entry) => !entry.deleted)
